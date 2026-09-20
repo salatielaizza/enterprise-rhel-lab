@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# =============================================================================
+# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-4)
+# Ejecuta 'scripts/lab.sh help' para ver los comandos.
+# Los scripts son envoltorios de los MISMOS comandos que se documentan a mano en
+# los .md: primero se practica a mano en una VM, después se repite con el script.
+# =============================================================================
+set -euo pipefail
+# shellcheck source=lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Uso: scripts/lab.sh <comando> [argumentos]
+
+Etapa 1 - Instalación
+  host-setup                      Instala KVM/libvirt, pools, clave SSH, ~/.ssh/lab_config
+  network                         Crea la red virtual lab-net (10.10.10.0/24, NAT)
+  iso [--check] [--only N]        Descarga y verifica las ISOs (download-isos.sh)
+  vm-create <host|all> [--force] [--dry-run]
+                                  Instala VMs con kickstart (pide una contraseña una vez)
+  register <host> <usuario-RH>    Registra la VM en Red Hat (la contraseña se pide en la VM)
+  snapshot <create|list|revert|delete> <host|all> [etapa]
+                                  Snapshots rhelN-stageM-complete
+  up|down <host|all>              Enciende / apaga (ACPI) las VMs
+  status                          Estado de las VMs y del SSH
+
+Etapa 2 - Administración Linux
+  stage2 <host|all>               usuarios, LVM, permisos, sudo y servicio systemd
+
+Etapa 3 - Networking
+  stage3 <host|all> [--lab-dns]   IP/gateway/hostname con nmcli. DNS de arranque 10.10.10.1;
+                                  con --lab-dns usa 10.10.10.20 (dns01)
+
+Etapa 4 - Servicios enterprise
+  stage4-dns                      BIND + chrony (servidor) en dns01
+  stage4-clients <host|all>       DNS del lab + chrony + endurecimiento SSH (dns01 incluido)
+  host-dns                        Enruta *.lab.local hacia dns01 en el host (resolvectl)
+
+Verificación y documentación
+  test <test_x.sh|all> <host|all> Ejecuta tests dentro de las VMs (p. ej. test_users.sh)
+  facts <host|all>                Recoge datos reales -> results/facts/<host>.env
+  matrix                          Genera comparison/matrix.generated.md desde esos datos
+EOF
+}
+
+# --- utilidades remotas ---------------------------------------------------------
+push() {  # copia los scripts y tests a ~/lab-scripts de la VM
+  local h="$1" ip; ip="$(ip_of "$h")"
+  ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$ip" 'rm -rf "$HOME/lab-scripts" && mkdir -p "$HOME/lab-scripts"'
+  scp -q -r "${SSH_OPTS[@]}" \
+    "$SCRIPTS_DIR/common.sh" "$SCRIPTS_DIR/collect-facts.sh" "$SCRIPTS_DIR/hosts.conf" \
+    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$LAB_ROOT/tests" \
+    "$LAB_ADMIN@$ip:lab-scripts/"
+}
+run_remote() {  # run_remote HOST ruta/relativa.sh [args...]  (como root, sin contraseña)
+  local h="$1" rel="$2"; shift 2
+  local cmd; cmd="$(printf '%q ' sudo -n bash "lab-scripts/$rel" "$@")"
+  # shellcheck disable=SC2029  # $cmd se construye en el cliente con printf %q a propósito
+  ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$(ip_of "$h")" "$cmd"
+}
+ensure_password() {
+  if [[ -z "${LAB_PASSWORD:-}" ]]; then
+    local p1 p2
+    read -rsp "Contraseña de root y adminlab para las VMs (solo laboratorio): " p1; echo
+    read -rsp "Repite la contraseña: " p2; echo
+    [[ -n "$p1" && "$p1" == "$p2" ]] || die "Las contraseñas no coinciden o están vacías"
+    export LAB_PASSWORD="$p1"
+  fi
+}
+vm_state() { virsh domstate "$1" 2>/dev/null | tr -d '[:space:]'; }
+
+# --- etapas ---------------------------------------------------------------------
+stage2() {
+  local h
+  for h in $(targets "$1"); do
+    info "=== Etapa 2 en $h ==="
+    push "$h"
+    local s
+    for s in 01-users-groups 02-lvm 03-permissions 04-sudo 05-systemd-app; do
+      info "$h: stage2/$s.sh"; run_remote "$h" "stage2/$s.sh"
+    done
+  done
+}
+stage3() {
+  local t="$1" dns="$LAB_GW" h; shift || true
+  [[ "${1:-}" == "--lab-dns" ]] && dns="$LAB_DNS_SERVER"
+  for h in $(targets "$t"); do
+    info "=== Etapa 3 en $h (DNS $dns) ==="
+    push "$h"
+    run_remote "$h" stage3/01-configure-network.sh --ip "$(ip_of "$h")" --gw "$LAB_GW" \
+      --dns "$dns" --hostname "$h.$LAB_DOMAIN" --domain "$LAB_DOMAIN"
+  done
+}
+stage4_dns() {
+  info "=== Etapa 4: BIND + chrony servidor en dns01 ==="
+  push dns01
+  run_remote dns01 stage4/01-setup-dns.sh
+  run_remote dns01 stage3/01-configure-network.sh --ip "$(ip_of dns01)" --gw "$LAB_GW" \
+    --dns "$LAB_DNS_SERVER" --hostname "dns01.$LAB_DOMAIN" --domain "$LAB_DOMAIN"
+  run_remote dns01 stage4/02-setup-chrony.sh --role server
+}
+stage4_clients() {
+  local h role
+  for h in $(targets "$1"); do
+    info "=== Etapa 4 (DNS lab + chrony + SSH) en $h ==="
+    push "$h"
+    run_remote "$h" stage3/01-configure-network.sh --ip "$(ip_of "$h")" --gw "$LAB_GW" \
+      --dns "$LAB_DNS_SERVER" --hostname "$h.$LAB_DOMAIN" --domain "$LAB_DOMAIN"
+    role=client; [[ "$h" == dns01 ]] && role=server
+    run_remote "$h" stage4/02-setup-chrony.sh --role "$role"
+    run_remote "$h" stage4/03-ssh-hardening.sh
+    # Segunda sesión NUEVA: comprueba que el acceso por clave sigue funcionando
+    if ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$(ip_of "$h")" true; then ok "$h: nueva sesión SSH OK tras el endurecimiento"
+    else warn "$h: NO entra por SSH. Entra por consola (virsh console $h) y restaura /etc/ssh/sshd_config.lab-bak.*"; fi
+  done
+}
+
+# --- despacho -------------------------------------------------------------------
+cmd="${1:-help}"; if [[ $# -gt 0 ]]; then shift; fi
+case "$cmd" in
+  help|-h|--help) usage ;;
+  host-setup) exec "$SCRIPTS_DIR/00-host-setup.sh" "$@" ;;
+  network)    exec "$SCRIPTS_DIR/01-create-network.sh" "$@" ;;
+  iso)        exec "$SCRIPTS_DIR/download-isos.sh" "$@" ;;
+  vm-create)
+    [[ $# -ge 1 ]] || die "Uso: lab.sh vm-create <host|all> [--force] [--dry-run]"
+    t="$1"; shift
+    list="$(targets "$t")"            # valida el nombre ANTES de pedir la contraseña
+    [[ " $* " == *" --dry-run "* ]] || ensure_password
+    for h in $list; do "$SCRIPTS_DIR/02-create-vm.sh" "$h" "$@"; done ;;
+  register)
+    [[ $# -eq 2 ]] || die "Uso: lab.sh register <host> <usuario-RH>"
+    host_row "$1" >/dev/null || die "Host desconocido: $1"
+    ssh -t "${SSH_OPTS[@]}" "$LAB_ADMIN@$(ip_of "$1")" "sudo subscription-manager register --username $(printf '%q' "$2")"
+    ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$(ip_of "$1")" 'sudo subscription-manager status || true' ;;
+  snapshot)
+    [[ $# -ge 2 ]] || die "Uso: lab.sh snapshot <create|list|revert|delete> <host|all> [etapa]"
+    for h in $(targets "$2"); do "$SCRIPTS_DIR/03-snapshot.sh" "$1" "$h" "${3:-}"; done ;;
+  up)
+    for h in $(targets "${1:?Uso: lab.sh up <host|all>}"); do
+      [[ "$(vm_state "$h")" == running ]] && { info "$h ya está encendida"; continue; }
+      virsh start "$h" >/dev/null && ok "$h encendida"
+    done ;;
+  down)
+    for h in $(targets "${1:?Uso: lab.sh down <host|all>}"); do
+      [[ "$(vm_state "$h")" == running ]] || { info "$h ya está apagada"; continue; }
+      virsh shutdown "$h" >/dev/null && ok "$h: apagado ACPI solicitado"
+    done ;;
+  status)
+    virsh list --all
+    printf '\n%-14s %-13s %-8s %s\n' HOST IP SSH SNAPSHOTS
+    for h in $(all_hosts); do
+      ssh_ok="--"; ssh "${SSH_OPTS[@]}" -o ConnectTimeout=2 "$LAB_ADMIN@$(ip_of "$h")" true 2>/dev/null && ssh_ok="OK"
+      snaps="$(virsh snapshot-list "$h" --name 2>/dev/null | grep . | tr '\n' ' ' || true)"
+      printf '%-14s %-13s %-8s %s\n' "$h" "$(ip_of "$h")" "$ssh_ok" "$snaps"
+    done ;;
+  stage2) stage2 "${1:?Uso: lab.sh stage2 <host|all>}" ;;
+  stage3) stage3 "${1:?Uso: lab.sh stage3 <host|all> [--lab-dns]}" "${@:2}" ;;
+  stage4-dns) stage4_dns ;;
+  stage4-clients) stage4_clients "${1:?Uso: lab.sh stage4-clients <host|all>}" ;;
+  host-dns)
+    need resolvectl
+    sudo resolvectl dns "$LAB_BRIDGE" "$LAB_DNS_SERVER"
+    sudo resolvectl domain "$LAB_BRIDGE" '~lab.local'
+    sudo resolvectl mdns "$LAB_BRIDGE" no
+    sudo resolvectl llmnr "$LAB_BRIDGE" no
+    resolvectl query dns01.lab.local || warn "Sin respuesta: ¿dns01 encendida y con BIND?"
+    info "Ajuste NO persistente. Nota: 'ssh x.lab.local' puede seguir fallando por nss-mdns (ver networking/dns.md); usa los alias de ~/.ssh/lab_config." ;;
+  test)
+    [[ $# -eq 2 ]] || die "Uso: lab.sh test <test_x.sh|all> <host|all>"
+    script="$1"; [[ "$script" == all ]] && script=run_all.sh
+    rc=0
+    for h in $(targets "$2"); do
+      info "=== $script en $h ==="; push "$h"
+      run_remote "$h" "tests/$script" || rc=1
+    done
+    exit "$rc" ;;
+  facts)
+    mkdir -p "$LAB_ROOT/results/facts"
+    for h in $(targets "${1:?Uso: lab.sh facts <host|all>}"); do
+      push "$h"; run_remote "$h" collect-facts.sh > "$LAB_ROOT/results/facts/$h.env"
+      ok "datos de $h -> results/facts/$h.env"
+    done ;;
+  matrix) exec "$SCRIPTS_DIR/build-matrix.sh" "$@" ;;
+  *) usage; die "Comando desconocido: $cmd" ;;
+esac

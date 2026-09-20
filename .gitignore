@@ -1,0 +1,10 @@
+# Secretos y temporales: nunca al repositorio
+*.iso
+*.qcow2
+*.ks
+*.dryrun.ks
+offline_token
+*.env.local
+lab_ed25519*
+known_hosts_lab
+results/facts/*.env

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Etapa 2/4 — Servicios: base del sistema y la aplicación lab-app (systemd)
+# shellcheck disable=SC2034  # TEST_NAME lo usa summary() de lib.sh
+TEST_NAME=test_services; source "$(dirname "$0")/lib.sh"; need_root
+for s in sshd chronyd firewalld rsyslog NetworkManager auditd; do
+  check "servicio $s activo" systemctl is-active --quiet "$s"
+done
+check "lab-app.service activo" systemctl is-active --quiet lab-app
+check "lab-app.service habilitado en el arranque" systemctl is-enabled --quiet lab-app
+check "lab-app: Restart=on-failure" bash -c 'systemctl show lab-app -p Restart | grep -qx Restart=on-failure'
+check "lab-app corre como appuser" bash -c '[[ "$(ps -o user= -p "$(systemctl show lab-app -p MainPID --value 2>/dev/null || systemctl show lab-app -p MainPID | cut -d= -f2)")" == appuser ]]'
+check "lab-app escribe en el journal" bash -c 'journalctl -u lab-app -n 1 --no-pager -q | grep -q heartbeat'
+check "lab-app escribe en /var/log/lab-app/app.log" bash -c 'test -s /var/log/lab-app/app.log'
+check "sin unidades systemd en estado failed" bash -c '[[ -z "$(systemctl list-units --state=failed --no-legend)" ]]'
+check "sin denegaciones SELinux (AVC) recientes de lab-app" bash -c '! ausearch -m avc -ts recent 2>/dev/null | grep -q lab-app'
+if [[ "$(hostname -s)" == dns01 ]]; then check "named activo (dns01)" systemctl is-active --quiet named; fi
+summary

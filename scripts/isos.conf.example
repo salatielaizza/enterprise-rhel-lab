@@ -1,0 +1,27 @@
+# Copia este fichero a ~/.config/rhel-lab/isos.conf:
+#   mkdir -p ~/.config/rhel-lab && cp isos.conf.example ~/.config/rhel-lab/isos.conf
+#
+# El offline token NO va aquí (es un secreto): vive aparte en
+# ~/.config/rhel-lab/offline_token con permisos 600.
+#
+# Dónde se guardan las ISOs:
+ISO_DIR="$HOME/rhel-lab/isos"
+
+# SHA-256 de las imágenes DVD (x86_64), tomados de la página oficial de descargas
+# de Red Hat Developer (https://developers.redhat.com/products/rhel/download)
+# el 2026-09-20. Se usa la DVD completa, no la Boot ISO.
+# Si Red Hat republica una ISO, el checksum cambiará: ejecuta
+#   ./download-isos.sh --check
+# para comprobar que la API los reconoce antes de descargar.
+
+# RHEL 7.9 (rhel-server-7.9-x86_64-dvd.iso, ~4,2 GB)
+RHEL7_SHA256="e373d3efe1a6e3f6d6de105d32c2632ee661363d6fe0c24285379b85f99437cb"
+
+# RHEL 8.10 (rhel-8.10-x86_64-dvd.iso, ~13,3 GB)
+RHEL8_SHA256="9b3c8e31bc2cdd2de9cf96abb3726347f5840ff3b176270647b3e66639af291b"
+
+# RHEL 9.8 (rhel-9.8-x86_64-dvd.iso, ~14,5 GB)
+RHEL9_SHA256="c0dd53b73406b85b40d6168d1748e605d71361b2992d282c408b7d7d2e1d2c80"
+
+# RHEL 10.2 (rhel-10.2-x86_64-dvd.iso, ~10,3 GB)
+RHEL10_SHA256="e15cb333529c332e76e4b1b946efe3515c99f996546675aec18e8effdf2540a5"
