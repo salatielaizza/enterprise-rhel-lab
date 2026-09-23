@@ -8,3 +8,6 @@ offline_token
 lab_ed25519*
 known_hosts_lab
 results/facts/*.env
+
+# Informes de auditoría del host: contienen usuario, hostname, IPs/MACs
+evidence/

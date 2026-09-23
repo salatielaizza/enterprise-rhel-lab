@@ -19,5 +19,8 @@ se diagnostica con evidencias y se valida. Formato: Objetivo · Preparación · 
 | 12 wrong-route | Ruta estática incorrecta | 3 |
 | 13 dns-wrong-record | Registro A erróneo en la zona | 4 |
 | 14 dns-wrong-zone | Zona que no carga | 4 |
+| 15 rhel10-bios-gpt-biosboot | RHEL 10 en BIOS: falta partición biosboot (GPT por defecto) | 1 |
+| 16 limpieza-scripts-alternativos-rhel10 | Consolidación: scripts alternativos de RHEL 10 eliminados en favor de lab.sh | 1 |
+| 17 rhel8-checksum-version-real-vs-planeada | RHEL 8: versión real instalada (8.6) distinta de la planeada (8.10) | 1 |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

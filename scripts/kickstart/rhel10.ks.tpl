@@ -24,6 +24,7 @@ ignoredisk --only-use=vda
 zerombr
 clearpart --all --initlabel --drives=vda
 bootloader --location=mbr --boot-drive=vda --append="console=tty0 console=ttyS0,115200n8"
+part biosboot --fstype=biosboot --size=1 --ondisk=vda
 part /boot --fstype=xfs --size=1024 --ondisk=vda
 part pv.01 --size=1 --grow --ondisk=vda
 volgroup vg_system pv.01

@@ -1,4 +1,4 @@
-# RHEL 8.10 — Diferencias
+# RHEL 8.6 — Diferencias (planeada 8.10; ver troubleshooting/17-rhel8-checksum-version-real-vs-planeada.md)
 
 Leyenda: **✔** confirmado en documentación oficial consultada · **◦** conocimiento general, **pendiente de verificar en la VM** (`lab.sh facts` + `lab.sh matrix`).
 Comparación con la versión anterior (RHEL 7.9).

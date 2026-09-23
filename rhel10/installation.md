@@ -1,64 +1,124 @@
-# RHEL 10.2 — Instalación
+# RHEL 10 — Instalación de rhel10-app01
 
-## 1. Objetivo
-Instalar **RHEL 10.2** (`rhel10-app01`) de forma reproducible con kickstart y dejar la VM lista para la Etapa 2.
+> Estado: **[NO VERIFICADO]** — procedimiento preparado y validado estáticamente
+> (`bash -n`, `shellcheck`, dry-run con libvirt simulado). Pendiente de ejecución real.
 
-## 2. Prerrequisitos
-- Host preparado (`lab.sh host-setup`, `lab.sh network`) y la ISO descargada y verificada (`lab.sh iso --only 10`).
-- Recursos: 3 GB de RAM, disco de sistema 20 GB (+ 10 GB de datos en los `app01`). CPU del host con x86-64-v3.
+## Objetivo
 
-## 3. Arquitectura / decisiones de instalación
-| Decisión | Valor | Motivo |
+Añadir una cuarta generación al laboratorio para comparar **RHEL 7 → 8 → 9 → 10**
+con una VM de función equivalente a `rhel7/8/9-app01`, sin alterar nombres, IPs
+ni estructura existentes.
+
+## Prerrequisitos
+
+| Requisito | Cómo se comprueba | Por qué |
 |---|---|---|
-| ISO | `rhel-10.2-x86_64-dvd.iso` (10,3 GB) | DVD completo: permite repo local sin red |
-| SHA-256 | `e15cb333529c332e76e4b1b946efe3515c99f996546675aec18e8effdf2540a5` | Verificado por `download-isos.sh` (valor del portal de Red Hat) |
-| Método | Kickstart (`scripts/kickstart/rhel10.ks.tpl`) + `virt-install --location` | Repetible |
-| Idioma / teclado / zona | `en_US.UTF-8` / `es` / `Europe/Madrid` (`LAB_TZ`) | Mensajes en inglés = fáciles de buscar |
-| Firmware / CPU | BIOS (SeaBIOS) / `host-passthrough` | Simplicidad; requisito de RHEL 10 |
-| Disco `vda` (20 GB) | `/boot` 1 GiB XFS + LVM `vg_system`: `lv_root` 8 GiB, `lv_swap` 2 GiB, `lv_var` 4 GiB (XFS) | Espacio libre en el VG (~5 GiB) para ejercicios |
-| Disco `vdb` (10 GB) | Sin tocar | Lo usa la Etapa 2 (LVM) |
-| Hostname / red | `rhel10-app01.lab.local`, IP 10.10.10.14/24, gw 10.10.10.1, DNS 10.10.10.1 (arranque) | Ver `architecture/` |
-| Usuarios | `adminlab` (UID 1001, wheel) + clave SSH; `root` con contraseña (modo emergencia); ambas se piden al crear la VM | Sin secretos en el repo |
-| SELinux / firewall | Enforcing / firewalld activo con `ssh` | Punto de partida enterprise |
-| Paquetes | `@^minimal-environment` + herramientas de administración y diagnóstico | Ver la sección `%packages` del kickstart |
-| Servicios | sshd, chronyd, qemu-guest-agent | — |
+| CPU del host x86-64-v3 (AVX2, BMI2, FMA, MOVBE…) | `scripts/00-host-audit.sh` | RHEL 10 sube el baseline de v2 a v3; sin ello el instalador no arranca |
+| Fase 1 (libvirt) y Fase 2 (`lab-net`) completadas | `virsh -r net-info lab-net` | La VM se conecta solo a lab-net |
+| ISO RHEL 10 DVD verificada | `scripts/download-isos.sh --verify --only rhel10` | Instalación offline y reproducible |
+| Clave pública SSH del administrador | `ls ~/.ssh/id_ed25519.pub` | Acceso sin contraseña; root bloqueado |
 
-## 4. Procedimiento (automatizado)
-```bash
-scripts/lab.sh vm-create rhel10-app01 --dry-run   # revisa el comando y /tmp/rhel10-app01.dryrun.ks
-scripts/lab.sh vm-create rhel10-app01             # pide la contraseña; instala; espera al SSH
-scripts/lab.sh register rhel10-app01 <usuario-Red-Hat>
-scripts/lab.sh test test_install.sh rhel10-app01
-scripts/lab.sh snapshot create rhel10-app01 1      # rhel10-stage1-complete
+[TEÓRICO] El i5-12400F (Alder Lake) y también el i5 de 6.ª gen (Skylake) del portátil
+soportan x86-64-v3. **Confírmalo con la auditoría**, no con esta tabla.
+
+## Arquitectura
+
+```text
+lab-net 10.10.10.0/24  (NAT libvirt, aislada de la red física)
+ ├─ rhel7-app01   10.10.10.11   legacy
+ ├─ rhel8-app01   10.10.10.12
+ ├─ rhel9-app01   10.10.10.13
+ ├─ rhel10-app01  10.10.10.14   ← NUEVO (sigue el patrón .11/.12/.13)
+ ├─ dns01         10.10.10.20
+ ├─ ansible01     10.10.10.30
+ ├─ rhel9-web01   10.10.10.40   (reservado)
+ └─ rhel9-monitor01 10.10.10.50 (reservado)
 ```
-Seguir el progreso: `virsh console rhel10-app01` (salir con `Ctrl+]`).
 
-## 5. Procedimiento manual equivalente (para aprender Anaconda)
-`virt-manager` → nueva VM desde ISO, 2 vCPU, RAM 3 GB, disco 20 GB virtio, red `lab-net`; en el instalador: idioma inglés, teclado español, zona horaria, destino **personalizado** (LVM, XFS, layout de la tabla), red con IP estática, contraseña de root, usuario `adminlab` como administrador, SELinux por defecto. Cada línea del kickstart corresponde a una de estas pantallas.
+Sizing: **2 vCPU / 2048 MiB / 30 GB qcow2 thin** (igual que el resto de app01; RHEL 10
+minimal no necesita más). Con 31 GB de RAM en el host, todas las VMs caben, pero no
+es necesario tener las cuatro app01 arrancadas a la vez salvo en pruebas comparativas.
 
-## 6. Validación
-`lab.sh test test_install.sh <host>` (versión, SELinux, firewalld, sshd, LVM, XFS, swap, adminlab) y a mano: `cat /etc/redhat-release; uname -r; lsblk -f; getenforce; firewall-cmd --list-all`.
+## Procedimiento
 
-## 7. Troubleshooting de la instalación
-- `virt-install` no encuentra la ISO o falla por permisos → la ISO debe estar en `/var/lib/libvirt/lab/isos` (no en `$HOME`).
-- Anaconda dice que no encuentra el medio → añade `inst.repo=cdrom` a `--extra-args` (comprobar con `virsh console`).
-- La VM no arranca tras borrar la ISO → `virsh domblklist <vm> --details`; el script expulsa la ISO al terminar (`change-media --eject`).
-- SSH no responde tras instalar → `virsh console`, revisar `/root/ks-post.log`, IP/gateway (`ip a`), firewall.
-- Error de `ksvalidator`/paquetes → `%packages --ignoremissing` omite los ausentes: comprueba qué falta con `rpm -q <paquete>`.
+1. Auditoría (solo lectura): `./scripts/00-host-audit.sh`
+2. Descargar ISO: `./scripts/download-isos.sh --dry-run --only rhel10` y luego sin `--dry-run`
+3. Dry-run de creación: `./scripts/02b-create-vm-rhel10.sh`
+4. Revisar la tabla "VM PROPUESTA" (Disk = qcow2, Network = lab-net)
+5. Crear: `./scripts/02b-create-vm-rhel10.sh --apply` (pide escribir `crear rhel10-app01`)
+6. Validar: `./tests/test_rhel10.sh --vm`
+7. Snapshot: `virsh -c qemu:///system snapshot-create-as rhel10-app01 rhel10-stage1-complete`
 
-## 8. Diferencias específicas de 10
-- Exige CPU **x86-64-v3** ✔ → la VM usa `--cpu host-passthrough` (el modelo QEMU por defecto no lo cumple).
-- Las opciones `inst.vnc*` del instalador se sustituyen por **`inst.rdp`** ✔ (no afecta: instalamos por consola serie).
-- `--os-variant`: el osinfo-db de Ubuntu 24.04 puede no conocer RHEL 10; `02-create-vm.sh` prueba `rhel10.x` y recurre a `rhel9-unknown`/`generic`.
-- Red: **ifcfg eliminado**: solo keyfile ✔; **`dhclient` eliminado** ✔ (NetworkManager usa su cliente interno).
-- Repositorios: BaseOS + AppStream tras registrar (o repo local desde la ISO).
-- Soporte: Versión más reciente; útil para descubrir cambios antes de migrar.
+## Comandos
 
-## 9. Automatización futura
-Ansible (Etapa 7) sustituirá los scripts de post-instalación; el kickstart se mantiene como base de aprovisionamiento.
+**`--cpu host-passthrough`** — qué hace: expone a la VM el modelo de CPU real del host.
+Por qué: los modelos genéricos de QEMU pueden no anunciar AVX2 y RHEL 10 fallaría
+("CPU not supported" / kernel panic temprano). Salida esperada dentro de la VM:
+`/lib64/ld-linux-x86-64.so.2 --help` muestra `x86-64-v3 (supported, searched)`.
+Si aparece sin `supported`, revisa `virsh dumpxml rhel10-app01 | grep cpu`.
+Contrapartida: una VM host-passthrough no es migrable en vivo a un host con otra CPU.
 
-## 10. Ejercicio
-Instala una VM extra manualmente con Anaconda y compara `anaconda-ks.cfg` (`/root/anaconda-ks.cfg`) con el kickstart del repositorio.
+**`--os-variant`** — le dice a libvirt qué dispositivos por defecto usar. Si el
+`osinfo-db` de Mint 22 no conoce `rhel10.x`, el script usa la mayor `rhel9.x`
+(mismos drivers virtio). Solo afecta a valores por defecto de hardware virtual,
+no a lo que se instala. Se documenta en la evidencia.
 
-## 11. Criterios de aceptación
-`test_install.sh` PASS; snapshot `rhel10-stage1-complete`; puedes explicar cada línea del kickstart.
+**`--location ISO --initrd-inject ks`** — virt-install extrae kernel/initrd de la ISO
+e inyecta el kickstart en el initrd; `inst.ks=file:/rhel10-app01.ks` lo usa.
+Ventaja frente a servir el kickstart por HTTP: no hay que abrir ningún puerto en el host.
+
+## Resultado esperado
+
+VM instalada sin interacción, arrancando desde `vda`, con `adminlab` en `wheel`,
+root bloqueado, SELinux Enforcing, firewalld con solo `ssh`, chronyd activo.
+
+## Validación
+
+`./tests/test_rhel10.sh --vm` → todas las líneas `PASS`, y un fichero
+`evidence/rhel10-app01/stage1-*.txt` con las salidas marcadas `[VERIFICADO][VM]`.
+
+## Troubleshooting
+
+| Síntoma | Comprobación | Causa probable |
+|---|---|---|
+| Kernel panic / "CPU not supported" al arrancar el instalador | `virsh dumpxml rhel10-app01 \| grep -A2 '<cpu'` | Falta host-passthrough |
+| `Could not access storage file ... Permission denied` | salida del dry-run §7 | libvirt-qemu no atraviesa tu `$HOME` (ver Permisos) |
+| Instalación se queda esperando | `virsh console rhel10-app01` | Error en kickstart (se muestra en consola) |
+| Sin red tras instalar | `nmcli con show` en la VM | `--gateway` distinto del real de lab-net |
+
+### Permisos (ISO dentro de tu home)
+
+En Ubuntu 24.04 / Mint 22 el home suele tener permisos 750 y el usuario
+`libvirt-qemu` no puede leer ISOs dentro. El script **se detiene** y no lo arregla solo.
+Opciones (requieren tu confirmación, modifican fuera del proyecto):
+
+- A) Copiar la ISO a `/var/lib/libvirt/images/iso/` (recomendado, no cambia permisos de tu home)
+- B) `setfacl -m u:libvirt-qemu:x` en cada directorio de la ruta (solo "atravesar", no listar)
+
+## Errores comunes
+
+- Usar el ISO "Boot" en lugar del "DVD": requiere red y registro para instalar.
+- Olvidar que RHEL 10 ya no soporta ficheros `ifcfg-*` (ver differences.md).
+- Suponer que VNC está disponible en el instalador (en RHEL 10 el acceso gráfico remoto es por RDP) [TEÓRICO].
+
+## Diferencias RHEL 7/8/9
+
+Ver `rhel10/differences.md` y la matriz de `comparison/`.
+
+## Automatización futura
+
+Etapa 7: el kickstart se convierte en plantilla Jinja2 y la creación en un rol
+`libvirt_vm`; los parámetros de esta VM pasan al inventario (`host_vars/rhel10-app01.yml`).
+
+## Ejercicio práctico
+
+Crea la VM con un modelo de CPU genérico (`--cpu qemu64`) en una VM de pruebas
+desechable y documenta el error. Explica por qué RHEL 9 sí arranca con ese modelo y RHEL 10 no.
+
+## Criterios de aceptación
+
+- [ ] `test_rhel10.sh --vm` todo PASS
+- [ ] Evidencia guardada en `evidence/rhel10-app01/`
+- [ ] Snapshot `rhel10-stage1-complete` creado
+- [ ] Registro DNS A/PTR añadido en dns01 (Etapa 4)
+- [ ] Columna RHEL 10 de la matriz rellenada con datos `[VERIFICADO]`

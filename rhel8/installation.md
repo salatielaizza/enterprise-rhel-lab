@@ -1,4 +1,4 @@
-# RHEL 8.10 — Instalación
+# RHEL 8.6 — Instalación (planeada 8.10; ver troubleshooting/17-rhel8-checksum-version-real-vs-planeada.md)
 
 ## 1. Objetivo
 Instalar **RHEL 8.10** (`rhel8-app01`) de forma reproducible con kickstart y dejar la VM lista para la Etapa 2.
