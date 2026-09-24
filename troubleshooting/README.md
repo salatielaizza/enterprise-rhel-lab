@@ -25,5 +25,6 @@ se diagnostica con evidencias y se valida. Formato: Objetivo · Preparación · 
 | 18 ssh-lento-usedns-fqdn-inexistente | SSH ~80s por conexión: UseDNS + FQDN inexistente (lab.local sin dns01 aún) | 2-3 |
 | 19 findmnt-multiple-args-exit1 | stage2/02-lvm.sh se detiene tras "Montajes:": findmnt con varias rutas devuelve 1 | 2 |
 | 20 ausearch-colgado-timeout | test_services.sh se cuelga indefinidamente: ausearch sin responder | 2 |
+| 21 acl-heredada-lab-app-env-modo-650 | lab-app.env queda en 650 en vez de 640: ACL heredada del directorio config | 2 |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

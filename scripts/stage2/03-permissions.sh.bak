@@ -34,7 +34,6 @@ setfacl -m d:g:developers:rx /opt/application/config /opt/application/data
 if [[ ! -f /opt/application/config/lab-app.env ]]; then
   printf 'LAB_APP_INTERVAL=5\nLAB_APP_CRASH_AFTER=0\n' > /opt/application/config/lab-app.env
 fi
-setfacl -b /opt/application/config/lab-app.env
 chown root:application /opt/application/config/lab-app.env
 chmod 0640 /opt/application/config/lab-app.env
 setfacl -m g:developers:r /opt/application/config/lab-app.env
