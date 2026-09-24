@@ -2,21 +2,21 @@
 
 Laboratorio para **comparar RHEL 7, 8, 9 y 10** y practicar administración empresarial sobre KVM/libvirt.
 El plan cubre las **Etapas 1-4** (instalación, administración Linux, networking, servicios enterprise
-básicos); por ahora la Etapa 1 está **completa** y la Etapa 2 **en operación** (ejecutada en las 6 VMs,
-con algunos `FAIL` de test aún en investigación); las Etapas 3 y 4 siguen **planificadas**. Regla del
-proyecto: *manual → documentado → repetible → automatizado*.
+básicos); por ahora las Etapas 1 y 2 están **completas** (validadas con `0 FAIL` en las 6 VMs); las
+Etapas 3 y 4 siguen **planificadas**. Regla del proyecto: *manual → documentado → repetible → automatizado*.
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1 y 2** de un plan de **19 etapas** (Etapa 1 completa, Etapa 2
-en operación con validación en curso). Las Etapas 3 y 4 ya tienen su automatización y documentación
-escritas, pero siguen **planificadas**, pendientes de ejecutar; las Etapas 5-19 están planificadas pero
-**no empezadas** — este es un proyecto vivo, no cerrado.
+Este repositorio cubre hoy las **Etapas 1 y 2** de un plan de **19 etapas**, ambas completas y
+validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`, `dns01`,
+`ansible01`). Las Etapas 3 y 4 ya tienen su automatización y documentación escritas, pero siguen
+**planificadas**, pendientes de ejecutar; las Etapas 5-19 están planificadas pero **no empezadas** —
+este es un proyecto vivo, no cerrado.
 
 | Etapa | Contenido | Estado |
 |---|---|---|
 | 1 | 💿 Instalación (RHEL 7/8/9/10, kickstart, KVM/libvirt) | ✅ Completa |
-| 2 | 👥 Administración Linux (usuarios, permisos, sudo, systemd, LVM, paquetes, logs) | 🟡 En operación |
+| 2 | 👥 Administración Linux (usuarios, permisos, sudo, systemd, LVM, paquetes, logs) | ✅ Completa |
 | 3 | 🌐 Networking (NetworkManager, diagnóstico por capas) | ⏳ Planificada |
 | 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ⏳ Planificada |
 | 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ⏳ Planificada |

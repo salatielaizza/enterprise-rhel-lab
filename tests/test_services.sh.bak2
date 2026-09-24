@@ -9,7 +9,7 @@ check "lab-app.service activo" systemctl is-active --quiet lab-app
 check "lab-app.service habilitado en el arranque" systemctl is-enabled --quiet lab-app
 check "lab-app: Restart=on-failure" bash -c 'systemctl show lab-app -p Restart | grep -qx Restart=on-failure'
 check "lab-app corre como appuser" bash -c '[[ "$(ps -o user= -p "$(systemctl show lab-app -p MainPID --value 2>/dev/null || systemctl show lab-app -p MainPID | cut -d= -f2)")" == appuser ]]'
-check "lab-app escribe en el journal" bash -c 'journalctl -t lab-app -n 1 --no-pager -q | grep -q heartbeat'
+check "lab-app escribe en el journal" bash -c 'journalctl -u lab-app -n 1 --no-pager -q | grep -q heartbeat'
 check "lab-app escribe en /var/log/lab-app/app.log" bash -c 'test -s /var/log/lab-app/app.log'
 check "sin unidades systemd en estado failed" bash -c '[[ -z "$(systemctl list-units --state=failed --no-legend)" ]]'
 check "sin denegaciones SELinux (AVC) recientes de lab-app" bash -c '! timeout 8 ausearch -m avc -ts recent 2>/dev/null | grep -q lab-app'
