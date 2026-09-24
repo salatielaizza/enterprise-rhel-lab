@@ -1,20 +1,24 @@
 # 🧪 Enterprise RHEL Infrastructure Lab
 
 Laboratorio para **comparar RHEL 7, 8, 9 y 10** y practicar administración empresarial sobre KVM/libvirt.
-Este repositorio cubre las **Etapas 1-4** (instalación, administración Linux, networking, servicios enterprise
-básicos) con la regla del proyecto: *manual → documentado → repetible → automatizado*.
+El plan cubre las **Etapas 1-4** (instalación, administración Linux, networking, servicios enterprise
+básicos); por ahora la Etapa 1 está **completa** y la Etapa 2 **en operación** (ejecutada en las 6 VMs,
+con algunos `FAIL` de test aún en investigación); las Etapas 3 y 4 siguen **planificadas**. Regla del
+proyecto: *manual → documentado → repetible → automatizado*.
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1-4** de un plan de **19 etapas**. Las etapas 5-19
-están planificadas pero **no empezadas** — este es un proyecto vivo, no cerrado.
+Este repositorio cubre hoy las **Etapas 1 y 2** de un plan de **19 etapas** (Etapa 1 completa, Etapa 2
+en operación con validación en curso). Las Etapas 3 y 4 ya tienen su automatización y documentación
+escritas, pero siguen **planificadas**, pendientes de ejecutar; las Etapas 5-19 están planificadas pero
+**no empezadas** — este es un proyecto vivo, no cerrado.
 
 | Etapa | Contenido | Estado |
 |---|---|---|
 | 1 | 💿 Instalación (RHEL 7/8/9/10, kickstart, KVM/libvirt) | ✅ Completa |
-| 2 | 👥 Administración Linux (usuarios, permisos, sudo, systemd, LVM, paquetes, logs) | ✅ Completa |
-| 3 | 🌐 Networking (NetworkManager, diagnóstico por capas) | ✅ Completa |
-| 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ✅ Completa |
+| 2 | 👥 Administración Linux (usuarios, permisos, sudo, systemd, LVM, paquetes, logs) | 🟡 En operación |
+| 3 | 🌐 Networking (NetworkManager, diagnóstico por capas) | ⏳ Planificada |
+| 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ⏳ Planificada |
 | 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ⏳ Planificada |
 | 6 | 📜 Bash avanzado y scripting | ⏳ Planificada |
 | 7 | 🤖 Ansible (automatización, inventario, roles) | ⏳ Planificada |
@@ -36,7 +40,7 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 `ansible01` (10.10.10.30) ya está reservada para la Etapa 7, y `rhel9-web01`/`rhel9-monitor01`
 (10.10.10.40/.50) para las etapas 9 y 15.
 
-## ✅ Contenido de las etapas completas (1-4)
+## 🔧 Contenido de las Etapas 1-4 (automatización y documentación ya escritas)
 
 | Etapa | Contenido | Automatización | Documentación |
 |---|---|---|---|
