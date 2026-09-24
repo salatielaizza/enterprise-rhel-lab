@@ -50,8 +50,5 @@ add_mount lv_backup      /backup
 systemctl daemon-reload            # regenera las unidades .mount desde fstab
 mount -a
 restorecon -RF /opt/application/data /var/log/lab-app /backup || true
-say "Montajes:"
-for mp in /opt/application/data /var/log/lab-app /backup; do
-  findmnt -no TARGET,SOURCE,FSTYPE "$mp" || true
-done
+say "Montajes:"; findmnt -no TARGET,SOURCE,FSTYPE /opt/application/data /var/log/lab-app /backup
 vgs vg_data

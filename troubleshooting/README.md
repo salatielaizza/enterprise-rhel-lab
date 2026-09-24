@@ -22,5 +22,6 @@ se diagnostica con evidencias y se valida. Formato: Objetivo · Preparación · 
 | 15 rhel10-bios-gpt-biosboot | RHEL 10 en BIOS: falta partición biosboot (GPT por defecto) | 1 |
 | 16 limpieza-scripts-alternativos-rhel10 | Consolidación: scripts alternativos de RHEL 10 eliminados en favor de lab.sh | 1 |
 | 17 rhel8-checksum-version-real-vs-planeada | RHEL 8: versión real instalada (8.6) distinta de la planeada (8.10) | 1 |
+| 18 ssh-lento-usedns-fqdn-inexistente | SSH ~80s por conexión: UseDNS + FQDN inexistente (lab.local sin dns01 aún) | 2-3 |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

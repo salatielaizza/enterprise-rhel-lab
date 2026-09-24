@@ -52,7 +52,8 @@ LoginGraceTime 30
 X11Forwarding no
 ClientAliveInterval 300
 ClientAliveCountMax 2
-AllowGroups sysadmins developers application backup sftponly'
+AllowGroups sysadmins developers application backup sftponly
+UseDNS no'
 
 MATCH='Match Group sftponly
     ChrootDirectory /srv/sftp/%u
