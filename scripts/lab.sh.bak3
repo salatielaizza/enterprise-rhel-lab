@@ -48,7 +48,7 @@ EOF
 push() {  # copia los scripts y tests a ~/lab-scripts de la VM
   local h="$1" ip; ip="$(ip_of "$h")"
   ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$ip" 'rm -rf "$HOME/lab-scripts" && mkdir -p "$HOME/lab-scripts"'
-  scp -O -q -r "${SSH_OPTS[@]}" \
+  scp -q -r "${SSH_OPTS[@]}" \
     "$SCRIPTS_DIR/common.sh" "$SCRIPTS_DIR/collect-facts.sh" "$SCRIPTS_DIR/hosts.conf" \
     "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$LAB_ROOT/tests" \
     "$LAB_ADMIN@$ip:lab-scripts/"

@@ -12,6 +12,6 @@ check "lab-app corre como appuser" bash -c '[[ "$(ps -o user= -p "$(systemctl sh
 check "lab-app escribe en el journal" bash -c 'journalctl -u lab-app -n 1 --no-pager -q | grep -q heartbeat'
 check "lab-app escribe en /var/log/lab-app/app.log" bash -c 'test -s /var/log/lab-app/app.log'
 check "sin unidades systemd en estado failed" bash -c '[[ -z "$(systemctl list-units --state=failed --no-legend)" ]]'
-check "sin denegaciones SELinux (AVC) recientes de lab-app" bash -c '! timeout 8 ausearch -m avc -ts recent 2>/dev/null | grep -q lab-app'
+check "sin denegaciones SELinux (AVC) recientes de lab-app" bash -c '! ausearch -m avc -ts recent 2>/dev/null | grep -q lab-app'
 if [[ "$(hostname -s)" == dns01 ]]; then check "named activo (dns01)" systemctl is-active --quiet named; fi
 summary
