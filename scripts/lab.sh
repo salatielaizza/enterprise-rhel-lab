@@ -69,6 +69,11 @@ ensure_password() {
   fi
 }
 vm_state() { virsh domstate "$1" 2>/dev/null | tr -d '[:space:]'; }
+fmt_time() {  # segundos -> "Ns" (menos de 1 min) o "Mm SSs" (1 min o más)
+  local s=$1
+  if (( s < 60 )); then printf '%ds' "$s"
+  else printf '%dm%02ds' $((s / 60)) $((s % 60)); fi
+}
 
 # --- etapas ---------------------------------------------------------------------
 stage2() {
@@ -171,22 +176,26 @@ case "$cmd" in
     [[ $# -eq 2 ]] || die "Uso: lab.sh test <test_x.sh|all> <host|all>"
     script="$1"; [[ "$script" == all ]] && script=run_all.sh
     rc=0
-    declare -A SUM_P SUM_F SUM_S
+    declare -A SUM_P SUM_F SUM_S SUM_T   # PASS/FAIL/estado/tiempo por host, para la tabla final
     HOSTS_RUN=()
     for h in $(targets "$2"); do
       info "=== $script en $h ==="; push "$h"
+      t0=$SECONDS
       if out="$(run_remote "$h" "tests/$script" 2>&1)"; then
         ec=0
       else
         ec=$?
       fi
+      dt=$((SECONDS - t0))
       printf '%s\n' "$out"
       [[ $ec -ne 0 ]] && rc=1
       HOSTS_RUN+=("$h")
+      SUM_T[$h]="$(fmt_time "$dt")"
       line="$(printf '%s\n' "$out" | grep '^##HOST_SUMMARY##' | tail -n1)"
       if [[ -n "$line" ]]; then
-        read -r _ _ p f st <<<"$line"
+        read -r _ _ p f st rt <<<"$line"
         SUM_P[$h]="$p"; SUM_F[$h]="$f"; SUM_S[$h]="$st"
+        [[ -n "$rt" ]] && SUM_T[$h]="$rt"
       else
         line="$(printf '%s\n' "$out" | grep -E '^--- .* [0-9]+ PASS, [0-9]+ FAIL$' | tail -n1)"
         if [[ -n "$line" ]]; then
@@ -200,9 +209,9 @@ case "$cmd" in
     done
     echo
     info "=== RESULTADO GLOBAL (${#HOSTS_RUN[@]} host(s)) ==="
-    printf '%-16s %-8s %-8s %s\n' "HOST" "PASS" "FAIL" "ESTADO"
+    printf '%-16s %-8s %-8s %-8s %s\n' "HOST" "PASS" "FAIL" "TIEMPO" "ESTADO"
     for h in "${HOSTS_RUN[@]}"; do
-      printf '%-16s %-8s %-8s %s\n' "$h" "${SUM_P[$h]}" "${SUM_F[$h]}" "${SUM_S[$h]}"
+      printf '%-16s %-8s %-8s %-8s %s\n' "$h" "${SUM_P[$h]}" "${SUM_F[$h]}" "${SUM_T[$h]}" "${SUM_S[$h]}"
     done
     echo
     if [[ $rc -eq 0 ]]; then ok "RESULTADO GLOBAL: OK — todas las VMs sin FAIL"

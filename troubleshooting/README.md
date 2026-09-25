@@ -29,5 +29,6 @@ se diagnostica con evidencias y se valida. Formato: Objetivo · Preparación · 
 | 22 pwck-usuario-ftp-var-ftp-inexistente | pwck: usuario ftp sin /var/ftp (solo RHEL 7) | 2 |
 | 23 journalctl-u-no-encuentra-lab-app-rhel8 | journalctl -u no encuentra heartbeats en RHEL 8; usar -t | 2 |
 | 24 tabla-resumen-tests-set-e-command-substitution | Regresión scp -O + set -e con out="$(...)"; ec=$? en lab.sh test | 3 |
+| 25 medicion-tiempo-por-test-y-tabla-final | Medición de tiempo por sub-test/VM (fmt_time Ns/Mm SSs) + ediciones vim fallidas | 3 |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

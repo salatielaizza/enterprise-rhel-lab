@@ -171,10 +171,45 @@ case "$cmd" in
     [[ $# -eq 2 ]] || die "Uso: lab.sh test <test_x.sh|all> <host|all>"
     script="$1"; [[ "$script" == all ]] && script=run_all.sh
     rc=0
+    declare -A SUM_P SUM_F SUM_S SUM_T   # PASS/FAIL/estado/tiempo por host, para la tabla final
+    HOSTS_RUN=()
     for h in $(targets "$2"); do
       info "=== $script en $h ==="; push "$h"
-      run_remote "$h" "tests/$script" || rc=1
+      t0=$SECONDS
+      if out="$(run_remote "$h" "tests/$script" 2>&1)"; then
+        ec=0
+      else
+        ec=$?
+      fi
+      dt=$((SECONDS - t0))
+      printf '%s\n' "$out"
+      [[ $ec -ne 0 ]] && rc=1
+      HOSTS_RUN+=("$h")
+      SUM_T[$h]="${dt}s"
+      line="$(printf '%s\n' "$out" | grep '^##HOST_SUMMARY##' | tail -n1)"
+      if [[ -n "$line" ]]; then
+        read -r _ _ p f st <<<"$line"
+        SUM_P[$h]="$p"; SUM_F[$h]="$f"; SUM_S[$h]="$st"
+      else
+        line="$(printf '%s\n' "$out" | grep -E '^--- .* [0-9]+ PASS, [0-9]+ FAIL$' | tail -n1)"
+        if [[ -n "$line" ]]; then
+          SUM_P[$h]="$(sed -E 's/.*: ([0-9]+) PASS,.*/\1/' <<<"$line")"
+          SUM_F[$h]="$(sed -E 's/.*, ([0-9]+) FAIL$/\1/' <<<"$line")"
+          SUM_S[$h]=$([[ $ec -eq 0 ]] && echo OK || echo FALLOS)
+        else
+          SUM_P[$h]="-"; SUM_F[$h]="-"; SUM_S[$h]=$([[ $ec -eq 0 ]] && echo OK || echo FALLOS)
+        fi
+      fi
     done
+    echo
+    info "=== RESULTADO GLOBAL (${#HOSTS_RUN[@]} host(s)) ==="
+    printf '%-16s %-8s %-8s %-8s %s\n' "HOST" "PASS" "FAIL" "TIEMPO" "ESTADO"
+    for h in "${HOSTS_RUN[@]}"; do
+      printf '%-16s %-8s %-8s %-8s %s\n' "$h" "${SUM_P[$h]}" "${SUM_F[$h]}" "${SUM_T[$h]}" "${SUM_S[$h]}"
+    done
+    echo
+    if [[ $rc -eq 0 ]]; then ok "RESULTADO GLOBAL: OK — todas las VMs sin FAIL"
+    else warn "RESULTADO GLOBAL: HAY FALLOS — revisa la tabla de arriba"; fi
     exit "$rc" ;;
   facts)
     mkdir -p "$LAB_ROOT/results/facts"
