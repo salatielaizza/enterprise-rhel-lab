@@ -2,22 +2,22 @@
 
 Laboratorio para **comparar RHEL 7, 8, 9 y 10** y practicar administración empresarial sobre KVM/libvirt.
 El plan cubre las **Etapas 1-4** (instalación, administración Linux, networking, servicios enterprise
-básicos); por ahora las Etapas 1 y 2 están **completas** (validadas con `0 FAIL` en las 6 VMs); las
-Etapas 3 y 4 siguen **planificadas**. Regla del proyecto: *manual → documentado → repetible → automatizado*.
+básicos); por ahora las Etapas 1, 2 y 3 están **completas** (validadas con `0 FAIL` en las 6 VMs); la
+Etapa 4 sigue **planificada**. Regla del proyecto: *manual → documentado → repetible → automatizado*.
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1 y 2** de un plan de **19 etapas**, ambas completas y
+Este repositorio cubre hoy las **Etapas 1, 2 y 3** de un plan de **19 etapas**, las tres completas y
 validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`, `dns01`,
-`ansible01`). Las Etapas 3 y 4 ya tienen su automatización y documentación escritas, pero siguen
-**planificadas**, pendientes de ejecutar; las Etapas 5-19 están planificadas pero **no empezadas** —
-este es un proyecto vivo, no cerrado.
+`ansible01`; el único FAIL que aparece, `named` en dns01, es esperado hasta ejecutar la Etapa 4). La
+Etapa 4 ya tiene su automatización y documentación escritas, pero sigue **planificada**, pendiente de
+ejecutar; las Etapas 5-19 están planificadas pero **no empezadas** — este es un proyecto vivo, no cerrado.
 
 | Etapa | Contenido | Estado |
 |---|---|---|
 | 1 | 💿 Instalación (RHEL 7/8/9/10, kickstart, KVM/libvirt) | ✅ Completa |
 | 2 | 👥 Administración Linux (usuarios, permisos, sudo, systemd, LVM, paquetes, logs) | ✅ Completa |
-| 3 | 🌐 Networking (NetworkManager, diagnóstico por capas) | ⏳ Planificada |
+| 3 | 🌐 Networking (NetworkManager, diagnóstico por capas) | ✅ Completa |
 | 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ⏳ Planificada |
 | 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ⏳ Planificada |
 | 6 | 📜 Bash avanzado y scripting | ⏳ Planificada |
