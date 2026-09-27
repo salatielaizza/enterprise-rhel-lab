@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-4)
+# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-6)
 # Ejecuta 'scripts/lab.sh help' para ver los comandos.
 # Los scripts son envoltorios de los MISMOS comandos que se documentan a mano en
 # los .md: primero se practica a mano en una VM, después se repite con el script.
@@ -37,6 +37,12 @@ Etapa 4 - Servicios enterprise
   stage4-clients <host|all>       DNS del lab + chrony + endurecimiento SSH (dns01 incluido)
   host-dns                        Enruta *.lab.local hacia dns01 en el host (resolvectl)
 
+Etapa 5 - Seguridad
+  stage5 <host|all>               SELinux enforcing, reglas de auditd, hardening del SO
+
+Etapa 6 - Bash avanzado y scripting
+  stage6 <host|all>               Instala lab-healthcheck.sh/lab-logscan.sh + temporizador systemd
+
 Verificación y documentación
   test <test_x.sh|all> <host|all> Ejecuta tests dentro de las VMs (p. ej. test_users.sh)
   facts <host|all>                Recoge datos reales -> results/facts/<host>.env
@@ -50,7 +56,7 @@ push() {  # copia los scripts y tests a ~/lab-scripts de la VM
   ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$ip" 'rm -rf "$HOME/lab-scripts" && mkdir -p "$HOME/lab-scripts"'
   scp -O -q -r "${SSH_OPTS[@]}" \
     "$SCRIPTS_DIR/common.sh" "$SCRIPTS_DIR/collect-facts.sh" "$SCRIPTS_DIR/hosts.conf" \
-    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$LAB_ROOT/tests" \
+    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$LAB_ROOT/tests" \
     "$LAB_ADMIN@$ip:lab-scripts/"
 }
 run_remote() {  # run_remote HOST ruta/relativa.sh [args...]  (como root, sin contraseña)
@@ -120,6 +126,24 @@ stage4_clients() {
     else warn "$h: NO entra por SSH. Entra por consola (virsh console $h) y restaura /etc/ssh/sshd_config.lab-bak.*"; fi
   done
 }
+stage5() {
+  local h
+  for h in $(targets "$1"); do
+    info "=== Etapa 5 (seguridad) en $h ==="
+    push "$h"
+    run_remote "$h" stage5/01-selinux-hardening.sh
+    run_remote "$h" stage5/02-audit-rules.sh
+    run_remote "$h" stage5/03-os-hardening.sh
+  done
+}
+stage6() {
+  local h
+  for h in $(targets "$1"); do
+    info "=== Etapa 6 (bash avanzado) en $h ==="
+    push "$h"
+    run_remote "$h" stage6/01-bash-tools.sh
+  done
+}
 
 # --- despacho -------------------------------------------------------------------
 cmd="${1:-help}"; if [[ $# -gt 0 ]]; then shift; fi
@@ -164,6 +188,8 @@ case "$cmd" in
   stage3) stage3 "${1:?Uso: lab.sh stage3 <host|all> [--lab-dns]}" "${@:2}" ;;
   stage4-dns) stage4_dns ;;
   stage4-clients) stage4_clients "${1:?Uso: lab.sh stage4-clients <host|all>}" ;;
+  stage5) stage5 "${1:?Uso: lab.sh stage5 <host|all>}" ;;
+  stage6) stage6 "${1:?Uso: lab.sh stage6 <host|all>}" ;;
   host-dns)
     need resolvectl
     sudo resolvectl dns "$LAB_BRIDGE" "$LAB_DNS_SERVER"

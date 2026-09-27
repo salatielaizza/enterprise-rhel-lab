@@ -30,6 +30,8 @@ tests=(test_install.sh)
 [[ $stage -ge 2 ]] && tests+=(test_users.sh test_permissions.sh test_storage.sh test_services.sh)
 [[ $stage -ge 3 ]] && tests+=(test_network.sh)
 [[ $stage -ge 4 ]] && tests+=(test_dns.sh test_time.sh test_ssh.sh)
+[[ $stage -ge 5 ]] && tests+=(test_selinux.sh test_audit.sh test_hardening.sh)
+[[ $stage -ge 6 ]] && tests+=(test_bash_tools.sh)
 for t in "${tests[@]}"; do
   echo; echo "### $t"
   t0=$SECONDS

@@ -1,0 +1,51 @@
+.
+├── 00-host-audit.sh
+├── 00-host-setup.sh
+├── 01-create-network.sh
+├── 02-create-vm.sh
+├── 03-snapshot.sh
+├── build-matrix.sh
+├── collect-facts.sh
+├── common.sh
+├── download-isos.sh
+├── hosts.conf
+├── isos.conf.example
+├── kickstart
+│   ├── rhel10.ks.tpl
+│   ├── rhel7.ks.tpl
+│   ├── rhel8.ks.tpl
+│   └── rhel9.ks.tpl
+├── lab.sh
+├── lab.sh.bak
+├── lab.sh.bak3
+├── lib.sh
+├── ll
+├── stage2
+│   ├── 01-users-groups.sh
+│   ├── 02-lvm.sh
+│   ├── 02-lvm.sh.bak
+│   ├── 03-permissions.sh
+│   ├── 03-permissions.sh.bak
+│   ├── 04-sudo.sh
+│   └── 05-systemd-app.sh
+├── stage3
+│   └── 01-configure-network.sh
+├── stage4
+│   ├── 01-setup-dns.sh
+│   ├── 02-setup-chrony.sh
+│   ├── 03-ssh-hardening.sh
+│   └── dns
+│       ├── 10.10.10.rev.tpl
+│       ├── lab.local.zone.tpl
+│       └── named.conf
+├── stage5
+│   ├── 01-selinux-hardening.sh
+│   ├── 02-audit-rules.sh
+│   └── 03-os-hardening.sh
+└── stage6
+    ├── 01-bash-tools.sh
+    └── files
+        ├── lab-healthcheck.sh
+        └── lab-logscan.sh
+
+9 directories, 40 files
