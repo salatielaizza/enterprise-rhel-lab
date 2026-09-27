@@ -31,6 +31,7 @@ se diagnostica con evidencias y se valida. Formato: Objetivo · Preparación · 
 | 24 tabla-resumen-tests-set-e-command-substitution | Regresión scp -O + set -e con out="$(...)"; ec=$? en lab.sh test | 3 |
 | 25 medicion-tiempo-por-test-y-tabla-final | Medición de tiempo por sub-test/VM (fmt_time Ns/Mm SSs) + ediciones vim fallidas | 3 |
 | 26 dns-cambiado-en-perfil-pero-no-en-resolv-rhel8 | DNS actualizado en nmcli pero no en resolv.conf (solo RHEL 8) | 4 |
+| 27 sftpdemo-falsos-positivos-pwck-y-test-ssh | sftpdemo con chroot: pwck y test de ChrootDirectory con falsos positivos | 4 |
+| 28 log-verbose-set-e-lab-healthcheck | lab-healthcheck.timer fallaba: función log() devolvía 1 bajo set -e sin -v | 6 |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).
-| 27 | sftpdemo con chroot: pwck y test de ChrootDirectory con falsos positivos | 4 |

@@ -65,9 +65,11 @@ fi
 [[ -d /var/log/lab-app ]] && restorecon -R /var/log/lab-app 2>/dev/null || true
 
 # --- Foto de denegaciones AVC recientes (solo informativo, nunca falla) ---------
+# 'ausearch' puede colgarse sin responder (ver troubleshooting/20-ausearch-colgado-timeout.md):
+# SIEMPRE con 'timeout', nunca a pelo.
 BASELINE=/var/log/lab-selinux-baseline.log
 if command -v ausearch >/dev/null; then
-  ausearch -m avc,user_avc -ts today > "$BASELINE" 2>/dev/null || : > "$BASELINE"
+  timeout 15 ausearch -m avc,user_avc -ts today > "$BASELINE" 2>/dev/null || : > "$BASELINE"
   say "Denegaciones AVC de hoy volcadas en $BASELINE ($(wc -l < "$BASELINE") líneas)"
 else
   : > "$BASELINE"

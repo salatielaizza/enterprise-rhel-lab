@@ -14,17 +14,20 @@ CI/CD integrado) y **CI/CD** (integración y despliegue continuo aplicado a la p
 laboratorio).
 
 El plan se organiza, de partida, en **19 etapas** (ver tabla más abajo), pero no es un temario cerrado:
-puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1, 2, 3 y 4 están
+puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 6 están
 **completas** (validadas con `0 FAIL` en las 6 VMs). Regla del proyecto:
 *manual → documentado → repetible → automatizado*.
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1, 2, 3 y 4** de un plan de **19 etapas**, las cuatro completas y
+Este repositorio cubre hoy las **Etapas 1 a 6** de un plan de **19 etapas**, las seis completas y
 validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`, `dns01`,
-`ansible01`), incluyendo BIND, chrony y SSH/SFTP endurecido (caso 27 documentado en
-`troubleshooting/`). Las **Etapas 5 y 6** ya tienen su automatización, tests y documentación escritos
-(SELinux/auditoría/hardening y bash avanzado), pendientes de ejecutar y validar en las VMs reales. Las
+`ansible01`): 171/172/172/172/158/153 PASS respectivamente, 0 FAIL en todas. Las Etapas 1-4 incluyen
+BIND, chrony y SSH/SFTP endurecido (caso 27 documentado en `troubleshooting/`); las Etapas 5 y 6
+añaden SELinux enforcing, auditd y hardening del SO, más herramientas propias en bash con
+temporizador systemd — en el camino se aplicó la lección ya conocida del caso 20 (`ausearch` sin
+`timeout`) y se encontró y corrigió uno nuevo, el **caso 28** (una función bash que puede devolver
+distinto de cero bajo `set -e` y aborta el script), ambos documentados en `troubleshooting/`. Las
 Etapas 7-19 están pendientes, sin empezar — este es un proyecto vivo, no cerrado.
 
 > **Leyenda de estado:** ✅ **Completa** — automatización + tests + documentación hechos y validados con `0 FAIL` en las 6 VMs. 📝 **Planificada** — automatización y documentación ya escritas, pendiente de ejecutar/validar en las VMs reales. ⏳ **Pendiente** — todavía no tiene nada elaborado (sin script, sin documentación).
@@ -35,8 +38,8 @@ Etapas 7-19 están pendientes, sin empezar — este es un proyecto vivo, no cerr
 | 2 | 👥 Administración Linux (usuarios, permisos, sudo, systemd, LVM, paquetes, logs) | ✅ Completa |
 | 3 | 🌐 Networking (NetworkManager, diagnóstico por capas) | ✅ Completa |
 | 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ✅ Completa |
-| 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | 📝 Planificada |
-| 6 | 📜 Bash avanzado y scripting | 📝 Planificada |
+| 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ✅ Completa |
+| 6 | 📜 Bash avanzado y scripting | ✅ Completa |
 | 7 | 🤖 Ansible (automatización, inventario, roles) | ⏳ Pendiente |
 | 8 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
 | 9 | 🧭 Servidores web y proxy inverso (Apache httpd, NGINX, balanceo) | ⏳ Pendiente |
@@ -56,7 +59,7 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 `ansible01` (10.10.10.30) ya está reservada para la Etapa 7, y `rhel9-web01`/`rhel9-monitor01`
 (10.10.10.40/.50) para las etapas 9 y 15.
 
-## 🔧 Contenido de las Etapas 1-6 (automatización y documentación ya escritas)
+## 🔧 Contenido de las Etapas 1-6 (validadas con 0 FAIL en las 6 VMs)
 
 | Etapa | Contenido | Automatización | Documentación |
 |---|---|---|---|

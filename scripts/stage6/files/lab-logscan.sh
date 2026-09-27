@@ -21,7 +21,11 @@ declare -A COUNT=()
 SINCE="$(date -d "-${MINUTES} minutes" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date '+%Y-%m-%d %H:%M:%S')"
 
 while IFS= read -r ip; do
-  [[ -n "$ip" ]] && COUNT["$ip"]=$(( ${COUNT["$ip"]:-0} + 1 ))
+  # 'if' explícito, no "cond && comando" suelto (ver caso 28: bajo 'set -e'
+  # esa forma aborta el script entero si la condición sale falsa alguna vez).
+  if [[ -n "$ip" ]]; then
+    COUNT["$ip"]=$(( ${COUNT["$ip"]:-0} + 1 ))
+  fi
 done < <(journalctl -u sshd --since "$SINCE" 2>/dev/null \
            | grep -E 'Failed (password|publickey)' \
            | grep -Eo 'from [0-9.]+' | awk '{print $2}')

@@ -29,14 +29,21 @@ FAILED=0
 log() {  # log NIVEL mensaje...
   local level="$1"; shift
   printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$level" "$*" >> "$LOG"
-  [[ $VERBOSE -eq 1 ]] && printf '[%s] %s\n' "$level" "$*"
+  # OJO: nunca "cond && comando" como frase suelta bajo 'set -e' — si la
+  # condición es falsa, bash considera que TODA la línea ha fallado y aborta
+  # el script (caso 28 de este proyecto). Por eso aquí un 'if' explícito.
+  if [[ $VERBOSE -eq 1 ]]; then
+    printf '[%s] %s\n' "$level" "$*"
+  fi
 }
 trap 'log ERROR "healthcheck abortado inesperadamente (línea $LINENO)"' ERR
 
 # --- Servicios a comprobar según el rol del host (hostname corto) --------------
 HOST="$(hostname -s)"
 declare -a SERVICES=(sshd chronyd)
-[[ "$HOST" == dns01 ]] && SERVICES+=(named)
+if [[ "$HOST" == dns01 ]]; then
+  SERVICES+=(named)
+fi
 
 for svc in "${SERVICES[@]}"; do
   if systemctl is-active --quiet "$svc"; then
