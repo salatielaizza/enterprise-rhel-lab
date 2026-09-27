@@ -18,6 +18,6 @@ if [[ $STAGE -ge 4 ]]; then
   check "AllowGroups incluye sysadmins" bash -c "sshd -T | grep -i '^allowgroups' | grep -qw sysadmins"
   check "usuario sftpdemo existe (UID 1005, grupo sftponly)" bash -c '[[ "$(id -u sftpdemo)" == 1005 && "$(id -gn sftpdemo)" == sftponly ]]'
   check "SFTP: jaula /srv/sftp/sftpdemo es de root y modo 755" bash -c '[[ "$(stat -c %U:%a /srv/sftp/sftpdemo)" == root:755 ]]'
-  check "SFTP: ChrootDirectory + ForceCommand internal-sftp para sftpdemo" bash -c "sshd -T -C user=sftpdemo,host=lab,addr=10.10.10.1 | grep -Eiq '^forcecommand internal-sftp' && sshd -T -C user=sftpdemo,host=lab,addr=10.10.10.1 | grep -Eiq '^chrootdirectory /srv/sftp/(sftpdemo|%u)'"
+  check "SFTP: ChrootDirectory + ForceCommand internal-sftp para sftpdemo" bash -c "sshd -T -C user=sftpdemo,host=lab,addr=10.10.10.1 | grep -Eiq '^forcecommand internal-sftp' && sshd -T -C user=sftpdemo,host=lab,addr=10.10.10.1 | grep -Eiq '^chrootdirectory /srv/sftp/sftpdemo'"
 fi
 summary
