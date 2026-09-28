@@ -1,0 +1,9 @@
+---
+# Defaults del rol: es la prioridad MÁS BAJA de todas las variables de Ansible.
+# A propósito son distintos de group_vars/all/vars.yml, para poder DEMOSTRAR
+# la precedencia: comenta/renombra temporalmente group_vars/all/vars.yml y
+# vuelve a ejecutar el playbook — verás caer estos valores (1 paquete y UTC)
+# en vez de los tres paquetes y Europe/Madrid del group_vars.
+lab_common_packages:
+  - tree
+lab_timezone: "UTC"

@@ -1,0 +1,26 @@
+---
+# Rol "lab_users": altas de usuarios de prueba de forma controlada e idempotente.
+# Esto es justo la "ampliación futura" apuntada en checklists/etapa5.md y
+# checklists/etapa6.md ("más pruebas de creación de usuarios") — aquí se cumple,
+# ahora con Ansible en vez de un 'useradd' manual o un script bash suelto.
+
+- name: Crear usuarios de demostración (idempotente)
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    comment: "{{ item.comment }}"
+    groups: "{{ item.groups }}"
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present
+  loop: "{{ lab_demo_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Bloquear la contraseña de los usuarios demo (solo entran por clave, si se añade una)
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    password_lock: true
+  loop: "{{ lab_demo_users }}"
+  loop_control:
+    label: "{{ item.name }}"

@@ -8,10 +8,13 @@ control de versiones con Git, servidores web y proxy inverso (Apache httpd, NGIN
 versiones (Leapp), gestión centralizada (Red Hat Satellite), almacenamiento compartido (NFS/CIFS),
 identidad centralizada (LDAP/Kerberos), alta disponibilidad (Pacemaker/Corosync), monitorización
 (Prometheus/Grafana) y contenedores con Docker. Como cierre, de forma más general y sin entrar en el
-mismo nivel de detalle que el resto: **Kubernetes** (orquestación de contenedores en clúster),
-**OpenShift** (la plataforma Kubernetes empresarial de Red Hat, con sus herramientas de desarrollador y
-CI/CD integrado) y **CI/CD** (integración y despliegue continuo aplicado a la propia automatización del
-laboratorio).
+mismo nivel de detalle que el resto: **Kubernetes y OpenShift** (orquestación de contenedores en clúster
+y la plataforma Kubernetes empresarial de Red Hat construida sobre él, con sus herramientas de
+desarrollador y CI/CD integrado, tratadas juntas por lo emparentadas que están), **VMware ESXi avanzado**
+(hipervisor tipo 1 alternativo a KVM/libvirt — vCenter, vMotion, DRS/HA, PowerCLI — para comparar
+enfoques de virtualización enterprise, cada vez más relevante dado el cambio de licencias de Broadcom que
+está empujando a muchas empresas hacia alternativas basadas en KVM) y **CI/CD** (integración y despliegue
+continuo aplicado a la propia automatización del laboratorio).
 
 El plan se organiza, de partida, en **19 etapas** (ver tabla más abajo), pero no es un temario cerrado:
 puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 6 están
@@ -20,15 +23,20 @@ puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1 a 6** de un plan de **19 etapas**, las seis completas y
-validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`, `dns01`,
-`ansible01`): 171/172/172/172/158/153 PASS respectivamente, 0 FAIL en todas. Las Etapas 1-4 incluyen
-BIND, chrony y SSH/SFTP endurecido (caso 27 documentado en `troubleshooting/`); las Etapas 5 y 6
-añaden SELinux enforcing, auditd y hardening del SO, más herramientas propias en bash con
+Este repositorio cubre hoy las **Etapas 1 a 7** de un plan de **19 etapas**. Las **Etapas 1 a 6** están
+completas y validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`,
+`dns01`, `ansible01`): 171/172/172/172/158/153 PASS respectivamente, 0 FAIL en todas. Las Etapas 1-4
+incluyen BIND, chrony y SSH/SFTP endurecido (caso 27 documentado en `troubleshooting/`); las Etapas 5 y
+6 añaden SELinux enforcing, auditd y hardening del SO, más herramientas propias en bash con
 temporizador systemd — en el camino se aplicó la lección ya conocida del caso 20 (`ausearch` sin
 `timeout`) y se encontró y corrigió uno nuevo, el **caso 28** (una función bash que puede devolver
-distinto de cero bajo `set -e` y aborta el script), ambos documentados en `troubleshooting/`. Las
-Etapas 7-19 están pendientes, sin empezar — este es un proyecto vivo, no cerrado.
+distinto de cero bajo `set -e` y aborta el script), ambos documentados en `troubleshooting/`. La
+**Etapa 7** (automatización con Ansible: `ansible01` como nodo de control, roles idempotentes, Ansible
+Vault) tiene su automatización, tests y documentación escritos, pendiente de ejecutar y validar en las
+VMs reales. Las Etapas 8-19 están pendientes, sin empezar — este es un proyecto vivo, no cerrado. La
+Etapa 17 fusiona Kubernetes y OpenShift en una sola (encajan de forma natural, ya que OpenShift es la
+distribución empresarial de Kubernetes de Red Hat), dejando sitio a la Etapa 18: **VMware ESXi
+avanzado**, para comparar KVM/libvirt (lo usado en todo este lab) con el otro gran hipervisor enterprise.
 
 > **Leyenda de estado:** ✅ **Completa** — automatización + tests + documentación hechos y validados con `0 FAIL` en las 6 VMs. 📝 **Planificada** — automatización y documentación ya escritas, pendiente de ejecutar/validar en las VMs reales. ⏳ **Pendiente** — todavía no tiene nada elaborado (sin script, sin documentación).
 
@@ -40,7 +48,7 @@ Etapas 7-19 están pendientes, sin empezar — este es un proyecto vivo, no cerr
 | 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ✅ Completa |
 | 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ✅ Completa |
 | 6 | 📜 Bash avanzado y scripting | ✅ Completa |
-| 7 | 🤖 Ansible (automatización, inventario, roles) | ⏳ Pendiente |
+| 7 | 🤖 Ansible (automatización, inventario, roles) | 📝 Planificada |
 | 8 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
 | 9 | 🧭 Servidores web y proxy inverso (Apache httpd, NGINX, balanceo) | ⏳ Pendiente |
 | 10 | 🚚 Migraciones entre versiones (Leapp) | ⏳ Pendiente |
@@ -50,8 +58,8 @@ Etapas 7-19 están pendientes, sin empezar — este es un proyecto vivo, no cerr
 | 14 | ⚖️ Alta disponibilidad (Pacemaker/Corosync) | ⏳ Pendiente |
 | 15 | 📊 Monitorización (Prometheus/Grafana) | ⏳ Pendiente |
 | 16 | 📦 Contenedores (Docker) | ⏳ Pendiente |
-| 17 | ☸️ Kubernetes | ⏳ Pendiente |
-| 18 | 🔴 OpenShift | ⏳ Pendiente |
+| 17 | ☸️ Kubernetes y OpenShift (orquestación de contenedores + plataforma enterprise de Red Hat) | ⏳ Pendiente |
+| 18 | 🖥️ VMware ESXi avanzado (vCenter, vMotion, DRS/HA, PowerCLI — comparado con KVM/libvirt) | ⏳ Pendiente |
 | 19 | 🔁 CI/CD | ⏳ Pendiente |
 
 Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en las Etapas 1-4
@@ -59,7 +67,7 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 `ansible01` (10.10.10.30) ya está reservada para la Etapa 7, y `rhel9-web01`/`rhel9-monitor01`
 (10.10.10.40/.50) para las etapas 9 y 15.
 
-## 🔧 Contenido de las Etapas 1-6 (validadas con 0 FAIL en las 6 VMs)
+## 🔧 Contenido de las Etapas 1-7
 
 | Etapa | Contenido | Automatización | Documentación |
 |---|---|---|---|
@@ -69,6 +77,7 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 | 🔐 4 | BIND (DNS), chrony (hora), SSH/SFTP | `lab.sh stage4-dns`, `stage4-clients` | `networking/dns.md`, `time/chrony.md`, `networking/ssh.md` |
 | 🛡️ 5 | SELinux enforcing, reglas de auditd, hardening del SO | `lab.sh stage5` | `security/selinux.md`, `security/audit.md`, `security/hardening.md` |
 | 📜 6 | Herramientas propias en bash (`lab-healthcheck.sh`, `lab-logscan.sh`) + temporizador systemd | `lab.sh stage6` | `scripting/bash-avanzado.md` |
+| 🤖 7 | ansible01 como nodo de control: roles idempotentes, Ansible Vault, block/rescue/serial, colección propia (módulo+filtro), inventario dinámico, Molecule | `lab.sh stage7-setup`, `stage7` | `automation/ansible.md` |
 
 ## 🏗️ Arquitectura en una mirada
 
@@ -115,6 +124,8 @@ scripts/lab.sh stage4-dns                                              # Etapa 4
 scripts/lab.sh stage4-clients all                                      #          DNS lab + chrony + SSH
 scripts/lab.sh stage5 all                                              # Etapa 5: SELinux + auditd + hardening
 scripts/lab.sh stage6 all                                              # Etapa 6: herramientas bash + temporizador systemd
+scripts/lab.sh stage7-setup                                            # Etapa 7: ansible01 como nodo de control (una vez)
+scripts/lab.sh stage7 site                                             #          aplica el playbook (repetible, idempotente)
 scripts/lab.sh test all all                                            # todos los tests aplicables
 scripts/lab.sh facts all && scripts/lab.sh matrix                      # matriz con DATOS REALES
 ```
@@ -138,9 +149,9 @@ se genera exclusivamente con datos leídos de las VMs (`lab.sh facts`).
 
 ## 🗂️ Mapa del repositorio
 
-`scripts/` automatización (host: `lab.sh`, `0N-*.sh`; VMs: `stage2/`, `stage3/`, `stage4/`, `stage5/`, `stage6/`) ·
+`scripts/` automatización (host: `lab.sh`, `0N-*.sh`; VMs: `stage2/`, `stage3/`, `stage4/`, `stage5/`, `stage6/`, `stage7/`) ·
 `scripts/kickstart/` plantillas de instalación · `tests/` pruebas PASS/FAIL de solo lectura ·
-`architecture/` · `rhel7/ … rhel10/` · `administration/` · `networking/` · `time/` · `security/` · `scripting/` ·
+`architecture/` · `rhel7/ … rhel10/` · `administration/` · `networking/` · `time/` · `security/` · `scripting/` · `automation/` ·
 `troubleshooting/` · `migration/` · `comparison/` · `checklists/` · `results/` (evidencias; `facts/` se genera).
 
 ## 🔒 Seguridad

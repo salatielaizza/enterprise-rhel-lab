@@ -1,0 +1,57 @@
+---
+# Etapa 7 (avanzado): manejo de errores estructurado (block/rescue/always),
+# una estrategia de despliegue por lotes (serial), y los plugins propios de
+# la colección local 'lab.utils' (módulo + filtro). Sobre los nodos REALES
+# del lab (grupo 'lab'), no sobre el inventario dinámico de demo.
+#
+# Repetible con variables distintas, sin tocar el fichero:
+#   ansible-playbook playbooks/advanced.yml                          # camino normal
+#   ansible-playbook playbooks/advanced.yml -e lab_simulate_failure=true   # dispara 'rescue'
+#   ansible-playbook playbooks/advanced.yml --limit rhel9-app01            # un solo host
+- name: Etapa 7 (avanzado) — errores estructurados, serial y plugins propios
+  hosts: lab
+  gather_facts: true
+  serial: 2  # "despliegue por lotes": procesa 2 hosts a la vez, no los 5 de golpe
+
+  tasks:
+    - name: Bloque con manejo de errores (block/rescue/always)
+      block:
+        - name: Tarea que puede fallar (simulada, activable con -e lab_simulate_failure=true)
+          ansible.builtin.fail:
+            msg: "Fallo simulado a propósito para ejercitar 'rescue'"
+          when: lab_simulate_failure | default(false) | bool
+
+        - name: Tarea normal (solo se llega aquí si no hubo fallo)
+          ansible.builtin.debug:
+            msg: "Bloque principal completado sin fallos en {{ inventory_hostname }}"
+
+      rescue:
+        - name: Reaccionar al fallo SIN abortar el play para el resto de hosts
+          ansible.builtin.debug:
+            msg: >-
+              rescue: se capturó el fallo simulado en {{ inventory_hostname }};
+              el play sigue adelante con el resto del lote en vez de abortar.
+
+      always:
+        - name: Esto se ejecuta SIEMPRE, haya fallado el block o no
+          ansible.builtin.lineinfile:
+            path: /var/log/lab-ansible-lab.log
+            create: true
+            mode: "0644"
+            line: >-
+              {{ ansible_date_time.iso8601 }} playbook 'advanced' pasó por
+              {{ inventory_hostname }} (fallo simulado: {{ lab_simulate_failure | default(false) }})
+
+    - name: Usar el módulo propio de la colección lab.utils (solo lectura)
+      lab.utils.lab_uptime_pretty:
+      register: lab_uptime
+
+    - name: Mostrar el resultado del módulo propio
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} lleva encendida {{ lab_uptime.pretty }}
+          (carga 1 min: {{ lab_uptime.load1 }})
+
+    - name: Usar el filtro propio de la colección lab.utils
+      ansible.builtin.debug:
+        msg: "Slug de '{{ inventory_hostname }}': {{ inventory_hostname | lab.utils.to_lab_slug }}"

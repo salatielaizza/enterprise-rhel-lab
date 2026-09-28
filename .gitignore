@@ -11,3 +11,4 @@ results/facts/*.env
 
 # Informes de auditoría del host: contienen usuario, hostname, IPs/MACs
 evidence/
+*.bak

@@ -1,0 +1,17 @@
+---
+# Playbook de EXPLORACIÓN (no cambia nada en los nodos): vuelca los facts más
+# relevantes de cada host, incluido el intérprete de Python que Ansible detectó
+# automáticamente — la diferencia real entre RHEL 7 (Python 2 por defecto) y
+# RHEL 8/9/10 (Python 3) es visible aquí mismo, sin tocar nada a mano.
+- name: Etapa 7 — Explorar facts recogidos por Ansible
+  hosts: lab
+  gather_facts: true
+  tasks:
+    - name: Mostrar distro, versión mayor e intérprete Python detectado
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ ansible_facts['distribution'] }}
+          {{ ansible_facts['distribution_version'] }}
+          (python: {{ ansible_facts['python']['executable'] }},
+          memoria: {{ ansible_facts['memtotal_mb'] }} MB,
+          IP: {{ ansible_facts['default_ipv4']['address'] | default('n/d') }})

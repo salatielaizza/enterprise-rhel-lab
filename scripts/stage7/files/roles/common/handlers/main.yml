@@ -1,0 +1,11 @@
+---
+# Los handlers solo se ejecutan si una tarea los "notifica" Y esa tarea produjo
+# un cambio real (changed=true) — nunca en un run ya idempotente. Es la forma
+# correcta de reaccionar a un cambio (p. ej. "reinicia el servicio") sin hacerlo
+# en cada ejecución.
+- name: registrar cambio de configuracion gestionada por ansible
+  ansible.builtin.lineinfile:
+    path: /var/log/lab-ansible-lab.log
+    create: true
+    mode: "0644"
+    line: "{{ ansible_date_time.iso8601 }} cambio aplicado por Ansible en {{ inventory_hostname }}"

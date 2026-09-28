@@ -1,0 +1,32 @@
+---
+# Rol "common": lo mínimo que queremos igual en TODOS los nodos gestionados.
+# Cada tarea es idempotente por sí sola: en un segundo 'lab.sh stage7 site' sobre
+# un nodo ya configurado, PLAY RECAP debe mostrar 'changed=0' para este rol.
+
+- name: Instalar paquetes base del lab (idempotente en las 4 versiones de RHEL)
+  ansible.builtin.package:
+    name: "{{ lab_common_packages }}"
+    state: present
+
+- name: Leer huso horario actual (para no marcar 'changed' si ya es el correcto)
+  ansible.builtin.command: timedatectl show -p Timezone --value
+  register: lab_current_tz
+  changed_when: false
+
+- name: "Fijar huso horario del lab ({{ lab_timezone }})"
+  ansible.builtin.command: "timedatectl set-timezone {{ lab_timezone }}"
+  when: lab_current_tz.stdout != lab_timezone
+
+- name: Desplegar marcador de gestión por Ansible (NO toca /etc/issue, que gestiona la Etapa 5)
+  ansible.builtin.template:
+    src: ansible-lab-managed.j2
+    dest: /etc/ansible-lab-managed.txt
+    owner: root
+    group: root
+    mode: "0644"
+  notify: registrar cambio de configuracion gestionada por ansible
+
+- name: Confirmar que el secreto de Ansible Vault se ha descifrado (solo demo, nunca se imprime el valor)
+  ansible.builtin.debug:
+    msg: "Vault OK: lab_demo_api_token cargado ({{ lab_demo_api_token | length }} caracteres)"
+  when: lab_demo_api_token is defined

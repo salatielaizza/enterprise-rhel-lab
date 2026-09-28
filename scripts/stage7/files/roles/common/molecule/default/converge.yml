@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Incluir el rol common bajo prueba
+      ansible.builtin.include_role:
+        name: common

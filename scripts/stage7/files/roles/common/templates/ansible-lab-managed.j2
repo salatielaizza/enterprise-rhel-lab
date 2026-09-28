@@ -1,0 +1,7 @@
+# Gestionado por Ansible — enterprise-rhel-lab (Etapa 7)
+# NO EDITAR A MANO: se sobrescribe en cada 'lab.sh stage7 site' (módulo template)
+host: {{ inventory_hostname }}
+distro: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} (major {{ ansible_facts['distribution_major_version'] }})
+interprete_python_detectado: {{ ansible_facts['python']['executable'] }}
+huso_horario_objetivo: {{ lab_timezone }}
+ultima_aplicacion: {{ ansible_date_time.iso8601 }}

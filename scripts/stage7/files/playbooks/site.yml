@@ -1,0 +1,10 @@
+---
+# Playbook principal de la Etapa 7. Ejecutarlo repetidamente contra los mismos
+# hosts debe ser seguro (idempotencia): 'lab.sh stage7 site' se puede lanzar
+# tantas veces como se quiera.
+- name: Etapa 7 — Configuración base gestionada por Ansible
+  hosts: lab
+  gather_facts: true
+  roles:
+    - common
+    - lab_users

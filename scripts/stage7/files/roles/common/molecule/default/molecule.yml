@@ -1,0 +1,37 @@
+---
+# Escenario de Molecule para el rol 'common', validado de verdad en un sandbox
+# con 'molecule list' (ver automation/ansible.md, sección Molecule). Se ejecuta
+# en el EQUIPO HOST (Linux Mint con Docker), no dentro de las VMs del lab: es un
+# ciclo de prueba rápido para el rol en sí, aislado de la infraestructura real.
+# La imagen 'geerlingguy/docker-rockylinux9-ansible' es la que usa buena parte
+# de la comunidad de roles de Ansible para simular un RHEL9 con systemd real
+# (necesario porque el rol usa 'timedatectl', que exige systemd como PID 1).
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: lab-common-rhel9
+    image: "docker.io/geerlingguy/docker-rockylinux9-ansible:latest"
+    command: /usr/sbin/init
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  inventory:
+    host_vars:
+      lab-common-rhel9:
+        lab_timezone: Europe/Madrid
+        lab_common_packages:
+          - tree
+verifier:
+  name: ansible

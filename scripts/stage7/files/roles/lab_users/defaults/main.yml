@@ -1,0 +1,5 @@
+---
+# Vacío a propósito: si un grupo/host no define 'lab_demo_users' (en group_vars
+# o host_vars), este rol no toca ningún usuario. Ver group_vars/all/vars.yml
+# para la lista real usada en el lab.
+lab_demo_users: []

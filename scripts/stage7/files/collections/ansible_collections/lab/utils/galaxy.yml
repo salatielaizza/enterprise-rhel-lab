@@ -1,0 +1,19 @@
+namespace: lab
+name: utils
+version: 1.0.0
+readme: README.md
+authors:
+  - enterprise-rhel-lab
+description: >-
+  Módulos y filtros propios de práctica para enterprise-rhel-lab (Etapa 7,
+  parte avanzada): un módulo Python mínimo y un filtro Jinja2, para entender
+  cómo se construye y se referencia (FQCN) una colección local, sin depender
+  de Ansible Galaxy.
+license:
+  - MIT
+tags:
+  - linux
+  - education
+  - homelab
+dependencies: {}
+repository: https://example.invalid/enterprise-rhel-lab

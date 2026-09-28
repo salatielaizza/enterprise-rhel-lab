@@ -1,0 +1,30 @@
+---
+# Ejecutar SIEMPRE contra el inventario dinámico de demo, nunca contra hosts.ini:
+#   ansible-playbook -i ../inventory/dynamic_inventory_demo.py playbooks/dynamic_inventory_demo.yml
+# (o, desde lab.sh: 'lab.sh stage7 dynamic_inventory_demo' — ver 02-run-playbook.sh)
+#
+# 'gather_facts: false' a propósito: estos "hosts" son datos de una API pública
+# con 'ansible_connection=local', no máquinas reales — recoger facts solo
+# repetiría los facts de ansible01 una vez por cada usuario de la API, sin
+# aportar nada.
+- name: Etapa 7 (avanzado) — explorar un inventario dinámico real
+  hosts: demo_api
+  gather_facts: false
+  tasks:
+    - name: Mostrar los datos que trajo el inventario dinámico
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ api_name }} ({{ api_email }}),
+          empresa "{{ api_company }}", ciudad {{ api_city }}
+
+    - name: Escribir un informe local con lo recogido de la API (una sola vez, en ansible01)
+      run_once: true
+      delegate_to: localhost
+      ansible.builtin.copy:
+        dest: /home/adminlab/dynamic-inventory-demo-report.txt
+        mode: "0644"
+        content: |
+          Informe generado por playbooks/dynamic_inventory_demo.yml
+          Fuente: https://jsonplaceholder.typicode.com/users (API pública de pruebas)
+          Hosts descubiertos dinámicamente: {{ groups['demo_api'] | length }}
+          Grupos por empresa: {{ groups.keys() | select('match', '^demo_api_empresa_') | list }}

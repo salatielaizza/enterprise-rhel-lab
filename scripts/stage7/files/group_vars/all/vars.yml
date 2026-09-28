@@ -1,0 +1,28 @@
+---
+# Variables NO secretas, comunes a todo el inventario (grupo implícito "all").
+# El secreto de demostración vive aparte, cifrado, en vault.yml (mismo directorio):
+# es el patrón estándar de Ansible para poder hacer 'git diff'/'git log' sobre las
+# variables normales sin exponer nunca un secreto en claro en el historial.
+#
+# Cambiar un valor aquí y volver a ejecutar 'lab.sh stage7 site' es la forma normal
+# de practicar: el playbook es idempotente, así que repetirlo tras un cambio de
+# variable solo toca lo que de verdad cambió (compara el 'changed=' de antes/después).
+
+lab_timezone: "Europe/Madrid"
+
+lab_common_packages:
+  - tree
+  - bash-completion
+  - vim-enhanced
+
+lab_demo_users:
+  - name: ansible.demo1
+    comment: "Usuario demo Ansible 1 (Etapa 7)"
+    groups: "wheel"
+  - name: ansible.demo2
+    comment: "Usuario demo Ansible 2 (Etapa 7)"
+    groups: ""
+
+# Referencia al valor descifrado de vault.yml (nunca se pone el secreto en claro
+# en este fichero; solo el NOMBRE de la variable cifrada que lo contiene).
+lab_demo_api_token: "{{ vault_demo_api_token }}"

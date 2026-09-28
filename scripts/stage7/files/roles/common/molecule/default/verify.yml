@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Comprobar que el marcador de gestión de Ansible existe
+      ansible.builtin.stat:
+        path: /etc/ansible-lab-managed.txt
+      register: marker
+    - name: El rol debe dejar el marcador
+      ansible.builtin.assert:
+        that: marker.stat.exists
+        fail_msg: "roles/common no generó /etc/ansible-lab-managed.txt"
+    - name: Comprobar que 'tree' quedó instalado
+      ansible.builtin.command: rpm -q tree
+      changed_when: false
