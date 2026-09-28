@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-6)
+# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-7)
 # Ejecuta 'scripts/lab.sh help' para ver los comandos.
 # Los scripts son envoltorios de los MISMOS comandos que se documentan a mano en
 # los .md: primero se practica a mano en una VM, después se repite con el script.
@@ -43,6 +43,20 @@ Etapa 5 - Seguridad
 Etapa 6 - Bash avanzado y scripting
   stage6 <host|all>               Instala lab-healthcheck.sh/lab-logscan.sh + temporizador systemd
 
+Etapa 7 - Automatización con Ansible
+  stage7-setup                    Instala Ansible en ansible01, genera su clave SSH,
+                                   la distribuye a los nodos gestionados y sube el
+                                   inventario/playbooks/roles (idempotente)
+  stage7 <site|facts|ping|advanced|dynamic_inventory_demo> [--limit <grupo|host> | -e var=valor]
+                                   Ejecuta un playbook desde ansible01. 'site'/'facts'
+                                   van contra el inventario real (--limit los acota);
+                                   'ping' es un chequeo ad-hoc; 'advanced' practica
+                                   block/rescue/always + serial + módulo/filtro propios
+                                   (-e lab_simulate_failure=true dispara el 'rescue');
+                                   'dynamic_inventory_demo' explora un inventario
+                                   dinámico real construido desde una API pública
+                                   (requiere que ansible01 tenga salida a Internet)
+
 Verificación y documentación
   test <test_x.sh|all> <host|all> Ejecuta tests dentro de las VMs (p. ej. test_users.sh)
   facts <host|all>                Recoge datos reales -> results/facts/<host>.env
@@ -56,7 +70,7 @@ push() {  # copia los scripts y tests a ~/lab-scripts de la VM
   ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$ip" 'rm -rf "$HOME/lab-scripts" && mkdir -p "$HOME/lab-scripts"'
   scp -O -q -r "${SSH_OPTS[@]}" \
     "$SCRIPTS_DIR/common.sh" "$SCRIPTS_DIR/collect-facts.sh" "$SCRIPTS_DIR/hosts.conf" \
-    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$LAB_ROOT/tests" \
+    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$SCRIPTS_DIR/stage7" "$LAB_ROOT/tests" \
     "$LAB_ADMIN@$ip:lab-scripts/"
 }
 run_remote() {  # run_remote HOST ruta/relativa.sh [args...]  (como root, sin contraseña)
@@ -145,6 +159,42 @@ stage6() {
   done
 }
 
+# ansible01 es el nodo de control; estos son los nodos que GESTIONA (no se
+# incluye a sí mismo). Lista explícita, igual que 'dns01' aparece literal en
+# stage4_clients: los nombres/roles del lab son fijos desde la Etapa 1.
+ANSIBLE_MANAGED_HOSTS=(rhel7-app01 rhel8-app01 rhel9-app01 rhel10-app01 dns01)
+
+stage7_setup() {
+  info "=== Etapa 7: preparando ansible01 como nodo de control ==="
+  push ansible01
+  local out pubkey h
+  out="$(run_remote ansible01 stage7/01-ansible-control-setup.sh)"
+  printf '%s\n' "$out" | grep -v -E '^##ANSIBLE_PUBKEY_(START|END)##$'
+  pubkey="$(printf '%s\n' "$out" | sed -n '/##ANSIBLE_PUBKEY_START##/,/##ANSIBLE_PUBKEY_END##/p' | sed '1d;$d')"
+  [[ -n "$pubkey" ]] || die "No se pudo capturar la clave pública de ansible01"
+
+  for h in "${ANSIBLE_MANAGED_HOSTS[@]}"; do
+    info "Distribuyendo la clave de ansible01 a $h (acceso ya confiado desde la Etapa 1, sin contraseña nueva)"
+    ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$(ip_of "$h")" \
+      "mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qxF '$pubkey' ~/.ssh/authorized_keys 2>/dev/null || echo '$pubkey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+  done
+  ok "Clave de ansible01 distribuida a ${#ANSIBLE_MANAGED_HOSTS[@]} nodo(s) gestionado(s)"
+
+  info "Comprobando conectividad Ansible (ping + become)..."
+  run_remote ansible01 stage7/02-run-playbook.sh ping
+  ok "Etapa 7: ansible01 listo. Ejecuta 'lab.sh stage7 site' para aplicar la configuración."
+}
+stage7() {
+  local playbook="$1"; shift || true
+  run_remote ansible01 stage7/02-run-playbook.sh "$playbook" "$@"
+  if [[ "$playbook" == site ]]; then
+    local h
+    for h in "${ANSIBLE_MANAGED_HOSTS[@]}"; do
+      run_remote "$h" stage7/03-mark-stage.sh
+    done
+  fi
+}
+
 # --- despacho -------------------------------------------------------------------
 cmd="${1:-help}"; if [[ $# -gt 0 ]]; then shift; fi
 case "$cmd" in
@@ -190,6 +240,8 @@ case "$cmd" in
   stage4-clients) stage4_clients "${1:?Uso: lab.sh stage4-clients <host|all>}" ;;
   stage5) stage5 "${1:?Uso: lab.sh stage5 <host|all>}" ;;
   stage6) stage6 "${1:?Uso: lab.sh stage6 <host|all>}" ;;
+  stage7-setup) stage7_setup ;;
+  stage7) stage7 "${1:?Uso: lab.sh stage7 <site|facts|ping> [--limit <grupo|host>]}" "${@:2}" ;;
   host-dns)
     need resolvectl
     sudo resolvectl dns "$LAB_BRIDGE" "$LAB_DNS_SERVER"

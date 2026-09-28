@@ -70,7 +70,7 @@ else
   say "Ya existía una contraseña de Ansible Vault; se reutiliza"
 fi
 
-VAULT_FILE="$ANSIBLE_DIR/group_vars/all/vault.yml"
+VAULT_FILE="$ANSIBLE_DIR/inventory/group_vars/all/vault.yml"
 # OJO: ansible.cfg YA define 'vault_password_file'. Pasar además '--vault-password-file'
 # en la línea de comandos crea DOS vault-id "default" y ansible-vault lo rechaza
 # ("Specify the vault-id to encrypt with --encrypt-vault-id"). Por eso aquí NUNCA

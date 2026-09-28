@@ -14,14 +14,7 @@ proyecto, `inventory/hosts.ini` y `playbooks/site.yml` en subdirectorios propios
 `lab_demo_users: []` de `roles/*/defaults/main.yml`) en vez de los definidos en
 `group_vars/all/vars.yml` (`lab_timezone: "Europe/Madrid"`, la lista real de usuarios demo). Se veía en
 el propio nombre de la tarea, renderizado con Jinja2:
-```
-TASK [common : Fijar huso horario del lab (UTC)] ***    <- debería decir "(Europe/Madrid)"
-```
-y en dos tareas que se saltaban siempre, con `-v`:
-```
-TASK [lab_users : Crear usuarios de demostración] ***
-skipping: [rhel7-app01] => {"changed": false, "skipped_reason": "No items in the list"}
-```
+
 Sin embargo, un comando ad-hoc ejecutado justo antes, desde el mismo directorio, mostraba las variables
 **correctas**:
 ```bash
@@ -88,3 +81,50 @@ suficiente**, porque ad-hoc usa una regla de búsqueda distinta (basada en `cwd`
 mirar un valor que solo puede venir de `group_vars` renderizado **dentro del propio play** — por ejemplo,
 el nombre de una tarea que interpola esa variable (`"Fijar huso horario del lab ({{ lab_timezone }})"`) —
 en vez de fiarse de un `ansible -m debug` ejecutado por separado.
+
+Además: cuando el fix se aplica a mano dentro de `~/ansible-lab` en la VM (como aquí), no está completo
+hasta que se replica también en el **origen versionado** que la genera — ver la nota siguiente, que es
+justo el error que se cometió con este mismo caso.
+
+## Nota posterior (2026-09-28): el fix no se había llevado al origen
+
+Al retomar la Etapa 7 semanas después (integrando por fin `stage7`/`stage7-setup` en `scripts/lab.sh`,
+que se había quedado sin los 4 sitios del checklist), se detectó que `scripts/stage7/files/group_vars/`
+—la plantilla de origen que `01-ansible-control-setup.sh` copia con `cp -a` a `~adminlab/ansible-lab` en
+cada ejecución— **seguía teniendo `group_vars/` en la raíz**, sin el `mv` a `inventory/group_vars/`
+descrito arriba. El `mv` de "Solución aplicada" se había ejecutado en su momento solo sobre la copia
+desplegada en la VM, nunca sobre la plantilla versionada en el repo.
+
+Consecuencia práctica: la próxima vez que se ejecutara `lab.sh stage7-setup` (por ejemplo, tras recrear
+`ansible01` desde cero), `cp -a` habría vuelto a desplegar la estructura rota, reproduciendo el bug de
+este mismo caso pese a estar documentado como resuelto. Se encontró **antes** de ejecutar nada, comparando
+el árbol real del repo (`find scripts/stage7/files -maxdepth 2 -type d`) contra lo que este documento
+decía — no como fallo en caliente contra las VMs.
+
+Se aprovechó para revisar `scripts/stage7/01-ansible-control-setup.sh` y se encontró un segundo efecto
+del mismo desajuste: `VAULT_FILE` seguía apuntando a la ruta vieja
+(`"$ANSIBLE_DIR/group_vars/all/vault.yml"`). Con `group_vars/` ya movido y esa variable sin actualizar,
+la comprobación `ansible-vault view "$VAULT_FILE"` habría fallado siempre (ruta inexistente), entrando en
+la rama que intenta **generar y cifrar un vault nuevo** en el sitio equivocado.
+
+**Corrección aplicada (esta vez sí, en el origen):**
+```bash
+cd scripts/stage7/files
+mkdir -p inventory/group_vars
+mv group_vars/all inventory/group_vars/all
+rmdir group_vars
+```
+```bash
+sed -i 's#VAULT_FILE="$ANSIBLE_DIR/group_vars/all/vault.yml"#VAULT_FILE="$ANSIBLE_DIR/inventory/group_vars/all/vault.yml"#' \
+  scripts/stage7/01-ansible-control-setup.sh
+```
+
+**Validado** con `scripts/lab.sh stage7-setup` real: `vault.yml ya estaba cifrado y se descifra
+correctamente con la contraseña local` — confirma que `VAULT_FILE` ya apunta al sitio correcto.
+
+**Lección añadida a "Prevención"**: cuando un fix de estructura de directorios se prueba y valida
+directamente en una VM (edición en caliente sobre `~/ansible-lab`), **no se considera cerrado** hasta
+replicarlo también en la plantilla de origen que reconstruye ese directorio (`scripts/stage7/files/` en
+este proyecto) y en cualquier ruta hardcodeada en los scripts de automatización que dependa de esa
+estructura (`VAULT_FILE`, en este caso). Antes de dar un `troubleshooting/*.md` por "aplicado", conviene
+volver a comprobar la plantilla de origen, no solo el sistema en el que se probó.
