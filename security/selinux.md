@@ -27,7 +27,7 @@ Mantener SELinux en modo Enforcing en los 6 hosts, ajustar booleans de forma con
 `tests/test_selinux.sh`: Enforcing activo y persistente, boolean `ssh_chroot_rw_homedirs=on`, contexto correcto de la jaula SFTP, existe la foto de denegaciones.
 
 ## Troubleshooting relacionado
-Ver caso `06-selinux-denial.md` (denegación por etiqueta incorrecta → `203/EXEC`) y caso `27` (un `HOME` relativo bajo `ChrootDirectory` NO es un problema de SELinux, aunque el síntoma —"no puedo entrar"— se parezca).
+Ver caso [`etapa2/04-selinux-denial.md`](../troubleshooting/etapa2/04-selinux-denial.md) (denegación por etiqueta incorrecta → `203/EXEC`) y caso [`etapa4/07`](../troubleshooting/etapa4/07-sftpdemo-falsos-positivos-pwck-y-test-ssh.md) (un `HOME` relativo bajo `ChrootDirectory` NO es un problema de SELinux, aunque el síntoma —"no puedo entrar"— se parezca).
 
 ## Errores comunes
 Desactivar SELinux (`setenforce 0` permanente o `SELINUX=disabled`) en vez de investigar la denegación concreta; instalar un módulo `audit2allow` sin revisar qué permisos concede realmente; olvidar `restorecon` tras mover/copiar ficheros (`cp -a` preserva el contexto de origen, que puede ser incorrecto en el destino).

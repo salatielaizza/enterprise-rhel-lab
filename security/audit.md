@@ -24,7 +24,7 @@ Etapas 1-4 completadas. `scripts/stage5/02-audit-rules.sh` instala `audit` (si f
 `tests/test_audit.sh`: `auditd` activo y habilitado, las reglas mínimas presentes en `auditctl -l`, fichero de reglas del lab presente.
 
 ## Troubleshooting relacionado
-Ver caso `20-ausearch-colgado-timeout.md` (`ausearch` puede colgarse sin responder; siempre con timeout/`&` en scripts que lo invoquen).
+Ver caso [`etapa2/06-ausearch-colgado-timeout.md`](../troubleshooting/etapa2/06-ausearch-colgado-timeout.md) (`ausearch` puede colgarse sin responder; siempre con timeout/`&` en scripts que lo invoquen).
 
 ## Errores comunes
 Editar `/etc/audit/audit.rules` a mano en vez de un fichero en `rules.d/` (se sobrescribe al regenerar); olvidar `augenrules --load` tras cambiar las reglas; poner reglas demasiado amplias (`-w /` o `-w /etc`) que generan tanto ruido que el log deja de ser útil.

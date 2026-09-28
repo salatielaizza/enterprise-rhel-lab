@@ -128,7 +128,16 @@ La imagen usada (`geerlingguy/docker-rockylinux9-ansible`) es la que usa buena p
 `tests/test_ansible.sh` distingue por host (como `lab-healthcheck.sh` en la Etapa 6): en `ansible01` comprueba que Ansible está instalado, que existen inventario/playbooks/clave SSH, y que `vault.yml` está realmente cifrado (no en texto plano); en los 5 nodos gestionados comprueba el marcador `/etc/ansible-lab-managed.txt`, el huso horario, el paquete `tree`, los dos usuarios de demostración (creados y con la contraseña bloqueada) y que la Etapa 7 quedó marcada.
 
 ## Troubleshooting relacionado
-Todavía no hay ningún caso real de esta etapa en `troubleshooting/` — la lección que sí se encontró (el conflicto de `--vault-password-file` duplicado, ver "Errores comunes" más abajo) se detectó y corrigió **durante la elaboración**, antes de tocar las VMs reales, así que no se documenta como caso de troubleshooting (esos se reservan para fallos reales al ejecutar en las VMs; ver `troubleshooting/README.md`). En cuanto `lab.sh stage7-setup`/`stage7 site` se ejecuten de verdad y aparezca algo inesperado, se documentará aquí con el mismo formato que los casos `20` y `28`.
+Al ejecutar de verdad contra las VMs reales aparecieron 3 casos, documentados con el mismo formato que
+los casos `etapa2/06` y `etapa6/01`:
+- [`etapa7/01`](../troubleshooting/etapa7/01-rhel7-timedatectl-p-no-soportado.md) — `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo)
+- [`etapa7/02`](../troubleshooting/etapa7/02-plantilla-timestamp-rompe-idempotencia.md) — un timestamp dentro de una plantilla comparada rompía la idempotencia
+- [`etapa7/03`](../troubleshooting/etapa7/03-group-vars-ubicacion-incorrecta.md) — `group_vars/` en la raíz del proyecto, invisible para `ansible-playbook`
+
+(La lección del conflicto de `--vault-password-file` duplicado, ver "Errores comunes" más abajo, se
+detectó y corrigió **durante la elaboración**, antes de tocar las VMs reales, así que no se documenta
+como caso de troubleshooting — esos se reservan para fallos reales al ejecutar en las VMs; ver
+[`troubleshooting/README.md`](../troubleshooting/README.md).)
 
 ## Errores comunes
 - **Pasar `--vault-password-file` en la línea de comandos cuando `ansible.cfg` ya lo define.** Produce `Specify the vault-id to encrypt with --encrypt-vault-id` (dos vault-id `default` en conflicto). Solución: dejar que `ansible.cfg` sea la única fuente (vía `ANSIBLE_CONFIG` apuntando al directorio del lab), sin repetir el flag — así se hizo en `01-ansible-control-setup.sh`.

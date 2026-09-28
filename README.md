@@ -26,11 +26,12 @@ puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 
 Este repositorio cubre hoy las **Etapas 1 a 7** de un plan de **19 etapas**. Las **Etapas 1 a 6** están
 completas y validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`,
 `dns01`, `ansible01`): 171/172/172/172/158/153 PASS respectivamente, 0 FAIL en todas. Las Etapas 1-4
-incluyen BIND, chrony y SSH/SFTP endurecido (caso 27 documentado en `troubleshooting/`); las Etapas 5 y
-6 añaden SELinux enforcing, auditd y hardening del SO, más herramientas propias en bash con
-temporizador systemd — en el camino se aplicó la lección ya conocida del caso 20 (`ausearch` sin
-`timeout`) y se encontró y corrigió uno nuevo, el **caso 28** (una función bash que puede devolver
-distinto de cero bajo `set -e` y aborta el script), ambos documentados en `troubleshooting/`. La
+incluyen BIND, chrony y SSH/SFTP endurecido (caso `etapa4/07` documentado en `troubleshooting/`); las
+Etapas 5 y 6 añaden SELinux enforcing, auditd y hardening del SO, más herramientas propias en bash con
+temporizador systemd — en el camino se aplicó la lección ya conocida del caso `etapa2/06` (`ausearch`
+sin `timeout`) y se encontró y corrigió uno nuevo, el **caso `etapa6/01`** (una función bash que puede
+devolver distinto de cero bajo `set -e` y aborta el script), ambos documentados en `troubleshooting/`
+(que ahora organiza los casos en un directorio por etapa, numerados desde 01 en cada una). La
 **Etapa 7** (automatización con Ansible: `ansible01` como nodo de control, roles idempotentes, Ansible
 Vault) tiene su automatización, tests y documentación escritos, pendiente de ejecutar y validar en las
 VMs reales. Las Etapas 8-19 están pendientes, sin empezar — este es un proyecto vivo, no cerrado. La
