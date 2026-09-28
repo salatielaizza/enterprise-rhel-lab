@@ -21,6 +21,9 @@ puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 
 **completas** (validadas con `0 FAIL` en las 6 VMs). Regla del proyecto:
 *manual → documentado → repetible → automatizado*.
 
+> 📊 Diagrama interactivo (arquitectura + etapas + flujo Ansible): https://claude.ai/artifact/Nz57fkLXciTwKSpPGWPUMx
+> (generado 2026-09-29 00:32 CEST — el contenido puede desactualizarse respecto al repo con el tiempo)
+
 ## 🗺️ Estado del proyecto y hoja de ruta
 
 Este repositorio cubre hoy las **Etapas 1 a 7** de un plan de **19 etapas**. Las **Etapas 1 a 6** están
@@ -34,10 +37,12 @@ devolver distinto de cero bajo `set -e` y aborta el script), ambos documentados 
 (que ahora organiza los casos en un directorio por etapa, numerados desde 01 en cada una). La
 **Etapa 7** (automatización con Ansible: `ansible01` como nodo de control, roles idempotentes, Ansible
 Vault) tiene su automatización, tests y documentación escritos, pendiente de ejecutar y validar en las
-VMs reales. Las Etapas 8-19 están pendientes, sin empezar — este es un proyecto vivo, no cerrado. La
-Etapa 17 fusiona Kubernetes y OpenShift en una sola (encajan de forma natural, ya que OpenShift es la
-distribución empresarial de Kubernetes de Red Hat), dejando sitio a la Etapa 18: **VMware ESXi
-avanzado**, para comparar KVM/libvirt (lo usado en todo este lab) con el otro gran hipervisor enterprise.
+VMs reales. Las Etapas 8-19 están pendientes, sin empezar — este es un proyecto vivo, no cerrado. Ya se
+decidió dividir la Etapa 9 en dos (Etapa 9a: nginx + Gitea + PostgreSQL; Etapa **9b**: httpd + Nextcloud +
+PostgreSQL), aunque su automatización todavía no está escrita. La Etapa 17 fusiona Kubernetes y OpenShift
+en una sola (encajan de forma natural, ya que OpenShift es la distribución empresarial de Kubernetes de
+Red Hat), dejando sitio a la Etapa 18: **VMware ESXi avanzado**, para comparar KVM/libvirt (lo usado en
+todo este lab) con el otro gran hipervisor enterprise.
 
 > **Leyenda de estado:** ✅ **Completa** — automatización + tests + documentación hechos y validados con `0 FAIL` en las 6 VMs. 📝 **Planificada** — automatización y documentación ya escritas, pendiente de ejecutar/validar en las VMs reales. ⏳ **Pendiente** — todavía no tiene nada elaborado (sin script, sin documentación).
 
@@ -51,7 +56,8 @@ avanzado**, para comparar KVM/libvirt (lo usado en todo este lab) con el otro gr
 | 6 | 📜 Bash avanzado y scripting | ✅ Completa |
 | 7 | 🤖 Ansible (automatización, inventario, roles) | 📝 Planificada |
 | 8 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
-| 9 | 🧭 Servidores web y proxy inverso (Apache httpd, NGINX, balanceo) | ⏳ Pendiente |
+| 9a | 🧭 Servidor web con nginx — reverse proxy + Gitea (Git self-hosted) + PostgreSQL | ⏳ Pendiente |
+| 9b | 🧭 Servidor web con httpd — PHP-FPM + Nextcloud + PostgreSQL | ⏳ Pendiente |
 | 10 | 🚚 Migraciones entre versiones (Leapp) | ⏳ Pendiente |
 | 11 | 🛰️ Red Hat Satellite | ⏳ Pendiente |
 | 12 | 🗄️ NFS / CIFS (almacenamiento compartido) | ⏳ Pendiente |
@@ -65,8 +71,8 @@ avanzado**, para comparar KVM/libvirt (lo usado en todo este lab) con el otro gr
 
 Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en las Etapas 1-4
 (ver `architecture/hosts.md`) se mantienen estables para las etapas futuras — por ejemplo,
-`ansible01` (10.10.10.30) ya está reservada para la Etapa 7, y `rhel9-web01`/`rhel9-monitor01`
-(10.10.10.40/.50) para las etapas 9 y 15.
+`ansible01` (10.10.10.30) ya está reservada para la Etapa 7, y `rhel9a-web01`/`rhel9b-web02`/`rhel9-monitor01`
+(10.10.10.40/.41/.50) para las etapas 9a, 9b y 15.
 
 ## 🔧 Contenido de las Etapas 1-7
 
