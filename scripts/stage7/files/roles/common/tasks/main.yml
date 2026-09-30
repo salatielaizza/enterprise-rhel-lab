@@ -8,14 +8,18 @@
     name: "{{ lab_common_packages }}"
     state: present
 
-- name: Leer huso horario actual (para no marcar 'changed' si ya es el correcto)
-  ansible.builtin.command: timedatectl show -p Timezone --value
-  register: lab_current_tz
-  changed_when: false
+# /etc/localtime es un enlace a ../usr/share/zoneinfo/<Zona> en RHEL 7/8/9/10.
+# Se lee con 'stat' (módulo de solo lectura) y no con 'timedatectl show', que
+# no existe en el systemd 219 de RHEL 7. Además 'stat' SÍ se ejecuta en --check,
+# mientras que command/shell se omiten en simulación (y ocultan fallos).
+- name: Leer huso horario actual (enlace simbólico /etc/localtime)
+  ansible.builtin.stat:
+    path: /etc/localtime
+  register: lab_localtime
 
 - name: "Fijar huso horario del lab ({{ lab_timezone }})"
   ansible.builtin.command: "timedatectl set-timezone {{ lab_timezone }}"
-  when: lab_current_tz.stdout != lab_timezone
+  when: not (lab_localtime.stat.lnk_target | default('')).endswith('zoneinfo/' ~ lab_timezone)
 
 - name: Desplegar marcador de gestión por Ansible (NO toca /etc/issue, que gestiona la Etapa 5)
   ansible.builtin.template:
