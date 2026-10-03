@@ -76,15 +76,15 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 
 ## 🔧 Contenido de las Etapas 1-7
 
-| Etapa | Contenido | Automatización | Documentación |
-|---|---|---|---|
-| 💿 1 | Instalación de RHEL 7/8/9/10 (+ dns01, ansible01) | `lab.sh host-setup/network/iso/vm-create/register/snapshot` | `rhelN/installation.md`, `checklists/etapa1.md` |
-| 👥 2 | Usuarios, permisos, sudo, systemd, LVM/XFS, paquetes, logs | `lab.sh stage2` | `administration/*.md` |
-| 🌐 3 | NetworkManager, IP/gateway/DNS/hostname, diagnóstico | `lab.sh stage3` | `networking/networkmanager.md`, `networking/troubleshooting.md` |
-| 🔐 4 | BIND (DNS), chrony (hora), SSH/SFTP | `lab.sh stage4-dns`, `stage4-clients` | `networking/dns.md`, `time/chrony.md`, `networking/ssh.md` |
-| 🛡️ 5 | SELinux enforcing, reglas de auditd, hardening del SO | `lab.sh stage5` | `security/selinux.md`, `security/audit.md`, `security/hardening.md` |
-| 📜 6 | Herramientas propias en bash (`lab-healthcheck.sh`, `lab-logscan.sh`) + temporizador systemd | `lab.sh stage6` | `scripting/bash-avanzado.md` |
-| 🤖 7 | ansible01 como nodo de control: roles idempotentes, Ansible Vault, block/rescue/serial, colección propia (módulo+filtro), inventario dinámico, Molecule | `lab.sh stage7-setup`, `stage7` | `automation/ansible.md` |
+| Etapa | Contenido | Automatización | Documentación | Guía de troubleshooting y estudio |
+|---|---|---|---|---|
+| 💿 1 | Instalación de RHEL 7/8/9/10 (+ dns01, ansible01) | `lab.sh host-setup/network/iso/vm-create/register/snapshot` | `rhelN/installation.md`, `checklists/etapa1.md` | [`README_troubleshooting_etapa1.md`](troubleshooting/etapa1/README_troubleshooting_etapa1.md) |
+| 👥 2 | Usuarios, permisos, sudo, systemd, LVM/XFS, paquetes, logs | `lab.sh stage2` | `administration/*.md` | [`README_troubleshooting_etapa2.md`](troubleshooting/etapa2/README_troubleshooting_etapa2.md) |
+| 🌐 3 | NetworkManager, IP/gateway/DNS/hostname, diagnóstico | `lab.sh stage3` | `networking/networkmanager.md`, `networking/troubleshooting.md` | [`README_troubleshooting_etapa3.md`](troubleshooting/etapa3/README_troubleshooting_etapa3.md) |
+| 🔐 4 | BIND (DNS), chrony (hora), SSH/SFTP | `lab.sh stage4-dns`, `stage4-clients` | `networking/dns.md`, `time/chrony.md`, `networking/ssh.md` | [`README_troubleshooting_etapa4.md`](troubleshooting/etapa4/README_troubleshooting_etapa4.md) |
+| 🛡️ 5 | SELinux enforcing, reglas de auditd, hardening del SO | `lab.sh stage5` | `security/selinux.md`, `security/audit.md`, `security/hardening.md` | [`README_troubleshooting_etapa5.md`](troubleshooting/etapa5/README_troubleshooting_etapa5.md) |
+| 📜 6 | Herramientas propias en bash (`lab-healthcheck.sh`, `lab-logscan.sh`) + temporizador systemd | `lab.sh stage6` | `scripting/bash-avanzado.md` | [`README_troubleshooting_etapa6.md`](troubleshooting/etapa6/README_troubleshooting_etapa6.md) |
+| 🤖 7 | ansible01 como nodo de control: roles idempotentes, Ansible Vault, block/rescue/serial, colección propia (módulo+filtro), inventario dinámico, Molecule | `lab.sh stage7-setup`, `stage7` | `automation/ansible.md` | Se crea al cerrar la etapa (índice actual: [`etapa7/README.md`](troubleshooting/etapa7/README.md)) |
 
 ## 🏗️ Arquitectura en una mirada
 
@@ -142,7 +142,9 @@ Ayuda completa: `scripts/lab.sh help`. Las VMs se encienden/apagan con `lab.sh u
 ## 🎓 Cómo usar este repositorio para aprender
 
 1. Lee el `.md` del tema y **haz el procedimiento a mano** en una VM (tras un snapshot).
-2. Provoca y resuelve los casos de `troubleshooting/`.
+2. Estudia la guía de la etapa (`troubleshooting/etapaN/README_troubleshooting_etapaN.md`: comandos de los
+   scripts y de los tests explicados, chuleta síntoma → comandos y preguntas de repaso) y provoca y resuelve
+   sus casos de troubleshooting.
 3. Aplica el script (`lab.sh stageN`) a todas las VMs y pasa los tests.
 4. Rellena `checklists/etapaN.md` y crea el snapshot `<nombre>-stageN-complete`.
 
@@ -159,7 +161,7 @@ se genera exclusivamente con datos leídos de las VMs (`lab.sh facts`).
 `scripts/` automatización (host: `lab.sh`, `0N-*.sh`; VMs: `stage2/`, `stage3/`, `stage4/`, `stage5/`, `stage6/`, `stage7/`) ·
 `scripts/kickstart/` plantillas de instalación · `tests/` pruebas PASS/FAIL de solo lectura ·
 `architecture/` · `rhel7/ … rhel10/` · `administration/` · `networking/` · `time/` · `security/` · `scripting/` · `automation/` ·
-`troubleshooting/` · `migration/` · `comparison/` · `checklists/` · `results/` (evidencias; `facts/` se genera).
+`troubleshooting/` (un directorio por etapa con sus casos y su guía `README_troubleshooting_etapaN.md`; índice en `troubleshooting/README.md`) · `migration/` · `comparison/` · `checklists/` · `results/` (evidencias; `facts/` se genera).
 
 ## 🔒 Seguridad
 
