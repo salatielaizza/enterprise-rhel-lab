@@ -6,16 +6,18 @@ se diagnostica con evidencias y se valida. Formato: Objetivo · Preparación · 
 Hipótesis (descartadas) · Diagnóstico · Causa raíz · Solución (aplicada) · Validación · Prevención.
 
 Organizado en un directorio por etapa, con numeración propia desde 01 en cada una (`etapaN/NN-slug.md`).
+Cada etapa finalizada tiene su guía `etapaN/README_troubleshooting_etapaN.md`: índice de casos más los
+comandos de los scripts y de los tests de esa etapa, explicados, como base de estudio.
 Un caso que se referencia desde fuera de su propia etapa se enlaza como `etapaN/NN`.
 
-## [Etapa 1](etapa1/README.md) — instalación RHEL 7/8/9/10 (3 casos)
+## [Etapa 1](etapa1/README_troubleshooting_etapa1.md) — instalación RHEL 7/8/9/10 (3 casos)
 | Caso | Tema |
 |---|---|
 | [01 rhel10-bios-gpt-biosboot](etapa1/01-rhel10-bios-gpt-biosboot.md) | RHEL 10 en BIOS: falta partición biosboot (GPT por defecto) |
 | [02 limpieza-scripts-alternativos-rhel10](etapa1/02-limpieza-scripts-alternativos-rhel10.md) | Consolidación: scripts alternativos de RHEL 10 eliminados en favor de `lab.sh` |
 | [03 rhel8-checksum-version-real-vs-planeada](etapa1/03-rhel8-checksum-version-real-vs-planeada.md) | RHEL 8: versión real instalada (8.6) distinta de la planeada (8.10) |
 
-## [Etapa 2](etapa2/README.md) — administración Linux (9 casos)
+## [Etapa 2](etapa2/README_troubleshooting_etapa2.md) — administración Linux (9 casos)
 | Caso | Tema |
 |---|---|
 | [01 service-down](etapa2/01-service-down.md) | Servicio parado (sshd) y servicio que se cae (lab-app) |
@@ -28,7 +30,7 @@ Un caso que se referencia desde fuera de su propia etapa se enlaza como `etapaN/
 | [08 pwck-usuario-ftp-var-ftp-inexistente](etapa2/08-pwck-usuario-ftp-var-ftp-inexistente.md) 🔎 | `pwck`: usuario `ftp` sin `/var/ftp` (solo RHEL 7) |
 | [09 journalctl-u-no-encuentra-lab-app-rhel8](etapa2/09-journalctl-u-no-encuentra-lab-app-rhel8.md) 🔎 | `journalctl -u` no encuentra heartbeats en RHEL 8; usar `-t` |
 
-## [Etapa 3](etapa3/README.md) — networking, NetworkManager, diagnóstico (8 casos)
+## [Etapa 3](etapa3/README_troubleshooting_etapa3.md) — networking, NetworkManager, diagnóstico (8 casos)
 | Caso | Tema |
 |---|---|
 | [01 firewall-block](etapa3/01-firewall-block.md) | Puerto bloqueado por firewalld |
@@ -40,7 +42,7 @@ Un caso que se referencia desde fuera de su propia etapa se enlaza como `etapaN/
 | [07 tabla-resumen-tests-set-e-command-substitution](etapa3/07-tabla-resumen-tests-set-e-command-substitution.md) 🔎 | Regresión `scp -O` + bug de `set -e` con `out="$(...)"; ec=$?` en `lab.sh test` |
 | [08 medicion-tiempo-por-test-y-tabla-final](etapa3/08-medicion-tiempo-por-test-y-tabla-final.md) 🔎 | Medición de tiempo por sub-test/VM (`fmt_time` Ns/Mm SSs) + ediciones vim fallidas |
 
-## [Etapa 4](etapa4/README.md) — BIND, chrony, SSH/SFTP (7 casos)
+## [Etapa 4](etapa4/README_troubleshooting_etapa4.md) — BIND, chrony, SSH/SFTP (7 casos)
 | Caso | Tema |
 |---|---|
 | [01 dns-failure](etapa4/01-dns-failure.md) | `dns01` caído: clientes sin resolución |
@@ -51,7 +53,12 @@ Un caso que se referencia desde fuera de su propia etapa se enlaza como `etapaN/
 | [06 dns-cambiado-en-perfil-pero-no-en-resolv-rhel8](etapa4/06-dns-cambiado-en-perfil-pero-no-en-resolv-rhel8.md) 🔎 | DNS actualizado en nmcli pero no en `resolv.conf` (solo RHEL 8) |
 | [07 sftpdemo-falsos-positivos-pwck-y-test-ssh](etapa4/07-sftpdemo-falsos-positivos-pwck-y-test-ssh.md) 🔎 | `sftpdemo` con chroot: `pwck` y test de `ChrootDirectory` con falsos positivos |
 
-## [Etapa 6](etapa6/README.md) — hardening del SO, herramientas propias en bash (1 caso)
+## [Etapa 5](etapa5/README_troubleshooting_etapa5.md) — seguridad: SELinux, auditd, hardening (0 casos)
+Sin incidencias propias al ejecutarla: la guía recoge los comandos de los scripts y tests de la etapa y
+enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-selinux-denial.md),
+[etapa2/06](etapa2/06-ausearch-colgado-timeout.md), [etapa4/02](etapa4/02-ssh-failure.md)).
+
+## [Etapa 6](etapa6/README_troubleshooting_etapa6.md) — bash avanzado y scripting (1 caso)
 | Caso | Tema |
 |---|---|
 | [01 log-verbose-set-e-lab-healthcheck](etapa6/01-log-verbose-set-e-lab-healthcheck.md) 🔎 | `lab-healthcheck.timer` fallaba: función `log()` devolvía 1 bajo `set -e` sin `-v` |
