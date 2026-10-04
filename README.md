@@ -71,7 +71,7 @@ Red Hat).
 | 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ✅ Completa |
 | 6 | 📜 Bash avanzado y scripting | ✅ Completa |
 | 7 | 🤖 Ansible (automatización, inventario, roles) | 📝 Planificada |
-| 8 | 🖥️ VMware vSphere (ESXi 8 anidado en KVM; vCenter en evaluación con clúster y vMotion sobre datastore NFS; PowerCLI y Ansible `community.vmware`; HA, DRS y switches distribuidos en Hands-on Labs; integrado con `dns01`/`ansible01` y comparado con KVM/libvirt) | ⏳ Planificada |
+| 8 | 🖥️ VMware vSphere (ESXi 8 anidado en KVM; vCenter en evaluación con clúster y vMotion sobre datastore NFS; PowerCLI y Ansible `community.vmware`; HA, DRS y switches distribuidos en Hands-on Labs; integrado con `dns01`/`ansible01` y comparado con KVM/libvirt) | 📝 Planificada |
 | 9 | 🛰️ Red Hat Satellite (repositorios, parches, suscripciones y aprovisionamiento centralizados) | ⏳ Pendiente |
 | 10 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
 | 11a | 🧭 Servidor web con nginx — reverse proxy + Gitea (Git self-hosted) + PostgreSQL | ⏳ Pendiente |
