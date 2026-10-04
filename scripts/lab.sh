@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-7)
+# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-8)
 # Ejecuta 'scripts/lab.sh help' para ver los comandos.
 # Los scripts son envoltorios de los MISMOS comandos que se documentan a mano en
 # los .md: primero se practica a mano en una VM, después se repite con el script.
@@ -57,6 +57,28 @@ Etapa 7 - Automatización con Ansible
                                    dinámico real construido desde una API pública
                                    (requiere que ansible01 tenga salida a Internet)
 
+Etapa 8 - VMware vSphere (ESXi anidado en KVM; inventario en scripts/vmware.conf)
+  esxi-preflight [A|B]            Auditoría de SOLO LECTURA del host para la fase A (ESXi
+                                   gratuito) o B (vCenter en evaluación): nested, RAM, disco, ISOs, DNS
+  esxi-iso <esxi0N|all> [--dry-run]
+                                  ISO desatendido de ESXi con kickstart (pide la contraseña de root)
+  esxi-create <esxi0N> [--manual] [--force] [--dry-run]
+                                  Crea el ESXi en KVM (SATA, vmxnet3, host-passthrough).
+                                   --manual: instalador interactivo con el ISO original (fase 2)
+  esxi-up|esxi-down <esxi0N|all>  Encendido / apagado ORDENADO (VMs internas -> mantenimiento -> host)
+  esxi-status [esxi0N|all]        Estado, licencia y caducidad, NTP, datastores, VMs (solo lectura)
+  esxi-snapshot <create|list|revert|delete> <esxi0N> [etapa]
+                                  Snapshots <host>-stage8-complete (exige el ESXi apagado)
+  stage8-nfs                      Disco SCSI extra en dns01 + export NFS del datastore compartido
+  vcsa-deploy [--verify-only|--precheck-only]
+                                  Despliega vCenter (VCSA tiny) en esxi02 con el instalador CLI
+  stage8-setup [--no-powercli]    ansible01: venv con ansible-core >= 2.19, colecciones VMware,
+                                   proyecto ~/vmware-lab, vault y PowerShell + PowerCLI
+  stage8-guest-key                Copia la clave SSH de ansible01 a rhel9-vm01 (VM dentro de ESXi)
+  stage8 <info|cluster|esxi-config|guest|vmotion|snapshot|guest-baseline|verify> [args]
+                                  Playbooks de ~/vmware-lab desde ansible01 (args para ansible-playbook)
+  stage8-close                    Marca LAB_STAGE=8 en dns01 y ansible01 (exige la Etapa 7 cerrada)
+
 Verificación y documentación
   test <test_x.sh|all> <host|all> Ejecuta tests dentro de las VMs (p. ej. test_users.sh)
   facts <host|all>                Recoge datos reales -> results/facts/<host>.env
@@ -70,7 +92,7 @@ push() {  # copia los scripts y tests a ~/lab-scripts de la VM
   ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$ip" 'rm -rf "$HOME/lab-scripts" && mkdir -p "$HOME/lab-scripts"'
   scp -O -q -r "${SSH_OPTS[@]}" \
     "$SCRIPTS_DIR/common.sh" "$SCRIPTS_DIR/collect-facts.sh" "$SCRIPTS_DIR/hosts.conf" \
-    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$SCRIPTS_DIR/stage7" "$LAB_ROOT/tests" \
+    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$SCRIPTS_DIR/stage7" "$SCRIPTS_DIR/stage8" "$LAB_ROOT/tests" \
     "$LAB_ADMIN@$ip:lab-scripts/"
 }
 run_remote() {  # run_remote HOST ruta/relativa.sh [args...]  (como root, sin contraseña)
@@ -195,6 +217,48 @@ stage7() {
   fi
 }
 
+# Etapa 8: los ESXi NO están en hosts.conf (no son RHEL); sus scripts de host viven en
+# scripts/stage8/ y leen scripts/vmware.conf. dns01 y ansible01 sí usan push/run_remote.
+STAGE8="$SCRIPTS_DIR/stage8"
+esxi_targets() {  # 'all' o un ESXi de vmware.conf -> lista de nombres
+  local conf="$SCRIPTS_DIR/vmware.conf"
+  if [[ "$1" == all ]]; then awk '$1 !~ /^#/ && NF>=9 {print $1}' "$conf"
+  else awk -v n="$1" '$1==n {f=1} END{exit !f}' "$conf" || die "ESXi desconocido: $1 (mira $conf)"; echo "$1"; fi
+}
+stage8_nfs() {
+  info "=== Etapa 8: datastore NFS compartido en dns01 ==="
+  "$STAGE8/06-dns01-nfs-disk.sh"
+  push dns01
+  run_remote dns01 stage8/10-nfs-datastore.sh
+  ok "Export NFS listo. Siguiente: lab.sh test test_nfs_datastore.sh dns01"
+}
+stage8_setup() {
+  info "=== Etapa 8: automatización de VMware en ansible01 ==="
+  push ansible01
+  run_remote ansible01 stage8/20-vmware-control-setup.sh "$@"
+  ok "ansible01 listo para VMware. Pon las contraseñas reales en el vault de ~/vmware-lab (ver la salida)."
+}
+stage8_guest_key() {
+  local guest_ip=10.10.10.64 pubkey
+  info "=== Etapa 8: clave SSH de ansible01 -> rhel9-vm01 ($guest_ip) ==="
+  pubkey="$(ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$(ip_of ansible01)" 'cat ~/.ssh/id_ed25519.pub')" \
+    || die "No se pudo leer la clave pública de ansible01 (¿lab.sh stage7-setup?)"
+  # rhel9-vm01 se instala con el kickstart de RHEL 9 del lab: ya confía en la clave del HOST
+  # shellcheck disable=SC2029  # $pubkey se expande en el cliente a propósito (igual que en stage7_setup)
+  ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$guest_ip" \
+    "mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qxF '$pubkey' ~/.ssh/authorized_keys 2>/dev/null || echo '$pubkey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys" \
+    || die "No se pudo entrar en rhel9-vm01 con la clave del lab (¿instalada con el kickstart de RHEL 9?)"
+  ok "rhel9-vm01 acepta la clave de ansible01. Siguiente: lab.sh stage8 guest-baseline"
+}
+stage8() {
+  local playbook="$1"; shift || true
+  run_remote ansible01 stage8/21-run-playbook.sh "$playbook" "$@"
+}
+stage8_close() {
+  local h
+  for h in dns01 ansible01; do push "$h"; run_remote "$h" stage8/99-mark-stage.sh; done
+}
+
 # --- despacho -------------------------------------------------------------------
 cmd="${1:-help}"; if [[ $# -gt 0 ]]; then shift; fi
 case "$cmd" in
@@ -242,6 +306,29 @@ case "$cmd" in
   stage6) stage6 "${1:?Uso: lab.sh stage6 <host|all>}" ;;
   stage7-setup) stage7_setup ;;
   stage7) stage7 "${1:?Uso: lab.sh stage7 <site|facts|ping> [--limit <grupo|host>]}" "${@:2}" ;;
+  esxi-preflight) exec "$STAGE8/00-preflight.sh" "$@" ;;
+  esxi-iso)
+    [[ $# -ge 1 ]] || die "Uso: lab.sh esxi-iso <esxi0N|all> [--dry-run]"
+    t="$1"; shift
+    list="$(esxi_targets "$t")"
+    if [[ " $* " != *" --dry-run "* && -z "${LAB_ESXI_PASSWORD:-}" ]]; then   # una sola pregunta para 'all'
+      read -rsp "Contraseña de root para los ESXi (solo laboratorio): " p1; echo
+      read -rsp "Repite la contraseña: " p2; echo
+      [[ -n "$p1" && "$p1" == "$p2" ]] || die "Las contraseñas no coinciden o están vacías"
+      export LAB_ESXI_PASSWORD="$p1"
+    fi
+    for h in $list; do "$STAGE8/01-esxi-iso.sh" "$h" "$@"; done ;;
+  esxi-create)   exec "$STAGE8/02-create-esxi.sh" "${1:?Uso: lab.sh esxi-create <esxi0N> [--manual] [--force] [--dry-run]}" "${@:2}" ;;
+  esxi-up)       exec "$STAGE8/03-esxi-power.sh" up "${1:?Uso: lab.sh esxi-up <esxi0N|all>}" ;;
+  esxi-down)     exec "$STAGE8/03-esxi-power.sh" down "${1:?Uso: lab.sh esxi-down <esxi0N|all>}" ;;
+  esxi-status)   exec "$STAGE8/04-esxi-status.sh" "${1:-all}" ;;
+  esxi-snapshot) exec "$STAGE8/05-esxi-snapshot.sh" "$@" ;;
+  stage8-nfs)    stage8_nfs ;;
+  vcsa-deploy)   exec "$STAGE8/07-vcsa-deploy.sh" "$@" ;;
+  stage8-setup)  stage8_setup "$@" ;;
+  stage8-guest-key) stage8_guest_key ;;
+  stage8)        stage8 "${1:?Uso: lab.sh stage8 <info|cluster|esxi-config|guest|vmotion|snapshot|guest-baseline|verify> [args]}" "${@:2}" ;;
+  stage8-close)  stage8_close ;;
   host-dns)
     need resolvectl
     sudo resolvectl dns "$LAB_BRIDGE" "$LAB_DNS_SERVER"

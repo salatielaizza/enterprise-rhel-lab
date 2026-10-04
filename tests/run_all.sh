@@ -33,6 +33,7 @@ tests=(test_install.sh)
 [[ $stage -ge 5 ]] && tests+=(test_selinux.sh test_audit.sh test_hardening.sh)
 [[ $stage -ge 6 ]] && tests+=(test_bash_tools.sh)
 [[ $stage -ge 7 ]] && tests+=(test_ansible.sh)
+[[ $stage -ge 8 ]] && tests+=(test_vmware.sh test_nfs_datastore.sh)   # cada uno solo actúa en su host (ansible01 / dns01)
 for t in "${tests[@]}"; do
   echo; echo "### $t"
   t0=$SECONDS

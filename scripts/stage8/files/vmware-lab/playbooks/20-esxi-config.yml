@@ -1,0 +1,41 @@
+---
+# Fase B: configuración homogénea de los hosts del clúster desde vCenter.
+#   lab.sh stage8 esxi-config          (después de 'lab.sh stage8 cluster')
+# El kickstart ya deja NTP y DNS; este playbook los AFIRMA desde vCenter (idempotente:
+# changed=0 si nadie los ha tocado). Es el patrón real: la configuración deseada vive
+# en el código, no en la memoria de quien instaló el host.
+
+- name: "Hosts del clúster: NTP, servicio ntpd y DNS"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: "Servidor NTP = dns01 ({{ lab_ntp_server }})"
+      community.vmware.vmware_host_ntp:
+        cluster_name: "{{ vmw_cluster }}"
+        ntp_servers: ["{{ lab_ntp_server }}"]
+        state: present
+
+    - name: Servicio ntpd arrancado y con arranque automático
+      community.vmware.vmware_host_service_manager:
+        cluster_name: "{{ vmw_cluster }}"
+        service_name: ntpd
+        service_policy: "on"
+        state: start
+
+    - name: "DNS = dns01 y dominio de búsqueda {{ lab_domain }}"
+      community.vmware.vmware_host_dns:
+        cluster_name: "{{ vmw_cluster }}"
+        type: static
+        dns_servers: ["{{ lab_dns_server }}"]
+        search_domains: ["{{ lab_domain }}"]

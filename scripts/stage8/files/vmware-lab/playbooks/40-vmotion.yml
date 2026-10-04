@@ -1,0 +1,61 @@
+---
+# Fase B: vMotion de rhel9-vm01 al OTRO host del clúster, en caliente.
+#   lab.sh stage8 vmotion
+# Para verlo "en vivo": deja en otra terminal  'ping 10.10.10.64'  y comprueba que,
+# como mucho, se pierde uno o dos paquetes durante el cambio de host.
+#
+# Si la VM todavía está en el datastore LOCAL de un host, el mismo paso la mueve al
+# datastore NFS compartido (vMotion de cómputo + almacenamiento); a partir de ahí,
+# los vMotion siguientes solo mueven la ejecución (memoria y CPU).
+
+- name: "vMotion de la VM de prueba (rhel9-vm01)"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: Estado antes del vMotion
+      community.vmware.vmware_guest_info:
+        datacenter: "{{ vmw_datacenter }}"
+        name: "{{ vmw_guest_name }}"
+      register: before
+
+    - name: Calcular el host de destino
+      ansible.builtin.set_fact:
+        vm_src: "{{ before.instance.hw_esxi_host }}"
+        vm_dst: "{{ (vmw_cluster_hosts | difference([before.instance.hw_esxi_host])) | first | default('') }}"
+        needs_storage: "{{ vmw_nfs_datastore not in before.instance.hw_datastores }}"
+
+    - name: Debe haber otro host en el clúster
+      ansible.builtin.assert:
+        that: vm_dst | length > 0
+        fail_msg: "No hay otro host en {{ vmw_cluster }} (¿{{ vmw_cluster_hosts }} añadidos con 'lab.sh stage8 cluster'?)"
+
+    - name: "vMotion {{ vm_src }} -> {{ vm_dst }}{{ ' + datastore ' ~ vmw_nfs_datastore if needs_storage else '' }}"
+      community.vmware.vmware_vmotion:
+        vm_name: "{{ vmw_guest_name }}"
+        destination_host: "{{ vm_dst }}"
+        destination_datastore: "{{ vmw_nfs_datastore if needs_storage else omit }}"
+      register: moved
+
+    - name: Estado después del vMotion
+      community.vmware.vmware_guest_info:
+        datacenter: "{{ vmw_datacenter }}"
+        name: "{{ vmw_guest_name }}"
+      register: after
+
+    - name: Resultado
+      ansible.builtin.debug:
+        msg:
+          - "Antes  : {{ before.instance.hw_esxi_host }} {{ before.instance.hw_datastores }}"
+          - "Después: {{ after.instance.hw_esxi_host }} {{ after.instance.hw_datastores }}"
+          - "Estado : {{ after.instance.hw_power_status }}"

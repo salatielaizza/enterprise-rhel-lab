@@ -25,3 +25,12 @@ RHEL9_SHA256="c0dd53b73406b85b40d6168d1748e605d71361b2992d282c408b7d7d2e1d2c80"
 
 # RHEL 10.2 (rhel-10.2-x86_64-dvd.iso, ~10,3 GB)
 RHEL10_SHA256="e15cb333529c332e76e4b1b946efe3515c99f996546675aec18e8effdf2540a5"
+
+# --- Etapa 8 — VMware vSphere (descarga manual desde el portal de Broadcom) -----
+# Nombre del fichero dentro de ISO_DIR (o ruta absoluta). Los usa scripts/stage8/.
+# Gratuito (Free Downloads -> VMware vSphere Hypervisor), licencia gratuita embebida:
+ESXI_FREE_ISO="VMware-VMvisor-Installer-8.0U3e-24677879.x86_64.iso"
+# Instalador estándar (arranca en evaluación de 60 días; requiere derecho de descarga):
+#ESXI_EVAL_ISO="VMware-VMvisor-Installer-8.0U3x-NNNNNNNN.x86_64.iso"
+# vCenter Server Appliance (requiere derecho de descarga):
+#VCSA_ISO="VMware-VCSA-all-8.0.3-NNNNNNNN.iso"

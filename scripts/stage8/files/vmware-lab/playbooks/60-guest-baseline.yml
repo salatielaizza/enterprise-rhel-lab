@@ -1,0 +1,17 @@
+---
+# Integración Etapa 7 <-> Etapa 8: rhel9-vm01, aunque corra DENTRO de VMware, recibe
+# exactamente la misma configuración base que el resto del lab, con los MISMOS roles y
+# variables de la Etapa 7 (~/ansible-lab). Demuestra que Ansible no depende del hipervisor.
+#   lab.sh stage8-guest-key            # una vez: clave SSH de ansible01 en rhel9-vm01
+#   lab.sh stage8 guest-baseline       # repetible; el segundo pase debe dar changed=0
+
+- name: "Configuración base de la Etapa 7 en las VMs de VMware"
+  hosts: vmware_guests
+  gather_facts: true
+  become: true
+  vars_files:
+    - "{{ lookup('env', 'HOME') }}/ansible-lab/inventory/group_vars/all/vars.yml"
+    - "{{ lookup('env', 'HOME') }}/ansible-lab/inventory/group_vars/all/vault.yml"
+  roles:
+    - common
+    - lab_users

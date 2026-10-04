@@ -1,0 +1,37 @@
+---
+# Variables NO secretas de la Etapa 8. Los secretos viven cifrados en vault.yml
+# (mismo directorio), con la misma contraseña de Ansible Vault que la Etapa 7.
+
+lab_domain: lab.local
+lab_dns_server: 10.10.10.20
+lab_ntp_server: 10.10.10.20
+
+# --- vCenter (fase B) -----------------------------------------------------------
+vcenter_hostname: "vcsa01.{{ lab_domain }}"
+vcenter_username: administrator@vsphere.local
+vcenter_password: "{{ vault_vcenter_password }}"
+
+# --- ESXi (root; misma contraseña en los tres, puesta al construir los ISO) ------
+esxi_username: root
+esxi_password: "{{ vault_esxi_root_password }}"
+
+# Certificados autofirmados en el lab: en producción se usan certificados de la CA
+# corporativa (o la VMCA de vCenter) y validate_certs: true.
+vmw_validate_certs: false
+
+# --- Inventario de vSphere ---------------------------------------------------------
+vmw_datacenter: lab-dc
+vmw_cluster: lab-cluster
+vmw_vm_folder: "/{{ vmw_datacenter }}/vm"
+
+# Datastore NFS compartido (lo exporta dns01: lab.sh stage8-nfs)
+vmw_nfs_server: 10.10.10.20
+vmw_nfs_path: /srv/nfs/vmware
+vmw_nfs_datastore: nfs-vmware
+
+# Hosts del clúster (por FQDN: vCenter exige nombres resolubles)
+vmw_cluster_hosts: "{{ groups['esxi_eval'] | map('regex_replace', '$', '.' ~ lab_domain) | list }}"
+
+# VM de prueba (dentro de ESXi)
+vmw_guest_name: rhel9-vm01
+vmw_guest_ip: 10.10.10.64

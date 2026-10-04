@@ -1,0 +1,46 @@
+---
+# Fase B: la VM de prueba rhel9-vm01, encendida y accesible por SSH.
+#   lab.sh stage8 guest
+#
+# La VM se CREA a mano la primera vez (fase 3: Host Client o vCenter, con el kickstart
+# de RHEL 9 del lab), porque crearla es parte de lo que se aprende. Este playbook la
+# localiza, la enciende si hace falta y espera a que responda por SSH.
+# Ejercicio para después: convertirla en plantilla y clonar con community.vmware.vmware_guest.
+
+- name: "VM de prueba (rhel9-vm01): encendida y accesible"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+  module_defaults:
+    group/community.vmware.vmware: &vc
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+    group/vmware.vmware.vmware: *vc
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: "Localizar {{ vmw_guest_name }}"
+      community.vmware.vmware_guest_info:
+        datacenter: "{{ vmw_datacenter }}"
+        name: "{{ vmw_guest_name }}"
+      register: guest
+
+    - name: Encender la VM (no hace nada si ya está encendida)
+      vmware.vmware.vm_powerstate:
+        datacenter: "{{ vmw_datacenter }}"
+        name: "{{ vmw_guest_name }}"
+        state: powered-on
+
+    - name: "Esperar a SSH en {{ vmw_guest_ip }}"
+      ansible.builtin.wait_for:
+        host: "{{ vmw_guest_ip }}"
+        port: 22
+        timeout: 300
+
+    - name: Dónde corre
+      ansible.builtin.debug:
+        msg: "{{ vmw_guest_name }} en {{ guest.instance.hw_esxi_host }}, datastores {{ guest.instance.hw_datastores }}, VMware Tools: {{ guest.instance.guest_tools_status }}"

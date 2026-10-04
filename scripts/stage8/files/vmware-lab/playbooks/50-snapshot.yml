@@ -1,0 +1,50 @@
+---
+# Snapshots de VMware de rhel9-vm01 (dentro de ESXi; no confundir con los snapshots
+# de libvirt de los propios ESXi, que gestiona 'lab.sh esxi-snapshot').
+#   lab.sh stage8 snapshot                                          # lista
+#   lab.sh stage8 snapshot -e snap_state=present -e snap_name=antes-de-X
+#   lab.sh stage8 snapshot -e snap_state=revert  -e snap_name=antes-de-X
+#   lab.sh stage8 snapshot -e snap_state=absent  -e snap_name=antes-de-X
+
+- name: "Snapshots de la VM de prueba (rhel9-vm01)"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+    snap_state: list
+    snap_name: lab-snap
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: Valores admitidos
+      ansible.builtin.assert:
+        that: snap_state in ['list', 'present', 'revert', 'absent']
+        fail_msg: "snap_state debe ser list, present, revert o absent"
+
+    - name: "Snapshot '{{ snap_name }}' -> {{ snap_state }}"
+      community.vmware.vmware_guest_snapshot:
+        datacenter: "{{ vmw_datacenter }}"
+        folder: "{{ vmw_vm_folder }}"
+        name: "{{ vmw_guest_name }}"
+        snapshot_name: "{{ snap_name }}"
+        description: "lab.sh stage8 snapshot ({{ lookup('pipe', 'date -Is') }})"
+        state: "{{ snap_state }}"
+      when: snap_state != 'list'
+
+    - name: Snapshots existentes
+      community.vmware.vmware_guest_snapshot_info:
+        datacenter: "{{ vmw_datacenter }}"
+        folder: "{{ vmw_vm_folder }}"
+        name: "{{ vmw_guest_name }}"
+      register: snaps
+
+    - name: Lista
+      ansible.builtin.debug:
+        msg: "{{ snaps.guest_snapshots.snapshots | default([]) | map(attribute='name') | list }} (actual: {{ snaps.guest_snapshots.current_snapshot.name | default('ninguno') }})"

@@ -15,3 +15,9 @@ $TTL 3600
 14      IN  PTR rhel10-app01.lab.local.
 20      IN  PTR dns01.lab.local.
 30      IN  PTR ansible01.lab.local.
+; Etapa 8 — VMware vSphere
+60      IN  PTR esxi01.lab.local.
+61      IN  PTR esxi02.lab.local.
+62      IN  PTR esxi03.lab.local.
+63      IN  PTR vcsa01.lab.local.
+64      IN  PTR rhel9-vm01.lab.local.

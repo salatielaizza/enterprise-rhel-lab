@@ -1,0 +1,17 @@
+---
+# Colecciones de la Etapa 8. Versiones acotadas a propósito:
+#  - community.vmware 6.x: módulos clásicos vmware_* (host, datastore, vMotion, snapshots...).
+#    En la 6.x ya NO existe community.vmware.vmware_cluster: el clúster se gestiona con
+#    vmware.vmware.cluster. Exige ansible-core >= 2.19 (por eso el entorno virtual propio).
+#  - vmware.vmware 2.x: colección oficial de VMware (cluster, cluster_drs, cluster_ha, vm_powerstate...).
+collections:
+  - name: community.vmware
+    version: ">=6.0.0,<7.0.0"
+  - name: vmware.vmware
+    version: ">=2.0.0,<3.0.0"
+#
+# Avisos de obsolescencia esperados (funcionan con community.vmware 6.x; se eliminan en 7.0/8.0):
+#   vmware_cluster_info -> vmware.vmware.cluster_info   vmware_host_facts -> vmware.vmware.esxi_info
+#   vmware_host         -> vmware.vmware.esxi_host       vmware_host_service_manager -> vmware.vmware.esxi_service
+#   vmware_guest_snapshot(_info) -> vmware.vmware.vm_snapshot(_info)
+# Migrarlos es un ejercicio de la etapa (ampliación futura): obliga a leer 'ansible-doc' y comparar salidas.

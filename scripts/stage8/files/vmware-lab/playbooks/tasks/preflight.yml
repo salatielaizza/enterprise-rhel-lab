@@ -1,0 +1,40 @@
+---
+# Tareas comunes al principio de cada play contra vSphere (se cargan con import_tasks,
+# así heredan los tags del play).
+#   vmw_target                 IP o nombre al que se va a conectar (vCenter o un ESXi)
+#   vmw_fail_if_unreachable    true en 90-verify.yml: allí un objetivo caído es un FALLO.
+# En el resto de playbooks, si el objetivo no responde se termina el play con un mensaje
+# claro: en la fase A vCenter no existe, y en la fase B esxi01 suele estar apagado.
+- name: Comprobar que las contraseñas del vault ya no son marcadores
+  ansible.builtin.assert:
+    that:
+      - vault_vcenter_password is defined and vault_vcenter_password != 'CAMBIAR'
+      - vault_esxi_root_password is defined and vault_esxi_root_password != 'CAMBIAR'
+    fail_msg: >-
+      vault.yml todavía tiene 'CAMBIAR'. En ansible01:
+      cd ~/vmware-lab && ~/.venvs/vmware/bin/ansible-vault edit inventory/group_vars/all/vault.yml
+    quiet: true
+
+- name: "¿{{ vmw_target }} responde en 443?"
+  ansible.builtin.wait_for:
+    host: "{{ vmw_target }}"
+    port: 443
+    timeout: 5
+  register: vmw_reach
+  ignore_errors: true
+
+- name: "{{ vmw_target }} no está accesible y este play lo exige"
+  ansible.builtin.fail:
+    msg: "{{ vmw_target }}:443 no responde."
+  when:
+    - vmw_reach is failed
+    - vmw_fail_if_unreachable | default(false) | bool
+
+- name: "Fin del play: {{ vmw_target }} no está accesible"
+  when: vmw_reach is failed
+  block:
+    - name: Avisar
+      ansible.builtin.debug:
+        msg: "{{ vmw_target }}:443 no responde (¿apagado o fase no desplegada?). Se omite este play."
+    - name: Terminar el play
+      ansible.builtin.meta: end_play

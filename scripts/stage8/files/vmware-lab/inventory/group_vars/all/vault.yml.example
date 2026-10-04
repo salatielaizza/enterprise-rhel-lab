@@ -1,0 +1,8 @@
+---
+# PLANTILLA. 20-vmware-control-setup.sh la copia a vault.yml y la CIFRA con Ansible
+# Vault. Después se ponen las contraseñas reales (en ansible01):
+#   cd ~/vmware-lab && ~/.venvs/vmware/bin/ansible-vault edit inventory/group_vars/all/vault.yml
+# Los playbooks se niegan a ejecutarse mientras quede algún valor "CAMBIAR".
+# vault.yml (descifrado o cifrado) NUNCA se sube a git: está en .gitignore.
+vault_vcenter_password: "CAMBIAR"
+vault_esxi_root_password: "CAMBIAR"

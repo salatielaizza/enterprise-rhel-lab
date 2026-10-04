@@ -1,0 +1,71 @@
+---
+# Fase B: datacenter + clúster + hosts en evaluación + datastore NFS compartido.
+#   lab.sh stage8 cluster
+# Idempotente: un segundo pase debe dar changed=0.
+#
+# HA y DRS se dejan DESACTIVADOS en el lab local (con 2 hosts anidados y la RAM justa
+# solo darían avisos); se practican en los VMware Hands-on Labs (ver checklists/etapa8.md).
+# El VMkernel de vMotion (vmk1, pila 'vmotion') ya lo crea el kickstart de cada ESXi.
+
+- name: "vCenter: datacenter, clúster, hosts y datastore NFS"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+  module_defaults:
+    group/community.vmware.vmware: &vc
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+    group/vmware.vmware.vmware: *vc
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: "Datacenter {{ vmw_datacenter }}"
+      community.vmware.vmware_datacenter:
+        datacenter_name: "{{ vmw_datacenter }}"
+        state: present
+
+    - name: "Clúster {{ vmw_cluster }} (sin HA ni DRS en el lab local)"
+      vmware.vmware.cluster:
+        datacenter: "{{ vmw_datacenter }}"
+        cluster: "{{ vmw_cluster }}"
+        state: present
+
+    - name: Añadir los ESXi en evaluación al clúster (un ESXi gratuito daría 'License not available')
+      community.vmware.vmware_host:
+        datacenter_name: "{{ vmw_datacenter }}"
+        cluster_name: "{{ vmw_cluster }}"
+        esxi_hostname: "{{ item }}"
+        esxi_username: "{{ esxi_username }}"
+        esxi_password: "{{ esxi_password }}"
+        fetch_ssl_thumbprint: true
+        state: present
+      loop: "{{ vmw_cluster_hosts }}"
+
+    - name: "Montar el datastore NFS {{ vmw_nfs_datastore }} en todos los hosts del clúster"
+      community.vmware.vmware_host_datastore:
+        esxi_hostname: "{{ item }}"
+        datastore_name: "{{ vmw_nfs_datastore }}"
+        datastore_type: nfs
+        nfs_server: "{{ vmw_nfs_server }}"
+        nfs_path: "{{ vmw_nfs_path }}"
+        nfs_ro: false
+        state: present
+      loop: "{{ vmw_cluster_hosts }}"
+
+    - name: Interfaces VMkernel de los hosts del clúster
+      community.vmware.vmware_vmkernel_info:
+        cluster_name: "{{ vmw_cluster }}"
+      register: vmk
+
+    - name: Interfaces de vMotion encontradas (pila 'vmotion' o servicio vMotion)
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.key }}: {{ item.value | selectattr('stack', 'equalto', 'vmotion') | map(attribute='device') | list
+             + item.value | selectattr('enable_vmotion') | map(attribute='device') | list }}
+      loop: "{{ vmk.host_vmk_info | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"

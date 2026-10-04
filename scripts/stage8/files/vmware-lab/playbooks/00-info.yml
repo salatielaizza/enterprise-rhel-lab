@@ -1,0 +1,82 @@
+---
+# Inventario de SOLO LECTURA de vSphere: lo primero que se ejecuta en cada fase.
+#   lab.sh stage8 info                     # los dos plays
+#   lab.sh stage8 info --tags free         # solo el ESXi gratuito (fase A)
+#   lab.sh stage8 info --tags vcenter      # solo vCenter (fase B)
+#
+# El ESXi GRATUITO admite consultas por API, pero no operaciones de escritura desde
+# herramientas externas: por eso este playbook es el único que habla con esxi01.
+
+- name: "ESXi gratuito (esxi01): inventario de solo lectura"
+  hosts: localhost
+  gather_facts: false
+  tags: [free]
+  vars:
+    vmw_target: "{{ hostvars['esxi01'].ansible_host }}"
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vmw_target }}"
+      username: "{{ esxi_username }}"
+      password: "{{ esxi_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: Datos del host (versión, CPU, memoria, datastores)
+      community.vmware.vmware_host_facts:
+      register: esxi01_facts
+
+    - name: VMs del host
+      community.vmware.vmware_vm_info:
+      register: esxi01_vms
+
+    - name: Resumen de esxi01
+      ansible.builtin.debug:
+        msg:
+          - "Versión : {{ esxi01_facts.ansible_facts.ansible_distribution }} {{ esxi01_facts.ansible_facts.ansible_distribution_version }} (build {{ esxi01_facts.ansible_facts.ansible_distribution_build }})"
+          - "CPU     : {{ esxi01_facts.ansible_facts.ansible_processor }} ({{ esxi01_facts.ansible_facts.ansible_processor_vcpus }} vCPU)"
+          - "Memoria : {{ esxi01_facts.ansible_facts.ansible_memtotal_mb }} MB ({{ esxi01_facts.ansible_facts.ansible_memfree_mb }} MB libres)"
+          - "Datastores: {{ esxi01_facts.ansible_facts.ansible_datastore | map(attribute='name') | list }}"
+          - "VMs     : {{ esxi01_vms.virtual_machines | map(attribute='guest_name') | list }}"
+
+- name: "vCenter (vcsa01): clúster, hosts, datastores y VMs"
+  hosts: localhost
+  gather_facts: false
+  tags: [vcenter]
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+
+    - name: Clústeres
+      community.vmware.vmware_cluster_info:
+        datacenter: "{{ vmw_datacenter }}"
+      register: vc_clusters
+      failed_when: false
+
+    - name: Datastores del datacenter
+      community.vmware.vmware_datastore_info:
+        datacenter: "{{ vmw_datacenter }}"
+      register: vc_ds
+      failed_when: false
+
+    - name: VMs y en qué host corren
+      community.vmware.vmware_vm_info:
+        show_esxi_hostname: true
+      register: vc_vms
+
+    - name: Resumen de vCenter
+      ansible.builtin.debug:
+        msg:
+          - "Clústeres : {{ (vc_clusters.clusters | default({})).keys() | list }}"
+          - "Hosts     : {{ ((vc_clusters.clusters | default({}))[vmw_cluster] | default({})).hosts | default([]) | map(attribute='name') | list }}"
+          - "Datastores: {{ (vc_ds.datastores | default([])) | map(attribute='name') | list }}"
+          - "VMs       : {{ vc_vms.virtual_machines | map(attribute='guest_name') | zip(vc_vms.virtual_machines | map(attribute='esxi_hostname')) | map('join', ' @ ') | list }}"

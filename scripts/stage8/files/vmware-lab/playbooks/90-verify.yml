@@ -1,0 +1,119 @@
+---
+# Verificación de SOLO LECTURA de la Etapa 8. La usa tests/test_vmware.sh, una
+# etiqueta cada vez, para que cada comprobación salga como un PASS/FAIL separado:
+#   esxi01 · vcenter · cluster · datastore · vmotion · guest
+# Aquí un objetivo caído es un FALLO (vmw_fail_if_unreachable), no un "se omite":
+# el test solo llama a cada etiqueta si el objetivo debería estar encendido.
+# Las etiquetas van en cada TAREA (no en el play): las tareas heredan las etiquetas del
+# play, y con todas en el play '--tags cluster' ejecutaría también las demás comprobaciones.
+
+- name: "Verificar: ESXi gratuito esxi01"
+  hosts: localhost
+  gather_facts: false
+  tags: [esxi01]
+  vars:
+    vmw_target: "{{ hostvars['esxi01'].ansible_host }}"
+    vmw_fail_if_unreachable: true
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vmw_target }}"
+      username: "{{ esxi_username }}"
+      password: "{{ esxi_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+    - name: Datos del host
+      community.vmware.vmware_host_facts:
+      register: f
+    - name: ESXi 8, conectado, fuera de mantenimiento y con datastore local
+      ansible.builtin.assert:
+        that:
+          - f.ansible_facts.ansible_distribution_version is version('8.0', '>=')
+          - not f.ansible_facts.ansible_in_maintenance_mode
+          - "'datastore-esxi01' in (f.ansible_facts.ansible_datastore | map(attribute='name') | list)"
+
+- name: "Verificar: vCenter y clúster"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vmw_target: "{{ vcenter_hostname }}"
+    vmw_fail_if_unreachable: true
+  module_defaults:
+    group/community.vmware.vmware:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: "{{ vmw_validate_certs }}"
+  tasks:
+    - name: Comprobaciones previas
+      ansible.builtin.import_tasks: tasks/preflight.yml
+      tags: [vcenter, cluster, datastore, vmotion, guest]
+
+    - name: Clústeres del datacenter
+      community.vmware.vmware_cluster_info:
+        datacenter: "{{ vmw_datacenter }}"
+      register: ci
+      tags: [vcenter, cluster]
+    - name: "Existe el clúster {{ vmw_cluster }}"
+      ansible.builtin.assert:
+        that: vmw_cluster in ci.clusters
+      tags: [vcenter]
+
+    - name: Estado de cada host del clúster
+      community.vmware.vmware_host_facts:
+        esxi_hostname: "{{ item }}"
+      loop: "{{ vmw_cluster_hosts }}"
+      register: hf
+      tags: [cluster]
+    - name: Todos los hosts en el clúster, conectados y fuera de mantenimiento
+      ansible.builtin.assert:
+        that:
+          - (ci.clusters[vmw_cluster].hosts | map(attribute='name') | list) is superset(vmw_cluster_hosts)
+          - hf.results | map(attribute='ansible_facts.ansible_host_connection_state') | unique == ['connected']
+          - hf.results | map(attribute='ansible_facts.ansible_in_maintenance_mode') | select | list | length == 0
+      tags: [cluster]
+
+    - name: "Datastore {{ vmw_nfs_datastore }}"
+      community.vmware.vmware_datastore_info:
+        datacenter: "{{ vmw_datacenter }}"
+        name: "{{ vmw_nfs_datastore }}"
+      register: ds
+      tags: [datastore]
+    - name: NFS, accesible y compartido por varios hosts
+      ansible.builtin.assert:
+        that:
+          - ds.datastores | length == 1
+          - ds.datastores[0].type == 'NFS'
+          - ds.datastores[0].accessible
+          - ds.datastores[0].multipleHostAccess
+      tags: [datastore]
+
+    - name: Interfaces VMkernel
+      community.vmware.vmware_vmkernel_info:
+        cluster_name: "{{ vmw_cluster }}"
+      register: vmk
+      tags: [vmotion]
+    - name: Cada host del clúster tiene una interfaz de vMotion
+      ansible.builtin.assert:
+        that: >-
+          (item.value | selectattr('stack', 'equalto', 'vmotion') | list | length > 0)
+          or (item.value | selectattr('enable_vmotion') | list | length > 0)
+        fail_msg: "{{ item.key }} no tiene VMkernel de vMotion"
+      loop: "{{ vmk.host_vmk_info | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      tags: [vmotion]
+
+    - name: "VM {{ vmw_guest_name }}"
+      community.vmware.vmware_guest_info:
+        datacenter: "{{ vmw_datacenter }}"
+        name: "{{ vmw_guest_name }}"
+      register: g
+      tags: [guest]
+    - name: Encendida y en un host del clúster
+      ansible.builtin.assert:
+        that:
+          - g.instance.hw_power_status == 'poweredOn'
+          - g.instance.hw_esxi_host in vmw_cluster_hosts
+      tags: [guest]

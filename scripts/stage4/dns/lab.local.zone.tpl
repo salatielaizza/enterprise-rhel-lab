@@ -16,6 +16,14 @@ rhel10-app01    IN  A   10.10.10.14
 dns01           IN  A   10.10.10.20
 ansible01       IN  A   10.10.10.30
 
+; Etapa 8 — VMware vSphere. Se crean ANTES de instalar: vCenter exige A y PTR correctos
+; desde el primer momento (su instalador falla en la fase 2 si no los encuentra).
+esxi01          IN  A   10.10.10.60
+esxi02          IN  A   10.10.10.61
+esxi03          IN  A   10.10.10.62
+vcsa01          IN  A   10.10.10.63
+rhel9-vm01      IN  A   10.10.10.64
+
 ; Infraestructura futura (reservada; NO crear registros hasta instalar el host):
 ;rhel9-web01     IN  A   10.10.10.40
 ;rhel9-monitor01 IN  A   10.10.10.50
