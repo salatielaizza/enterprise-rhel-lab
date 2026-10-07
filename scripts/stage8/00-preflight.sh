@@ -43,11 +43,16 @@ if [[ "$PHASE" == B ]]; then
     if command -v "$t" >/dev/null; then pass "comando $t disponible (despliegue de VCSA)"; else bad "falta $t (lo usa vcsa-deploy)"; fi
   done
 fi
-if qemu-system-x86_64 -device help 2>/dev/null | grep -q '"vmxnet3"'; then pass "QEMU ofrece la NIC vmxnet3"
+# NO usar 'comando | grep -q' con pipefail: grep -q sale al primer acierto, el comando
+# recibe SIGPIPE (141) y pipefail convierte el acierto en fallo -> falso FAIL
+# (caso troubleshooting/etapa8/01). Se captura la salida y se busca sobre la variable.
+qemu_devs="$(qemu-system-x86_64 -device help 2>/dev/null || true)"
+if grep -q '"vmxnet3"' <<<"$qemu_devs"; then pass "QEMU ofrece la NIC vmxnet3"
 else bad "QEMU no ofrece vmxnet3 (ESXi no reconoce virtio-net)"; fi
 
 # --- libvirt ---------------------------------------------------------------------
-if virsh net-info "$LAB_NET" 2>/dev/null | grep -Eq 'Active:[[:space:]]+yes'; then pass "red $LAB_NET activa"; else bad "red $LAB_NET no activa (lab.sh network)"; fi
+net_info="$(virsh net-info "$LAB_NET" 2>/dev/null || true)"   # sin tubería: ver nota de vmxnet3
+if grep -Eq 'Active:[[:space:]]+yes' <<<"$net_info"; then pass "red $LAB_NET activa"; else bad "red $LAB_NET no activa (lab.sh network)"; fi
 if virsh pool-info lab-images >/dev/null 2>&1; then pass "pool lab-images definido"; else bad "falta el pool lab-images (lab.sh host-setup)"; fi
 
 # --- RAM ---------------------------------------------------------------------------

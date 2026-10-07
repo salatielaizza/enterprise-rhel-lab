@@ -70,4 +70,9 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 | [02 plantilla-timestamp-rompe-idempotencia](etapa7/02-plantilla-timestamp-rompe-idempotencia.md) 🔎 | Un timestamp dentro de una plantilla comparada rompe la idempotencia |
 | [03 group-vars-ubicacion-incorrecta](etapa7/03-group-vars-ubicacion-incorrecta.md) 🔎 | `group_vars/` en la raíz del proyecto: invisible para `ansible-playbook`, visible por casualidad en ad-hoc |
 
+## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
+| Caso | Tema |
+|---|---|
+| [01 preflight-pipefail-sigpipe](etapa8/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
+
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

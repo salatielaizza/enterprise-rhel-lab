@@ -27,7 +27,10 @@ state="$(virsh domstate "$DOM" | tr -d '[:space:]')"
 live=(--config); [[ "$state" == running ]] && live=(--config --live)
 
 # 1) Controlador virtio-SCSI
-if virsh dumpxml "$DOM" | grep -q "model='virtio-scsi'"; then
+# Sin tubería 'virsh | grep -q': con pipefail, el SIGPIPE de virsh daría un falso "no
+# existe" y se intentaría añadir otro controlador (caso troubleshooting/etapa8/01).
+xml="$(virsh dumpxml "$DOM")"
+if grep -q "model='virtio-scsi'" <<<"$xml"; then
   info "$DOM ya tiene controlador virtio-scsi"
 else
   ctl="$(mktemp)"; trap 'rm -f "$ctl"' EXIT
@@ -46,7 +49,8 @@ fi
 path="$(virsh vol-path --pool lab-images "$VOL" 2>/dev/null || echo "<ruta-de-$VOL>")"
 
 # 3) Disco conectado
-if virsh domblklist "$DOM" --details | awk '{print $4}' | grep -qx "$path"; then
+blk="$(virsh domblklist "$DOM" --details)"
+if awk -v p="$path" '$4 == p {f = 1} END {exit !f}' <<<"$blk"; then
   info "$VOL ya está conectado a $DOM"
 else
   run virsh attach-disk "$DOM" "$path" "$TARGET" --driver qemu --subdriver qcow2 \

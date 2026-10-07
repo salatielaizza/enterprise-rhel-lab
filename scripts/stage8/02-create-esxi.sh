@@ -86,7 +86,10 @@ fi
 virt-install "${args[@]}" || die "virt-install falló. Mira la consola (virt-viewer) y 'journalctl -u libvirtd'"
 
 # Igual que 02-create-vm.sh: al reiniciar el instalador la VM se para; se expulsa el ISO y se arranca
-cd_target="$(virsh domblklist "$NAME" --details | awk '$2=="cdrom"{print $3; exit}')"
+# Sin tubería: awk 'exit' cierra la lectura y, con pipefail + set -e, el SIGPIPE de virsh
+# abortaría el script a mitad (caso troubleshooting/etapa8/01).
+blk="$(virsh domblklist "$NAME" --details)"
+cd_target="$(awk '$2=="cdrom"{print $3; exit}' <<<"$blk")"
 if [[ -n "$cd_target" ]]; then
   virsh change-media "$NAME" "$cd_target" --eject --config --force >/dev/null 2>&1 \
     || warn "No se pudo expulsar el ISO de $NAME"
