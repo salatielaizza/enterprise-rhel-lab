@@ -128,11 +128,12 @@ La imagen usada (`geerlingguy/docker-rockylinux9-ansible`) es la que usa buena p
 `tests/test_ansible.sh` distingue por host (como `lab-healthcheck.sh` en la Etapa 6): en `ansible01` comprueba que Ansible está instalado, que existen inventario/playbooks/clave SSH, y que `vault.yml` está realmente cifrado (no en texto plano); en los 5 nodos gestionados comprueba el marcador `/etc/ansible-lab-managed.txt`, el huso horario, el paquete `tree`, los dos usuarios de demostración (creados y con la contraseña bloqueada) y que la Etapa 7 quedó marcada.
 
 ## Troubleshooting relacionado
-Al ejecutar de verdad contra las VMs reales aparecieron 3 casos, documentados con el mismo formato que
+Al ejecutar de verdad contra las VMs reales aparecieron 4 casos, documentados con el mismo formato que
 los casos `etapa2/06` y `etapa6/01`:
 - [`etapa7/01`](../troubleshooting/etapa7/01-rhel7-timedatectl-p-no-soportado.md) — `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo)
 - [`etapa7/02`](../troubleshooting/etapa7/02-plantilla-timestamp-rompe-idempotencia.md) — un timestamp dentro de una plantilla comparada rompía la idempotencia
 - [`etapa7/03`](../troubleshooting/etapa7/03-group-vars-ubicacion-incorrecta.md) — `group_vars/` en la raíz del proyecto, invisible para `ansible-playbook`
+- [`etapa7/04`](../troubleshooting/etapa7/04-restos-de-ejercicios-en-nodo-de-control.md) — variables de prueba olvidadas en `ansible01` sobreviven a `stage7-setup` (`cp -a` no borra) y desvían el huso de dos hosts
 
 (La lección del conflicto de `--vault-password-file` duplicado, ver "Errores comunes" más abajo, se
 detectó y corrigió **durante la elaboración**, antes de tocar las VMs reales, así que no se documenta
@@ -144,7 +145,9 @@ como caso de troubleshooting — esos se reservan para fallos reales al ejecutar
 - **Confundir `hosts: all` con `hosts: lab`.** `all` incluiría también `ansible01` si estuviera en el inventario; aquí `lab` (el grupo explícito de nodos gestionados) evita que el controlador se gestione accidentalmente a sí mismo.
 - **Editar `group_vars/all/vault.yml` a mano.** Un fichero cifrado por Ansible Vault NUNCA se edita con `vim` directamente (se corrompe el cifrado); siempre `ansible-vault edit`.
 - **Poner un secreto real en `group_vars/all/vars.yml` "porque es más rápido".** Ese fichero se sube a git en claro — el secreto va SIEMPRE en el `vault.yml` cifrado; `vars.yml` solo referencia su nombre de variable.
-- **Módulo `command`/`shell` marcado `changed` siempre.** Si una tarea con `command`/`shell` no declara `changed_when`, Ansible la marca como "cambiada" en cada ejecución aunque no haya hecho nada (rompe la idempotencia visible en el PLAY RECAP) — por eso `roles/common/tasks/main.yml` usa `changed_when: false` en la lectura del huso horario.
+- **Módulo `command`/`shell` marcado `changed` siempre.** Si una tarea con `command`/`shell` no declara `changed_when`, Ansible la marca como "cambiada" en cada ejecución aunque no haya hecho nada (rompe la idempotencia visible en el PLAY RECAP). Una lectura con `command` necesita `changed_when: false`; mejor aún, usar un módulo de solo lectura cuando exista: `roles/common/tasks/main.yml` lee el huso horario con `stat` sobre `/etc/localtime`, que nunca marca cambio, funciona en RHEL 7 y además se ejecuta en `--check`.
+- **Fiarse de un `skipping` en `--check`.** En simulación, `command`/`shell` no se ejecutan y salen `skipping` aunque SÍ fueran a actuar. Sin `-v` no se distingue *"Conditional result was False"* (no hace falta) de *"Command would have run if not in check mode"* (sí haría falta). Simular con `-v` cuando haya tareas `command`/`shell`. Además, el nombre de una tarea con `{{ variable }}` se renderiza con el primer host, no con cada uno. Ver [`etapa7/04`](../troubleshooting/etapa7/04-restos-de-ejercicios-en-nodo-de-control.md).
+- **Dejar ficheros de prueba en el nodo de control.** `stage7-setup` copia el repo con `cp -a`, que no borra lo que sobra: un `host_vars/` o `group_vars/` de un ejercicio sigue aplicándose en cada ejecución. Practicar fuera de `~/ansible-lab` o limpiar en el mismo bloque de comandos.
 - **Shebang `#!/usr/bin/env python3` en un módulo propio.** Falla con `The module interpreter '/usr/bin/env python3' was not found`, aunque ese mismo comando funcione perfectamente en una terminal. Un módulo Ansible se escribe con `#!/usr/bin/python` (sin `env`, sin versión): es el único shebang que el *interpreter discovery* de Ansible reconoce y sustituye por el intérprete real de cada host. Ver la sección "Parte avanzada" para el caso real encontrado al escribir `lab.utils.lab_uptime_pretty`.
 
 ## Diferencias RHEL 7 / 8 / 9 / 10
