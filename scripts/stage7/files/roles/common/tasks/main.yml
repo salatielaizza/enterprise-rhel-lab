@@ -7,19 +7,24 @@
   ansible.builtin.package:
     name: "{{ lab_common_packages }}"
     state: present
+  tags: [paquetes]
 
 # /etc/localtime es un enlace a ../usr/share/zoneinfo/<Zona> en RHEL 7/8/9/10.
 # Se lee con 'stat' (módulo de solo lectura) y no con 'timedatectl show', que
 # no existe en el systemd 219 de RHEL 7. Además 'stat' SÍ se ejecuta en --check,
 # mientras que command/shell se omiten en simulación (y ocultan fallos).
+# Las DOS tareas llevan la etiqueta 'huso': "Fijar" depende de la variable que
+# registra "Leer"; con --tags huso deben ejecutarse juntas.
 - name: Leer huso horario actual (enlace simbólico /etc/localtime)
   ansible.builtin.stat:
     path: /etc/localtime
   register: lab_localtime
+  tags: [huso]
 
 - name: "Fijar huso horario del lab ({{ lab_timezone }})"
   ansible.builtin.command: "timedatectl set-timezone {{ lab_timezone }}"
   when: not (lab_localtime.stat.lnk_target | default('')).endswith('zoneinfo/' ~ lab_timezone)
+  tags: [huso]
 
 - name: Desplegar marcador de gestión por Ansible (NO toca /etc/issue, que gestiona la Etapa 5)
   ansible.builtin.template:
@@ -29,8 +34,10 @@
     group: root
     mode: "0644"
   notify: registrar cambio de configuracion gestionada por ansible
+  tags: [marcador]
 
 - name: Confirmar que el secreto de Ansible Vault se ha descifrado (solo demo, nunca se imprime el valor)
   ansible.builtin.debug:
     msg: "Vault OK: lab_demo_api_token cargado ({{ lab_demo_api_token | length }} caracteres)"
   when: lab_demo_api_token is defined
+  tags: [vault]
