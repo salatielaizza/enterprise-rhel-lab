@@ -246,6 +246,7 @@ se genera exclusivamente con datos leídos de las VMs (`lab.sh facts`).
 ## 🗂️ Mapa del repositorio
 
 `scripts/` automatización (host: `lab.sh`, `0N-*.sh`; VMs: `stage2/`, `stage3/`, `stage4/`, `stage5/`, `stage6/`, `stage7/`;
+cada `stageN/` tiene su `README_stageN.md` con qué hace cada script, en qué orden, dónde corre y qué toca — la Etapa 1, sin carpeta propia, en `scripts/README_stage1.md`;
 `stage8/` con scripts de host para ESXi/vCenter, scripts de `dns01`/`ansible01` y `files/vmware-lab/` (Ansible + PowerCLI);
 inventario de ESXi en `vmware.conf`) ·
 `scripts/kickstart/` plantillas de instalación · `tests/` pruebas PASS/FAIL de solo lectura ·
