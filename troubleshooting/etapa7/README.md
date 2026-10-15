@@ -8,3 +8,4 @@ Ver formato y regla general en [`troubleshooting/README.md`](../README.md).
 | [02 plantilla-timestamp-rompe-idempotencia](02-plantilla-timestamp-rompe-idempotencia.md) | Un timestamp dentro de una plantilla comparada rompe la idempotencia |
 | [03 group-vars-ubicacion-incorrecta](03-group-vars-ubicacion-incorrecta.md) | `group_vars/` en la raíz del proyecto: invisible para `ansible-playbook`, visible por casualidad en ad-hoc |
 | [04 restos-de-ejercicios-en-nodo-de-control](04-restos-de-ejercicios-en-nodo-de-control.md) | Variables de prueba olvidadas en `ansible01` sobreviven a `stage7-setup` (`cp -a` no borra) y desvían el huso de dos hosts; `--check` sin `-v` lo ocultaba |
+| [05 modulo-propio-python3-falla-en-rhel7](05-modulo-propio-python3-falla-en-rhel7.md) | El módulo propio `lab.utils.lab_uptime_pretty` da `SyntaxError` solo en RHEL 7: usaba f-strings y el nodo ejecuta los módulos con Python 2.7 |

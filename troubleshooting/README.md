@@ -63,13 +63,14 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 |---|---|
 | [01 log-verbose-set-e-lab-healthcheck](etapa6/01-log-verbose-set-e-lab-healthcheck.md) 🔎 | `lab-healthcheck.timer` fallaba: función `log()` devolvía 1 bajo `set -e` sin `-v` |
 
-## [Etapa 7](etapa7/README.md) — automatización con Ansible (4 casos)
+## [Etapa 7](etapa7/README.md) — automatización con Ansible (5 casos)
 | Caso | Tema |
 |---|---|
 | [01 rhel7-timedatectl-p-no-soportado](etapa7/01-rhel7-timedatectl-p-no-soportado.md) 🔎 | `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo) |
 | [02 plantilla-timestamp-rompe-idempotencia](etapa7/02-plantilla-timestamp-rompe-idempotencia.md) 🔎 | Un timestamp dentro de una plantilla comparada rompe la idempotencia |
 | [03 group-vars-ubicacion-incorrecta](etapa7/03-group-vars-ubicacion-incorrecta.md) 🔎 | `group_vars/` en la raíz del proyecto: invisible para `ansible-playbook`, visible por casualidad en ad-hoc |
 | [04 restos-de-ejercicios-en-nodo-de-control](etapa7/04-restos-de-ejercicios-en-nodo-de-control.md) 🔎 | Variables de prueba olvidadas en `ansible01` sobreviven a `stage7-setup` (`cp -a` no borra) y desvían el huso de dos hosts; `--check` sin `-v` lo ocultaba |
+| [05 modulo-propio-python3-falla-en-rhel7](etapa7/05-modulo-propio-python3-falla-en-rhel7.md) 🔎 | El módulo propio `lab.utils.lab_uptime_pretty` da `SyntaxError` solo en RHEL 7: usaba f-strings y el nodo ejecuta los módulos con Python 2.7 |
 
 ## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
 | Caso | Tema |
