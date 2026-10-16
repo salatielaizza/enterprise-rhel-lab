@@ -85,6 +85,7 @@ Red Hat).
 | 18 | ☸️ Kubernetes y OpenShift (orquestación de contenedores + plataforma enterprise de Red Hat) | ⏳ Pendiente |
 | 19 | 🔁 CI/CD | ⏳ Pendiente |
 | N | 🧰 DevOps: Docker, Kubernetes, Jenkins y monitorización —  (ver [sección final](#-etapa-n--devops-docker-kubernetes-jenkins-y-monitorización)) | 📝 Planificada |
+| N2 | 📡 SIEM: Graylog, OpenSearch/Elasticsearch, Syslog, NXLog, Docker, Kubernetes y conversión de VMs VMware ↔ KVM (ver [sección final](#-etapa-n2--siem-graylog-opensearch-syslog-nxlog-contenedores-y-vmware)) | 📝 Planificada |
 
 Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en las Etapas 1-4
 (ver `architecture/hosts.md`) se mantienen estables para las etapas futuras — por ejemplo,
@@ -269,7 +270,7 @@ es RSA porque el `sshd` de ESXi 8 funciona en modo FIPS (no acepta ed25519).
 
 > **Estado: 📝 Planificada.** Guía escrita, pendiente de practicar en la VM real. Número de etapa por decidir.
 
-Etapa adelantada al resto del plan para una entrevista de *Linux Administrator DevOps* en el área de **APS** (*Application Production Support*). Presenta **teoría básica + práctica manual**, sobre
+Prueba práctica y adelanto de tecnologías del perfil *Linux Administrator DevOps* en el área de **APS** (*Application Production Support*). Presenta **teoría básica + práctica manual**, sobre
 una sola VM, `rhel9-monitor01` (10.10.10.50). Sirve de anticipo de las Etapas 16 (monitorización),
 17 (Docker), 18 (Kubernetes) y 19 (CI/CD), que mantienen su planificación completa.
 
@@ -285,3 +286,27 @@ una sola VM, `rhel9-monitor01` (10.10.10.50). Sirve de anticipo de las Etapas 16
 | 7 | Repaso: preguntas y vocabulario en inglés |
 
 Guía completa: [`devops/etapaN-devops.md`](devops/etapaN-devops.md).
+
+## 📡 Etapa N2 — SIEM: Graylog, OpenSearch, Syslog, NXLog, contenedores y VMware
+
+> **Estado: 📝 Planificada.** Automatización, tests y guía escritos, pendientes de practicar en el lab real.
+
+Prueba práctica y adelanto de tecnologías: un **SIEM** en una VM nueva, `siem01` (10.10.10.55), alimentado por las
+VMs del lab, para practicar su operación, troubleshooting y documentación. Sirve de anticipo de las Etapas 12
+(VMware → KVM), 16 (monitorización), 17 (Docker) y 18 (Kubernetes), que mantienen su planificación completa.
+
+| Bloque | Contenido |
+|---|---|
+| 0 | Preparar `siem01` (host opcional en `hosts.conf`, DNS, `vm-create`, base de las Etapas 1-5, snapshot) |
+| 1 | Docker CE en RHEL 9 con SELinux: LVs propios para Docker y k3s, `daemon.json`, contenedores confinados |
+| 2 | Graylog 7 + OpenSearch + MongoDB con Docker Compose (secretos aleatorios, mínima exposición); Elasticsearch 9 opcional |
+| 3 | Entradas Syslog/GELF por la API REST; herramientas en Python (API, GELF por UDP/TCP, consultas y agregaciones) |
+| 4 | rsyslog de todas las VMs → Graylog con Ansible (RFC 5424, cola en disco, SELinux, *rollback*) |
+| 5 | NXLog Community Edition: auditd → GELF con campos extraídos, sin privilegios de root |
+| 6 | Detección: streams, pipelines, alertas, simulación de fuerza bruta y correlación en Python |
+| 7 | Kubernetes (k3s) con Fluent Bit como DaemonSet y una app de ejemplo |
+| 8 | VMware: importar, exportar y convertir VMs (VMDK, OVF/OVA, `vmkfstools`, `virt-v2v`, `govc`) |
+| 9 | Buenas prácticas de ciberseguridad aplicadas y comprobables |
+| 10 | Diagnóstico por capas: infraestructura física, virtual y de conectividad |
+
+Guía completa: [`siem/etapaN2-siem.md`](siem/etapaN2-siem.md).
