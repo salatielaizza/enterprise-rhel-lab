@@ -35,7 +35,8 @@ need() { command -v "$1" >/dev/null 2>&1 || die "Falta el comando '$1'"; }
 # --- Inventario (hosts.conf) --------------------------------------------------
 host_row()   { awk -v n="$1" '$1==n {print; f=1} END{exit !f}' "$HOSTS_CONF"; }
 host_field() { host_row "$1" | awk -v f="$2" '{print $f}'; }
-all_hosts()  { awk '$1 !~ /^#/ && NF>=7 {print $1}' "$HOSTS_CONF"; }
+all_hosts()  { awk '$1 !~ /^#/ && NF>=7 && $8 != "opcional" {print $1}' "$HOSTS_CONF"; }  # 'all' = sin los opcionales
+optional_hosts() { awk '$1 !~ /^#/ && NF>=8 && $8 == "opcional" {print $1}' "$HOSTS_CONF"; }  # p. ej. siem01 (Etapa N2)
 ip_of()      { host_field "$1" 3; }
 ver_of()     { host_field "$1" 2; }
 targets() {  # 'all' o un nombre válido -> lista de nombres

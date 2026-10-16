@@ -1,0 +1,145 @@
+# =============================================================================
+# Fluent Bit como DaemonSet: lee los logs de TODOS los contenedores del nodo
+# (/var/log/containers, formato CRI de containerd), los enriquece con metadatos de
+# Kubernetes (namespace, pod, contenedor, nodo) y los envía a Graylog por GELF TCP.
+#
+# 04-k3s-fluentbit.sh sustituye __SIEM_IP__ antes de aplicar este fichero.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: lab-siem
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluent-bit
+  namespace: logging
+---
+# El filtro "kubernetes" pregunta a la API por los metadatos de cada pod: solo lectura
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluent-bit-read
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluent-bit-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluent-bit-read
+subjects:
+  - kind: ServiceAccount
+    name: fluent-bit
+    namespace: logging
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: logging
+data:
+  fluent-bit.yaml: |
+    service:
+      flush: 5
+      log_level: info
+      http_server: on            # métricas y salud en :2020 (/api/v1/health)
+      http_listen: 0.0.0.0
+      http_port: 2020
+      health_check: on
+      storage.path: /var/fluent-bit/state/flb-storage/
+    pipeline:
+      inputs:
+        - name: tail
+          tag: kube.*
+          path: /var/log/containers/*.log
+          exclude_path: /var/log/containers/*_logging_*.log   # sus propios logs: evita bucles
+          multiline.parser: cri                               # containerd escribe en formato CRI, no JSON de Docker
+          db: /var/fluent-bit/state/flb_kube.db               # posición de lectura: no reenvía todo al reiniciar
+          mem_buf_limit: 10MB
+          skip_long_lines: on
+          refresh_interval: 10
+          storage.type: filesystem                            # si Graylog cae, guarda en disco y reintenta
+      filters:
+        - name: kubernetes
+          match: kube.*
+          kube_tag_prefix: kube.var.log.containers.
+          merge_log: off
+          labels: off
+          annotations: off
+        - name: nest                   # GELF quiere campos planos: kubernetes.pod_name -> k8s_pod_name
+          match: kube.*
+          operation: lift
+          nested_under: kubernetes
+          add_prefix: k8s_
+        - name: modify
+          match: kube.*
+          add: cluster k3s-siem01
+      outputs:
+        - name: gelf
+          match: kube.*
+          host: __SIEM_IP__
+          port: 12201
+          mode: tcp
+          gelf_short_message_key: log
+          gelf_host_key: k8s_host
+          retry_limit: false
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: fluent-bit
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fluent-bit
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fluent-bit
+    spec:
+      serviceAccountName: fluent-bit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.4
+          args: ["-c", "/fluent-bit/etc/lab/fluent-bit.yaml"]
+          ports:
+            - name: http
+              containerPort: 2020
+          readinessProbe:
+            httpGet: {path: /api/v1/health, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 200Mi}
+          securityContext:
+            # Leer ficheros del nodo (hostPath /var/log) con SELinux en Enforcing: el tipo container_t
+            # no puede, spc_t ("super privileged container") sí. Es la excepción documentada para
+            # agentes de logs; el resto de pods del lab siguen confinados.
+            seLinuxOptions:
+              type: spc_t
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - {name: config, mountPath: /fluent-bit/etc/lab}
+            - {name: varlog, mountPath: /var/log, readOnly: true}
+            - {name: state, mountPath: /var/fluent-bit/state}
+      volumes:
+        - name: config
+          configMap: {name: fluent-bit-config}
+        - name: varlog
+          hostPath: {path: /var/log}
+        - name: state
+          hostPath: {path: /var/lib/fluent-bit, type: DirectoryOrCreate}

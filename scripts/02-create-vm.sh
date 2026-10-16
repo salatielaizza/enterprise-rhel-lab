@@ -27,7 +27,7 @@ for a in "$@"; do
 done
 [[ -n "$NAME" ]] || die "Uso: $0 <nombre> [--force] [--dry-run]"
 row="$(host_row "$NAME")" || die "Host '$NAME' no está en $HOSTS_CONF"
-read -r _ VER IP VCPUS MEM DISK DATA <<<"$row"
+read -r _ VER IP VCPUS MEM DISK DATA _ <<<"$row"   # el "_" final absorbe la columna opcional
 
 if [[ $DRY -eq 0 ]]; then
   need virt-install; need virsh; need openssl; need envsubst; need ssh

@@ -1,10 +1,10 @@
 # Etapa N — DevOps: Docker, Kubernetes, Jenkins y monitorización
 
-> **Etapa de preparación** para la entrevista de *Linux Administrator DevOps*. Es teoría + práctica manual en una VM. Nada de esto se ha ejecutado todavía en el lab real: validación de cada bloque en la VM y anotación de lo que falle.
+> **Prueba práctica y adelanto de tecnologías** del perfil *Linux Administrator DevOps*. Es teoría + práctica manual en una VM. Nada de esto se ha ejecutado todavía en el lab real: validación de cada bloque en la VM y anotación de lo que falle.
 
 ## Objetivo
 
-Practicar a mano, en una semana, lo que pide la vacante: **Docker y Kubernetes** (obligatorios),
+Practicar a mano lo que se pide hoy en un perfil *Linux Administrator DevOps*: **Docker y Kubernetes**,
 **Jenkins** (CI/CD), **monitorización** (Prometheus + Grafana), el vocabulario **ITIL** (incidencias,
 cambios, PIR) y el día a día de **APS** (*Application Production Support*) con **ServiceNow**.
 
@@ -85,7 +85,7 @@ docker run -d --name miweb -p 8082:80 miweb:1.0 && curl -s localhost:8082
 docker images; docker history miweb:1.0         # las capas de la imagen
 ```
 
-Desde tu host, abre `http://10.10.10.50:8082`. **Detalle para la entrevista:** los puertos publicados con
+Desde tu host, abre `http://10.10.10.50:8082`. **Detalle importante:** los puertos publicados con
 `-p` suelen ser accesibles aunque `firewalld` no los tenga abiertos, porque Docker escribe sus propias
 reglas de red. Compruébalo con `sudo firewall-cmd --list-all` y anota lo que veas.
 
@@ -346,7 +346,7 @@ falla el lint.
 
 **Ampliación (si sobra tiempo):** que el paso de despliegue haga un `kubectl apply` real contra k3s. Hace
 falta dar al contenedor de Jenkins el binario `kubectl` y el *kubeconfig*, y SELinux puede bloquearlo: es un
-buen ejercicio de troubleshooting, pero no imprescindible para la entrevista.
+buen ejercicio de troubleshooting, pero no imprescindible para esta etapa.
 
 ---
 
@@ -362,7 +362,7 @@ buen ejercicio de troubleshooting, pero no imprescindible para la entrevista.
 | **Change Management** | Evaluar, aprobar y registrar cambios. Tipos: **estándar** (preaprobado), **normal** (CAB) y **de emergencia** | El `input` del pipeline de Jenkins; snapshot antes del cambio |
 | **Release Management** | Poner en producción versiones de forma controlada, con *rollback* | `kubectl rollout` / `rollout undo` |
 
-Métricas que salen en las entrevistas: **SLA** (acuerdo con el cliente), **SLO** (objetivo interno),
+Métricas básicas de operación: **SLA** (acuerdo con el cliente), **SLO** (objetivo interno),
 **MTTR** (tiempo medio de restauración) y **prioridad = impacto × urgencia**.
 
 ### Plantilla de PIR (Post Incident Review)
@@ -379,7 +379,7 @@ Métricas que salen en las entrevistas: **SLA** (acuerdo con el cliente), **SLO*
 - Lecciones aprendidas
 ```
 
-Rellénala con la incidencia simulada del bloque 2. Es un documento que puedes enseñar en la entrevista.
+Rellénala con la incidencia simulada del bloque 2. Es un documento que sirve de ejemplo de trabajo real.
 
 ---
 
@@ -506,7 +506,7 @@ Preguntas para responder en voz alta, en español y en inglés:
 11. ¿Qué hace un equipo de APS? ¿Qué diferencia hay entre *work notes* y *additional comments* en ServiceNow?
 12. Un batch nocturno ha fallado: ¿cómo lo detectas, qué miras primero y cómo lo relanzas?
 
-### Vocabulario en inglés para la entrevista
+### Vocabulario técnico en inglés
 
 | Español | Inglés |
 |---|---|

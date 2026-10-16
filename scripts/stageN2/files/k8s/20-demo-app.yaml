@@ -1,0 +1,60 @@
+# =============================================================================
+# Aplicación de ejemplo que "escribe logs": simula un servicio de pagos que emite
+# una línea cada 5 s, con un ERROR cada 10 y un aviso de autenticación cada 25.
+# Sirve para ver en Graylog logs de Kubernetes con namespace, pod y nodo.
+#
+# Buenas prácticas de seguridad del pod: usuario sin privilegios, sistema de ficheros
+# de solo lectura, sin escalada de privilegios, sin capacidades y seccomp por defecto.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    app.kubernetes.io/part-of: lab-siem
+    pod-security.kubernetes.io/enforce: restricted    # Pod Security Admission: rechaza pods inseguros
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pagos-demo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: pagos-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pagos-demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pagos-demo
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: busybox:1.37
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1)); lvl=INFO; msg="operacion procesada"
+                if [ $((i % 10)) -eq 0 ]; then lvl=ERROR; msg="timeout contra la base de datos"; fi
+                if [ $((i % 25)) -eq 0 ]; then lvl=WARN;  msg="token de API caducado para el cliente demo"; fi
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) level=$lvl app=pagos-demo seq=$i msg=\"$msg\""
+                sleep 5
+              done
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 32Mi}
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}

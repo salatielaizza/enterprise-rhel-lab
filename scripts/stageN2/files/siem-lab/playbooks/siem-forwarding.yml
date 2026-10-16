@@ -1,0 +1,144 @@
+---
+# =============================================================================
+# siem-forwarding.yml — rsyslog de las VMs del lab -> Graylog (Syslog TCP 5140 en siem01)
+#
+#   ansible-playbook playbooks/siem-forwarding.yml                         # aplicar
+#   ansible-playbook playbooks/siem-forwarding.yml --check --diff          # ver qué cambiaría
+#   ansible-playbook playbooks/siem-forwarding.yml --limit rhel9-app01     # un solo host
+#   ansible-playbook playbooks/siem-forwarding.yml -e siem_state=absent    # revertir (rollback)
+#
+# Idempotente: el segundo pase debe dar changed=0 (salvo el mensaje de prueba, que no cuenta).
+# =============================================================================
+- name: Reenvío de syslog al SIEM
+  hosts: lab
+  gather_facts: true
+  vars:
+    siem_host: 10.10.10.55
+    siem_port: 5140
+    siem_state: present
+    siem_conf: /etc/rsyslog.d/90-siem-forward.conf
+    selinux_on: "{{ ansible_facts['selinux']['status'] | default('disabled') == 'enabled' }}"
+    semanage_pkg: "{{ 'policycoreutils-python' if ansible_facts['distribution_major_version'] | int == 7 else 'policycoreutils-python-utils' }}"
+
+  tasks:
+    - name: Validar las variables de entrada
+      ansible.builtin.assert:
+        that:
+          - siem_state in ['present', 'absent']
+          - siem_port | int > 1023
+        fail_msg: "siem_state debe ser present o absent, y siem_port un puerto > 1023"
+        quiet: true
+
+    - name: Marcador común para el mensaje de prueba de esta ejecución
+      ansible.builtin.set_fact:
+        siem_marker: "ansible-{{ ansible_facts['date_time']['epoch'] }}"
+      run_once: true             # noqa: run-once[task]  (estrategia linear, la del lab)
+
+    - name: Paquetes rsyslog y semanage instalados
+      ansible.builtin.package:
+        name:
+          - rsyslog
+          - "{{ semanage_pkg }}"
+        state: present
+      when: siem_state == 'present'
+
+    # Un solo awk que lee toda la salida: nada de 'semanage ... | grep -q' con pipefail (caso etapa8/01)
+    - name: SELinux — comprobar si syslogd_port_t ya incluye tcp/{{ siem_port }}
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        semanage port -l | awk -v p={{ siem_port }}
+        '$1=="syslogd_port_t" && $2=="tcp" { for (i = 3; i <= NF; i++) { gsub(",", "", $i); if ($i == p) f = 1 } }
+        END { exit !f }'
+      args:
+        executable: /bin/bash
+      register: siem_seport
+      changed_when: false
+      failed_when: false
+      check_mode: false        # solo lee: se ejecuta también con --check
+      when: selinux_on | bool
+
+    - name: SELinux — permitir a rsyslog conectar a tcp/{{ siem_port }}
+      ansible.builtin.command: semanage port -a -t syslogd_port_t -p tcp {{ siem_port }}
+      register: siem_seadd
+      changed_when: siem_seadd.rc == 0
+      failed_when: false
+      when:
+        - siem_state == 'present'
+        - selinux_on | bool
+        - siem_seport.rc | default(0) != 0
+
+    - name: SELinux — el puerto ya tenía otro tipo, se modifica
+      ansible.builtin.command: semanage port -m -t syslogd_port_t -p tcp {{ siem_port }}
+      changed_when: true
+      when:
+        - siem_seadd.rc | default(0) != 0
+
+    - name: Configuración de reenvío en {{ siem_conf }}
+      ansible.builtin.template:
+        src: 90-siem-forward.conf.j2
+        dest: "{{ siem_conf }}"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      notify: rsyslog cambiado
+      when: siem_state == 'present'
+
+    - name: Rollback — quitar la configuración de reenvío
+      ansible.builtin.file:
+        path: "{{ siem_conf }}"
+        state: absent
+      notify: rsyslog cambiado
+      when: siem_state == 'absent'
+
+    - name: Rollback — quitar la etiqueta SELinux del puerto
+      ansible.builtin.command: semanage port -d -t syslogd_port_t -p tcp {{ siem_port }}
+      changed_when: true
+      when:
+        - siem_state == 'absent'
+        - selinux_on | bool
+        - siem_seport.rc | default(1) == 0
+
+    - name: Aplicar los cambios pendientes antes de probar
+      ansible.builtin.meta: flush_handlers
+
+    - name: ¿Llega rsyslog al SIEM por TCP?
+      ansible.builtin.wait_for:
+        host: "{{ siem_host }}"
+        port: "{{ siem_port }}"
+        timeout: 5
+      register: siem_tcp
+      failed_when: false
+      when: siem_state == 'present'
+
+    - name: Aviso si el SIEM no responde (los mensajes esperan en la cola de disco)
+      ansible.builtin.debug:
+        msg: "{{ siem_host }}:{{ siem_port }}/tcp no responde desde {{ inventory_hostname }}: ¿siem01 encendida? ¿lab.sh siem-inputs?"
+      when:
+        - siem_state == 'present'
+        - "'Timeout' in (siem_tcp.msg | default(''))"
+
+    - name: Mensaje de prueba (authpriv, como los de sshd)
+      ansible.builtin.command: logger -p authpriv.notice -t siem-test "siem-forward {{ inventory_hostname }} {{ siem_marker }}"
+      changed_when: false
+      when: siem_state == 'present'
+
+    - name: Qué buscar en Graylog
+      ansible.builtin.debug:
+        msg: "Busca en Graylog: application_name:siem-test AND \"{{ siem_marker }}\" (un mensaje por host)"
+      when:
+        - siem_state == 'present'
+        - inventory_hostname == ansible_play_hosts | first
+
+  handlers:
+    # Los dos escuchan el mismo aviso y se ejecutan en este orden: si la validación falla, no se reinicia
+    - name: Validar la configuración completa de rsyslog
+      ansible.builtin.command: rsyslogd -N1
+      changed_when: false
+      listen: rsyslog cambiado
+
+    - name: Reiniciar rsyslog
+      ansible.builtin.service:
+        name: rsyslog
+        state: restarted
+      listen: rsyslog cambiado

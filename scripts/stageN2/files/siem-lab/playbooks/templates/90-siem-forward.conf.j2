@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# Etapa N2 — Reenvío de TODOS los mensajes de rsyslog al SIEM (Graylog en {{ siem_host }}, Syslog TCP {{ siem_port }}).
+#
+# - Formato RFC 5424 (RSYSLOG_SyslogProtocol23Format): Graylog separa host, aplicación, PID y nivel.
+# - Cola propia en memoria con desbordamiento a disco (queue.filename): si el SIEM no responde, los
+#   mensajes esperan (hasta queue.maxDiskSpace) y se reenvían al volver; el resto del registro local
+#   (/var/log/messages, /var/log/secure) no se bloquea.
+# - SELinux: rsyslog solo puede conectar a puertos syslogd_port_t; el playbook etiqueta tcp/{{ siem_port }}.
+action(
+  type="omfwd"
+  target="{{ siem_host }}"
+  port="{{ siem_port }}"
+  protocol="tcp"
+  template="RSYSLOG_SyslogProtocol23Format"
+  queue.type="LinkedList"
+  queue.filename="siem_fwd"
+  queue.maxDiskSpace="256m"
+  queue.saveOnShutdown="on"
+  action.resumeRetryCount="-1"
+  action.resumeInterval="10"
+)

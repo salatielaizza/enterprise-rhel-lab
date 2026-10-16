@@ -24,6 +24,10 @@ esxi03          IN  A   10.10.10.62
 vcsa01          IN  A   10.10.10.63
 rhel9-vm01      IN  A   10.10.10.64
 
+; Etapa N2 — SIEM (Graylog + OpenSearch, k3s). Docker publica las entradas en esta IP.
+siem01          IN  A   10.10.10.55
+graylog         IN  CNAME siem01
+
 ; Infraestructura futura (reservada; NO crear registros hasta instalar el host):
 ;rhel9-web01     IN  A   10.10.10.40
 ;rhel9-monitor01 IN  A   10.10.10.50

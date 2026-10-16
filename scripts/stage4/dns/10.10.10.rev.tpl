@@ -21,3 +21,5 @@ $TTL 3600
 62      IN  PTR esxi03.lab.local.
 63      IN  PTR vcsa01.lab.local.
 64      IN  PTR rhel9-vm01.lab.local.
+; Etapa N2 — SIEM
+55      IN  PTR siem01.lab.local.

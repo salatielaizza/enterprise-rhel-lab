@@ -18,3 +18,10 @@ scripts/stage8/files/vmware-lab/inventory/group_vars/all/vault.yml
 scripts/stage8/files/vmware-lab/reports/
 *.dryrun.KS.CFG
 lab_esxi_rsa*
+
+# Etapa N2 (SIEM): el .env real y las contraseñas solo viven en siem01; discos e imágenes exportados
+scripts/stageN2/files/graylog/.env
+*.vmdk
+*.ova
+*.rpm
+__pycache__/

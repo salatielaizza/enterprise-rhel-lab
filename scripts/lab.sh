@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-8)
+# lab.sh — Punto de entrada único de enterprise-rhel-lab (Etapas 1-8 y N2)
 # Ejecuta 'scripts/lab.sh help' para ver los comandos.
 # Los scripts son envoltorios de los MISMOS comandos que se documentan a mano en
 # los .md: primero se practica a mano en una VM, después se repite con el script.
@@ -78,6 +78,18 @@ Etapa 8 - VMware vSphere (ESXi anidado en KVM; inventario en scripts/vmware.conf
   stage8 <info|cluster|esxi-config|guest|vmotion|snapshot|guest-baseline|verify> [args]
                                   Playbooks de ~/vmware-lab desde ansible01 (args para ansible-playbook)
   stage8-close                    Marca LAB_STAGE=8 en dns01 y ansible01 (exige la Etapa 7 cerrada)
+Etapa N2 - SIEM (prueba práctica y adelanto de tecnologías; VM siem01, opcional en hosts.conf)
+  siem-preflight                  siem01: auditoría de SOLO LECTURA (RAM, LVM, SELinux, hora, DNS, Internet)
+  siem-docker                     siem01: LVs para Docker y k3s + Docker CE + vm.max_map_count
+  siem-stack [--with-elastic]     siem01: Graylog + MongoDB + OpenSearch con Compose (secretos aleatorios);
+                                   --with-elastic: también Elasticsearch (perfil opcional, 127.0.0.1:9201)
+  siem-inputs                     siem01: entradas Syslog/GELF por la API + prueba de extremo a extremo
+  siem-k8s                        siem01: k3s + Fluent Bit (DaemonSet) -> Graylog + app de ejemplo
+  siem-forward [args]             ansible01: rsyslog de las VMs del lab -> Graylog (playbook;
+                                   --check --diff, --limit <host>, -e siem_state=absent para revertir)
+  siem-nxlog <host> <rpm>         Agente NXLog CE en <host>: auditd -> Graylog (GELF TCP)
+  vm-convert <export|import|inspect> ...
+                                  Host: qcow2 <-> VMDK/OVA con qemu-img, virt-customize y virt-v2v
 
 Verificación y documentación
   test <test_x.sh|all> <host|all> Ejecuta tests dentro de las VMs (p. ej. test_users.sh)
@@ -92,7 +104,7 @@ push() {  # copia los scripts y tests a ~/lab-scripts de la VM
   ssh "${SSH_OPTS[@]}" "$LAB_ADMIN@$ip" 'rm -rf "$HOME/lab-scripts" && mkdir -p "$HOME/lab-scripts"'
   scp -O -q -r "${SSH_OPTS[@]}" \
     "$SCRIPTS_DIR/common.sh" "$SCRIPTS_DIR/collect-facts.sh" "$SCRIPTS_DIR/hosts.conf" \
-    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$SCRIPTS_DIR/stage7" "$SCRIPTS_DIR/stage8" "$LAB_ROOT/tests" \
+    "$SCRIPTS_DIR/stage2" "$SCRIPTS_DIR/stage3" "$SCRIPTS_DIR/stage4" "$SCRIPTS_DIR/stage5" "$SCRIPTS_DIR/stage6" "$SCRIPTS_DIR/stage7" "$SCRIPTS_DIR/stage8" "$SCRIPTS_DIR/stageN2" "$LAB_ROOT/tests" \
     "$LAB_ADMIN@$ip:lab-scripts/"
 }
 run_remote() {  # run_remote HOST ruta/relativa.sh [args...]  (como root, sin contraseña)
@@ -259,6 +271,32 @@ stage8_close() {
   for h in dns01 ansible01; do push "$h"; run_remote "$h" stage8/99-mark-stage.sh; done
 }
 
+# Etapa N2 (SIEM): siem01 es un host "opcional" de hosts.conf (fuera de 'all'). Los scripts del
+# servidor corren en siem01; el reenvío de rsyslog, en ansible01; NXLog, en la VM que se indique.
+STAGEN2="$SCRIPTS_DIR/stageN2"
+SIEM_HOST=siem01
+siem_run() {  # siem_run <script> [args] -> en siem01
+  local script="$1"; shift
+  push "$SIEM_HOST"
+  run_remote "$SIEM_HOST" "stageN2/$script" "$@"
+}
+siem_forward() {
+  push ansible01
+  run_remote ansible01 stageN2/20-siem-forward.sh "$@"
+}
+siem_nxlog() {
+  local h="$1" rpm="$2" ip
+  host_row "$h" >/dev/null || die "Host desconocido: $h (mira $HOSTS_CONF)"
+  [[ "$h" != "$SIEM_HOST" ]] || die "NXLog va en las VMs que envían logs, no en $SIEM_HOST"
+  [[ -f "$rpm" ]] || die "No existe el RPM '$rpm' (descárgalo de https://nxlog.co/downloads: Community Edition, RHEL 9)"
+  info "=== Etapa N2: agente NXLog en $h ==="
+  push "$h"
+  ip="$(ip_of "$h")"
+  scp -O -q "${SSH_OPTS[@]}" "$rpm" "$LAB_ADMIN@$ip:lab-scripts/stageN2/"
+  run_remote "$h" stageN2/10-nxlog-agent.sh "lab-scripts/stageN2/$(basename "$rpm")"
+  ok "NXLog en $h. Comprueba: lab.sh test test_siem.sh $h"
+}
+
 # --- despacho -------------------------------------------------------------------
 cmd="${1:-help}"; if [[ $# -gt 0 ]]; then shift; fi
 case "$cmd" in
@@ -293,7 +331,7 @@ case "$cmd" in
   status)
     virsh list --all
     printf '\n%-14s %-13s %-8s %s\n' HOST IP SSH SNAPSHOTS
-    for h in $(all_hosts); do
+    for h in $(all_hosts) $(optional_hosts); do
       ssh_ok="--"; ssh "${SSH_OPTS[@]}" -o ConnectTimeout=2 "$LAB_ADMIN@$(ip_of "$h")" true 2>/dev/null && ssh_ok="OK"
       snaps="$(virsh snapshot-list "$h" --name 2>/dev/null | grep . | tr '\n' ' ' || true)"
       printf '%-14s %-13s %-8s %s\n' "$h" "$(ip_of "$h")" "$ssh_ok" "$snaps"
@@ -329,6 +367,14 @@ case "$cmd" in
   stage8-guest-key) stage8_guest_key ;;
   stage8)        stage8 "${1:?Uso: lab.sh stage8 <info|cluster|esxi-config|guest|vmotion|snapshot|guest-baseline|verify> [args]}" "${@:2}" ;;
   stage8-close)  stage8_close ;;
+  siem-preflight) siem_run 00-preflight.sh ;;
+  siem-docker)    siem_run 01-docker-host.sh ;;
+  siem-stack)     siem_run 02-graylog-stack.sh "$@" ;;
+  siem-inputs)    siem_run 03-graylog-inputs.sh ;;
+  siem-k8s)       siem_run 04-k3s-fluentbit.sh ;;
+  siem-forward)   siem_forward "$@" ;;
+  siem-nxlog)     siem_nxlog "${1:?Uso: lab.sh siem-nxlog <host> <nxlog-ce-*.rpm>}" "${2:?Uso: lab.sh siem-nxlog <host> <nxlog-ce-*.rpm>}" ;;
+  vm-convert)     exec "$STAGEN2/30-vm-convert.sh" "$@" ;;
   host-dns)
     need resolvectl
     sudo resolvectl dns "$LAB_BRIDGE" "$LAB_DNS_SERVER"

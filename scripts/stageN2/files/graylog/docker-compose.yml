@@ -1,0 +1,122 @@
+# =============================================================================
+# SIEM del lab (Etapa N2): Graylog + MongoDB + OpenSearch, y Elasticsearch opcional
+#
+# Se despliega en siem01:/opt/siem con 02-graylog-stack.sh, que genera el .env
+# (secretos aleatorios, modo 0600). Nada de contraseñas en este fichero.
+#
+#   mongodb        metadatos y configuración de Graylog (usuarios, entradas, streams)
+#   opensearch     almacén e índice de los mensajes (API compatible con Elasticsearch 7.10)
+#   graylog        recepción (Syslog, GELF), procesado, búsqueda, alertas; web y API en :9000
+#   elasticsearch  SOLO con el perfil "elastic": para practicar la API de Elasticsearch
+#                  directamente (Graylog 7 no admite Elasticsearch como almacén, solo OpenSearch)
+#
+# Exposición: nada se publica en 0.0.0.0. Las entradas y la web, en la IP del lab (SIEM_IP)
+# y en 127.0.0.1; OpenSearch/Elasticsearch, solo en 127.0.0.1; MongoDB, en ningún puerto del host.
+# Versiones fijadas (nunca "latest"): un cambio de versión es un cambio controlado.
+# =============================================================================
+name: siem
+
+services:
+  mongodb:
+    image: mongo:7.0.45
+    container_name: siem-mongodb
+    command: ["--wiredTigerCacheSizeGB", "0.5"]     # sin esto, MongoDB reserva ~50% de la RAM
+    restart: unless-stopped
+    networks: [siem]
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.6
+    container_name: siem-opensearch
+    restart: unless-stopped
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms${OS_HEAP:-1g} -Xmx${OS_HEAP:-1g}"
+      bootstrap.memory_lock: "true"
+      discovery.type: single-node
+      action.auto_create_index: "false"       # los índices los crea y rota Graylog
+      plugins.security.disabled: "true"       # sin TLS ni usuarios dentro: por eso SOLO escucha en 127.0.0.1
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: "${OPENSEARCH_INITIAL_ADMIN_PASSWORD:?falta en .env}"
+    ulimits:
+      memlock: {soft: -1, hard: -1}
+      nofile: {soft: 65536, hard: 65536}
+    ports:
+      - "127.0.0.1:9200:9200"
+    networks: [siem]
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  graylog:
+    image: graylog/graylog:7.1.10
+    container_name: siem-graylog
+    restart: unless-stopped
+    depends_on:
+      mongodb: {condition: service_healthy}
+      opensearch: {condition: service_healthy}
+    entrypoint: "/usr/bin/tini -- wait-for-it opensearch:9200 -- /docker-entrypoint.sh"
+    environment:
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
+      GRAYLOG_HTTP_BIND_ADDRESS: "0.0.0.0:9000"
+      GRAYLOG_HTTP_EXTERNAL_URI: "http://${SIEM_IP:?falta en .env}:9000/"
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
+      GRAYLOG_PASSWORD_SECRET: "${GRAYLOG_PASSWORD_SECRET:?falta en .env}"
+      GRAYLOG_ROOT_PASSWORD_SHA2: "${GRAYLOG_ROOT_PASSWORD_SHA2:?falta en .env}"
+      GRAYLOG_ROOT_TIMEZONE: "${SIEM_TZ:-Europe/Madrid}"
+    ports:
+      - "127.0.0.1:9000:9000/tcp"           # web y API REST (scripts locales y tests)
+      - "${SIEM_IP}:9000:9000/tcp"          # web y API REST (desde el host del lab)
+      - "${SIEM_IP}:5140:5140/tcp"          # Syslog TCP  (rsyslog de las VMs)
+      - "${SIEM_IP}:5140:5140/udp"          # Syslog UDP  (logger --server, equipos de red)
+      - "${SIEM_IP}:12201:12201/tcp"        # GELF TCP    (NXLog, Fluent Bit)
+      - "${SIEM_IP}:12201:12201/udp"        # GELF UDP    (gelf_send.py)
+    networks: [siem]
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+
+  elasticsearch:
+    image: elasticsearch:9.4.8
+    container_name: siem-elasticsearch
+    profiles: ["elastic"]                   # solo con: docker compose --profile elastic up -d
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms${ES_HEAP:-1g} -Xmx${ES_HEAP:-1g}"
+      ELASTIC_PASSWORD: "${ELASTIC_PASSWORD:?falta en .env}"
+      xpack.security.enabled: "true"               # usuario elastic + contraseña obligatorios
+      xpack.security.http.ssl.enabled: "false"     # lab: sin TLS, por eso solo en 127.0.0.1
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.ml.enabled: "false"                    # ahorra RAM
+    ulimits:
+      memlock: {soft: -1, hard: -1}
+      nofile: {soft: 65536, hard: 65536}
+    ports:
+      - "127.0.0.1:9201:9200"
+    networks: [siem]
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+networks:
+  siem:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+  opensearch_data:
+  graylog_data:
+  elasticsearch_data:
