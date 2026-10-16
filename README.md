@@ -84,6 +84,7 @@ Red Hat).
 | 17 | 📦 Contenedores (Docker) | ⏳ Pendiente |
 | 18 | ☸️ Kubernetes y OpenShift (orquestación de contenedores + plataforma enterprise de Red Hat) | ⏳ Pendiente |
 | 19 | 🔁 CI/CD | ⏳ Pendiente |
+| N | 🧰 DevOps: Docker, Kubernetes, Jenkins y monitorización —  (ver [sección final](#-etapa-n--devops-docker-kubernetes-jenkins-y-monitorización)) | 📝 Planificada |
 
 Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en las Etapas 1-4
 (ver `architecture/hosts.md`) se mantienen estables para las etapas futuras — por ejemplo,
@@ -251,7 +252,7 @@ cada `stageN/` tiene su `README_stageN.md` con qué hace cada script, en qué or
 inventario de ESXi en `vmware.conf`) ·
 `scripts/kickstart/` plantillas de instalación · `tests/` pruebas PASS/FAIL de solo lectura ·
 `architecture/` · `rhel7/ … rhel10/` · `administration/` · `networking/` · `time/` · `security/` · `scripting/` · `automation/` ·
-`virtualization/` (Etapa 8, pendiente) ·
+`virtualization/` (Etapa 8, pendiente) · `devops/` (Etapa N, preparación rápida) ·
 `troubleshooting/` (un directorio por etapa con sus casos y su guía `README_troubleshooting_etapaN.md`; índice en `troubleshooting/README.md`) · `migration/` · `comparison/` · `checklists/` · `results/` (evidencias; `facts/` se genera).
 
 ## 🔒 Seguridad
@@ -263,3 +264,24 @@ Etapa 8: la contraseña de root de los ESXi solo se guarda como hash dentro de l
 `.gitignore`); las de vCenter se piden al desplegar y se borran del JSON temporal al terminar; las que usa Ansible viven
 cifradas en el `vault.yml` de `ansible01`, con la misma contraseña de Vault que la Etapa 7. La clave `~/.ssh/lab_esxi_rsa`
 es RSA porque el `sshd` de ESXi 8 funciona en modo FIPS (no acepta ed25519).
+
+## 🧰 Etapa N — DevOps: Docker, Kubernetes, Jenkins y monitorización
+
+> **Estado: 📝 Planificada.** Guía escrita, pendiente de practicar en la VM real. Número de etapa por decidir.
+
+Etapa adelantada al resto del plan para una entrevista de *Linux Administrator DevOps* en el área de **APS** (*Application Production Support*). Presenta **teoría básica + práctica manual**, sobre
+una sola VM, `rhel9-monitor01` (10.10.10.50). Sirve de anticipo de las Etapas 16 (monitorización),
+17 (Docker), 18 (Kubernetes) y 19 (CI/CD), que mantienen su planificación completa.
+
+| Bloque | Contenido |
+|---|---|
+| 0 | Preparar `rhel9-monitor01` (línea en `hosts.conf`, `vm-create`, `stage4-clients`, snapshot) |
+| 1 | Docker CE en RHEL 9: imágenes, contenedores, `Dockerfile`, Compose; Docker frente a Podman |
+| 2 | Prometheus + Grafana + node-exporter con Compose; `node_exporter` en todo el lab con Ansible; alertas e incidencia simulada |
+| 3 | Kubernetes con k3s: Deployments, Services, escalado, *rolling update* y *rollback*, `CrashLoopBackOff` |
+| 4 | Jenkins en Docker: pipeline sobre este repositorio con lint, aprobación del cambio y despliegue |
+| 5 | ITIL para operación: incidencia, problema, cambio, release, SLA/MTTR y plantilla de PIR |
+| 6 | APS y ServiceNow: instancia gratuita de desarrollador, incidencia por Table API, análisis de logs y batch fallido |
+| 7 | Repaso: preguntas y vocabulario en inglés |
+
+Guía completa: [`devops/etapaN-devops.md`](devops/etapaN-devops.md).
