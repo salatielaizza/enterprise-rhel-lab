@@ -5,6 +5,9 @@
 #   VMs con NXLog               agente NXLog: servicio, configuración, permisos de auditd
 # En el resto no hace nada. Lanzarlo:  scripts/lab.sh test test_siem.sh siem01   (o <host>)
 # Lo que depende de que OTRA VM esté encendida se informa como INFO, no como FAIL.
+# En siem01 comprueba POR FASES (caso troubleshooting/etapaN2/01): solo lo ya desplegado. Lo que aún
+# no se ha lanzado (siem-docker, siem-stack, siem-inputs) sale como INFO "pendiente", no como FAIL
+# (y tampoco como PASS vacío: sin contenedores, "ninguna imagen :latest" no demuestra nada).
 # shellcheck disable=SC2034  # TEST_NAME lo usa summary() de lib.sh
 TEST_NAME=test_siem; source "$(dirname "$0")/lib.sh"; need_root
 
@@ -12,11 +15,23 @@ SIEM_IP="$(awk '$1=="siem01" {print $3}' "$HOSTS_CONF")"; SIEM_IP="${SIEM_IP:-10
 TOOLS=/opt/siem/tools
 info() { printf 'INFO  %s\n' "$*"; }
 tcp_open() { timeout 3 bash -c "</dev/tcp/$1/$2" 2>/dev/null; }
-roles=0
+roles=0; phase=0
 
 # ---------------------------------------------------------------- servidor (siem01)
 if [[ "$(hostname -s)" == siem01 ]]; then
   roles=1
+  phase=0                                                     # 0 nada · 1 Docker · 2 stack · 3 entradas
+  if rpm -q docker-ce >/dev/null 2>&1; then phase=1; fi
+  if [[ $phase -ge 1 && -f /opt/siem/docker-compose.yml ]]; then phase=2; fi
+  if [[ $phase -ge 2 && -f /root/.siem/graylog-admin.txt && -x $TOOLS/graylog_inputs.py ]] \
+     && python3 "$TOOLS/graylog_inputs.py" --password-file /root/.siem/graylog-admin.txt --list 2>/dev/null | grep -q '^lab-'; then
+    phase=3
+  fi
+  if [[ $phase -eq 0 ]]; then
+    info "SIEM no desplegado todavía: pendiente 'lab.sh siem-docker' (se omiten las comprobaciones del servidor)"
+  fi
+fi
+if [[ "$(hostname -s)" == siem01 && $phase -ge 1 ]]; then
   # Almacenamiento y host de contenedores
   check "/var/lib/docker es un LV propio" mountpoint -q /var/lib/docker
   ctx_docker() { [[ "$(stat -c %C /var/lib/docker)" == *container_var_lib_t* ]]; }
@@ -26,7 +41,9 @@ if [[ "$(hostname -s)" == siem01 ]]; then
   check "rotación de logs de contenedores configurada (max-size)" grep -q '"max-size"' /etc/docker/daemon.json
   max_map_ok() { [[ "$(sysctl -n vm.max_map_count)" -ge 262144 ]]; }
   check "vm.max_map_count >= 262144" max_map_ok
-
+  if [[ $phase -eq 1 ]]; then info "stack pendiente: 'lab.sh siem-stack' (se omiten contenedores, API e ingesta)"; fi
+fi
+if [[ "$(hostname -s)" == siem01 && $phase -ge 2 ]]; then
   # Contenedores
   for c in siem-mongodb siem-opensearch siem-graylog; do
     check "contenedor $c en ejecución" bash -c "[[ \$(docker inspect -f '{{.State.Running}}' $c 2>/dev/null) == true ]]"
@@ -50,6 +67,9 @@ if [[ "$(hostname -s)" == siem01 ]]; then
   check "OpenSearch: clúster green o yellow" python3 "$TOOLS/os_search.py" health
   check "entradas escuchando: Syslog 5140/tcp y GELF 12201/tcp" bash -c "ss -ltn | grep -q '$SIEM_IP:5140 ' && ss -ltn | grep -q '$SIEM_IP:12201 '"
   check "entradas escuchando: Syslog 5140/udp y GELF 12201/udp" bash -c "ss -lun | grep -q '$SIEM_IP:5140 ' && ss -lun | grep -q '$SIEM_IP:12201 '"
+  if [[ $phase -eq 2 ]]; then info "entradas pendientes: 'lab.sh siem-inputs' (se omiten entradas, ingesta y Kubernetes)"; fi
+fi
+if [[ "$(hostname -s)" == siem01 && $phase -ge 3 ]]; then
   check "4 entradas del lab en RUNNING" bash -c "[[ \$(python3 $TOOLS/graylog_inputs.py --password-file /root/.siem/graylog-admin.txt --list | grep -c '^lab-.*RUNNING') -eq 4 ]]"
 
   # Ingesta de extremo a extremo (mensaje nuevo con marcador -> índice)

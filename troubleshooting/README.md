@@ -77,8 +77,9 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 |---|---|
 | [01 preflight-pipefail-sigpipe](etapa8/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
 
-## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (0 casos)
-Prueba práctica y adelanto de tecnologías, pendiente de ejecutar: la guía ya recoge los comandos de los scripts y del
-test explicados y las averías provocadas de cada bloque; los casos reales se añaden a esta tabla al ejecutarla.
+## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (1 caso)
+| Caso | Tema |
+|---|---|
+| [01 test-siem-falla-antes-de-desplegar](etapaN2/01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

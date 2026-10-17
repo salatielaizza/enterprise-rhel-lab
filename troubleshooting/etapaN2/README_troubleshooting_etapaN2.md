@@ -15,8 +15,12 @@ Este documento tiene dos usos:
 
 ## 1. Casos documentados
 
-Todavía ninguno: la etapa está escrita y validada en estático, pendiente de ejecutar. Cada fallo real se
-documenta aquí como `NN-slug.md` (numeración desde 01) con la plantilla del proyecto.
+| Caso | Tema |
+|---|---|
+| [01 test-siem-falla-antes-de-desplegar](01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
+
+🔎 = encontrado de forma orgánica al ejecutar contra las VMs reales. Cada fallo real nuevo se documenta aquí
+como `NN-slug.md` con la plantilla del proyecto.
 
 **Averías provocadas** (ejercicios de la guía, con snapshot `siem01-stage5-complete` como red de seguridad):
 
