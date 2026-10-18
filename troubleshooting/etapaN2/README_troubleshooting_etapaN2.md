@@ -19,6 +19,7 @@ Este documento tiene dos usos:
 |---|---|
 | [01 test-siem-falla-antes-de-desplegar](01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
 | [02 preflight-dns-getent-hosts-ipv6](02-preflight-dns-getent-hosts-ipv6.md) 🔎 | Preflight: "`siem01.lab.local` no resuelve" con la zona correcta: `getent hosts` devolvía primero la `fe80::` de `nss-myhostname` |
+| [03 docker-containerd-image-store-llena-var](03-docker-containerd-image-store-llena-var.md) 🔎 | `siem-stack`: "no space left on device" con `lv_docker` vacío: Docker 29 guardaba las imágenes en `/var/lib/containerd` (en `/var`, 4 GB) |
 
 🔎 = encontrado de forma orgánica al ejecutar contra las VMs reales. Cada fallo real nuevo se documenta aquí
 como `NN-slug.md` con la plantilla del proyecto.
@@ -96,6 +97,9 @@ Relacionados de otras etapas: [etapa2/04](../etapa2/04-selinux-denial.md) (etiqu
 | `daemon.json`: `log-opts max-size/max-file` | Rota los logs de los contenedores | Sin esto, `json-file` crece sin límite |
 | `daemon.json`: `"selinux-enabled": true` | Etiqueta SELinux por contenedor (`container_t` + MCS) | Confinamiento: un contenedor no lee los ficheros de otro |
 | `daemon.json`: `"live-restore": true` | Los contenedores siguen vivos si se reinicia `dockerd` | Actualizar Docker sin cortar la ingesta |
+| `daemon.json`: `"features": { "containerd-snapshotter": false }` | Driver clásico `overlay2` en `/var/lib/docker` | Desde Docker 29 el *containerd image store* guarda las capas en `/var/lib/containerd`, fuera de `lv_docker` (caso 03) |
+| `docker info --format '{{.Driver}} {{.DockerRootDir}}'` | Driver de almacenamiento y raíz de Docker | `overlay2` = clásico; `overlayfs` = *snapshotter* de containerd (las imágenes no van a la raíz que se muestra) |
+| `du -sh /var/lib/containerd /var/lib/docker` | Dónde está ocupando espacio de verdad | `df` del LV vacío y `/var` lleno delatan que se escribe en otro sitio |
 | `python3 -m json.tool <fichero>` | Valida el JSON antes de instalarlo | Un `daemon.json` roto impide arrancar Docker |
 | `usermod -aG docker adminlab` | Docker sin `sudo` | Grupo `docker` = root en ese host: decisión de laboratorio |
 | `/etc/sysctl.d/90-siem.conf`: `vm.max_map_count = 262144` + `sysctl -p` | Más áreas de memoria mapeada por proceso | Requisito de OpenSearch/Elasticsearch (si no, no arrancan) |

@@ -39,6 +39,9 @@ if [[ "$(hostname -s)" == siem01 && $phase -ge 1 ]]; then
   check "docker activo y habilitado" bash -c 'systemctl is-active --quiet docker && systemctl is-enabled --quiet docker'
   check "Docker con SELinux en los contenedores (selinux-enabled)" bash -c "docker info --format '{{.SecurityOptions}}' | grep -q selinux"
   check "rotación de logs de contenedores configurada (max-size)" grep -q '"max-size"' /etc/docker/daemon.json
+  # Caso troubleshooting/etapaN2/03: con el "containerd image store" (Docker 29) las imágenes van a
+  # /var/lib/containerd (en /var, 4 GB) y no a lv_docker. Driver overlay2 = todo en /var/lib/docker.
+  check "storage driver overlay2 (imágenes en lv_docker, no en /var/lib/containerd)" bash -c "[[ \$(docker info --format '{{.Driver}}') == overlay2 ]]"
   max_map_ok() { [[ "$(sysctl -n vm.max_map_count)" -ge 262144 ]]; }
   check "vm.max_map_count >= 262144" max_map_ok
   if [[ $phase -eq 1 ]]; then info "stack pendiente: 'lab.sh siem-stack' (se omiten contenedores, API e ingesta)"; fi

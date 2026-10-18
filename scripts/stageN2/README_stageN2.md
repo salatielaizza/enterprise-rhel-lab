@@ -38,7 +38,7 @@ scripts/lab.sh vm-convert export|import|inspect ...   # host: KVM <-> VMware
 |---|---|---|---|---|
 | `siem-lib.sh` | — | — | Funciones comunes: IP de `siem01` desde `hosts.conf`, `backup`, `require_host`, `randpw`, `fw_rich`, `wait_for` | — |
 | `00-preflight.sh` | `siem01` | `siem-preflight` | RAM, vCPU, espacio en `vg_system`, SELinux, chrony, DNS A/PTR, repos, salida a Docker/k3s, conflictos | **Nada** (sin `set -e`: enseña todas las comprobaciones) |
-| `01-docker-host.sh` | `siem01` | `siem-docker` | LVs `lv_docker` (35 GB) y `lv_rancher` (10 GB) por UUID + `restorecon`; Docker CE del repo oficial; `daemon.json`; `vm.max_map_count` | `fstab`, `daemon.json` y `90-siem.conf` con `.lab-bak.<fecha>`; retira podman/runc |
+| `01-docker-host.sh` | `siem01` | `siem-docker` | LVs `lv_docker` (35 GB) y `lv_rancher` (10 GB) por UUID + `restorecon`; Docker CE del repo oficial; `daemon.json` (driver `overlay2`, sin *containerd image store*: caso `etapaN2/03`); `vm.max_map_count` | `fstab`, `daemon.json` y `90-siem.conf` con `.lab-bak.<fecha>`; retira podman/runc |
 | `02-graylog-stack.sh [--with-elastic]` | `siem01` | `siem-stack` | `/opt/siem` + `.env` con secretos aleatorios (solo si no existe), `compose config/pull/up`, espera a `ALIVE`, firewalld | `.env` 0600; contraseña de admin en `/root/.siem/graylog-admin.txt`; se niega a usar `admin` |
 | `03-graylog-inputs.sh` | `siem01` | `siem-inputs` | `graylog_inputs.py` (4 entradas), puertos en la IP del lab, GELF TCP+UDP con marcador buscado en OpenSearch | Solo crea entradas que faltan |
 | `04-k3s-fluentbit.sh` | `siem01` | `siem-k8s` | k3s `--selinux` sin Traefik (instalador descargado y con SHA-256 antes de ejecutar), zona trusted para pods/servicios, kubeconfig de `adminlab`, Fluent Bit + `pagos-demo`, comprobación en OpenSearch | firewalld; `~adminlab/.kube/config` 0600 |
@@ -85,6 +85,8 @@ scripts/lab.sh vm-convert export|import|inspect ...   # host: KVM <-> VMware
 - Nada de `comando | grep -q` con `pipefail` (caso `etapa8/01`): `awk` que lee toda la entrada.
 - `ausearch` siempre con `timeout` (caso `etapa2/06`).
 - La fuente de verdad del proyecto Ansible es git: se recopia en cada ejecución (caso `etapa7/03`).
+- DNS comparado con `dig @dns01` y `getent ahostsv4`, nunca con la primera línea de `getent hosts` (caso `etapaN2/02`).
+- Un LV dedicado no sirve si el servicio escribe en otra ruta: comprobar con `du` dónde crece de verdad (caso `etapaN2/03`).
 
 ## Cómo se verifica
 

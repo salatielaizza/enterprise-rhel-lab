@@ -77,10 +77,11 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 |---|---|
 | [01 preflight-pipefail-sigpipe](etapa8/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
 
-## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (2 casos)
+## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (3 casos)
 | Caso | Tema |
 |---|---|
 | [01 test-siem-falla-antes-de-desplegar](etapaN2/01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
 | [02 preflight-dns-getent-hosts-ipv6](etapaN2/02-preflight-dns-getent-hosts-ipv6.md) 🔎 | Preflight: "`siem01.lab.local` no resuelve" con la zona correcta: `getent hosts` devolvía primero la `fe80::` de `nss-myhostname` |
+| [03 docker-containerd-image-store-llena-var](etapaN2/03-docker-containerd-image-store-llena-var.md) 🔎 | `siem-stack`: "no space left on device" con `lv_docker` vacío: Docker 29 guardaba las imágenes en `/var/lib/containerd` (en `/var`, 4 GB) |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

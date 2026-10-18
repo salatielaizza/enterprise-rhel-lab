@@ -8,7 +8,8 @@
 #   2. Docker CE desde el repositorio oficial de Docker para RHEL (retira antes
 #      podman/runc, que chocan con containerd.io).
 #   3. /etc/docker/daemon.json: rotación de logs de contenedores, SELinux activo
-#      en los contenedores y live-restore (reiniciar dockerd no tumba el SIEM).
+#      en los contenedores, live-restore (reiniciar dockerd no tumba el SIEM) y
+#      driver overlay2 en /var/lib/docker (sin containerd image store: caso etapaN2/03).
 #   4. vm.max_map_count=262144 (requisito de OpenSearch/Elasticsearch).
 #
 # Idempotente: se puede relanzar. Copia de seguridad de fstab y daemon.json.
@@ -73,23 +74,32 @@ install -d -m 0755 /etc/docker
 DAEMON_JSON=/etc/docker/daemon.json
 NEW_JSON="$(mktemp)"
 trap 'rm -f "$NEW_JSON"' EXIT
+# containerd-snapshotter=false (caso troubleshooting etapaN2/03): desde Docker 29 las instalaciones
+# nuevas usan el "containerd image store" y las capas de las imágenes van a /var/lib/containerd,
+# que está en /var (4 GB) y NO en lv_docker -> "no space left on device" al descargar OpenSearch.
+# Con false, Docker vuelve al driver clásico overlay2 y todo queda en /var/lib/docker (lv_docker).
 cat > "$NEW_JSON" <<'EOF'
 {
   "log-driver": "json-file",
   "log-opts": { "max-size": "10m", "max-file": "3" },
   "selinux-enabled": true,
-  "live-restore": true
+  "live-restore": true,
+  "features": { "containerd-snapshotter": false }
 }
 EOF
 python3 -m json.tool "$NEW_JSON" >/dev/null || fatal "daemon.json generado no es JSON válido"
 if ! cmp -s "$NEW_JSON" "$DAEMON_JSON" 2>/dev/null; then
   backup "$DAEMON_JSON"
   install -m 0644 "$NEW_JSON" "$DAEMON_JSON"
-  say "daemon.json actualizado (rotación de logs, SELinux, live-restore)"
+  say "daemon.json actualizado (rotación de logs, SELinux, live-restore, overlay2 en /var/lib/docker)"
   systemctl restart docker 2>/dev/null || true
 fi
 systemctl enable --now docker >/dev/null
 docker info --format '{{.ServerVersion}} {{.Driver}} {{.DockerRootDir}}' | { read -r v d r; say "Docker $v, storage driver $d, raíz $r"; }
+drv="$(docker info --format '{{.Driver}}')"
+if [[ "$drv" != overlay2 ]]; then
+  warnmsg "storage driver '$drv' (se esperaba overlay2): las imágenes no irían a lv_docker sino a /var/lib/containerd"
+fi
 docker info --format '{{.SecurityOptions}}' | grep -q selinux || warnmsg "Docker no informa de SELinux en SecurityOptions"
 
 # Grupo docker = equivalente a root en este host (puede montar / en un contenedor).
