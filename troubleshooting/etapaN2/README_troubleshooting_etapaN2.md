@@ -20,6 +20,7 @@ Este documento tiene dos usos:
 | [01 test-siem-falla-antes-de-desplegar](01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
 | [02 preflight-dns-getent-hosts-ipv6](02-preflight-dns-getent-hosts-ipv6.md) 🔎 | Preflight: "`siem01.lab.local` no resuelve" con la zona correcta: `getent hosts` devolvía primero la `fe80::` de `nss-myhostname` |
 | [03 docker-containerd-image-store-llena-var](03-docker-containerd-image-store-llena-var.md) 🔎 | `siem-stack`: "no space left on device" con `lv_docker` vacío: Docker 29 guardaba las imágenes en `/var/lib/containerd` (en `/var`, 4 GB) |
+| [04 chcon-con-stack-desplegado-restorecon-no-basta](04-chcon-con-stack-desplegado-restorecon-no-basta.md) 🔎 | MongoDB en bucle (`libc.so.6: cannot change memory protections`) tras la avería de `chcon` con el stack desplegado: `restorecon` no recupera `container_file_t`; hay que recrear con `down -v` |
 
 🔎 = encontrado de forma orgánica al ejecutar contra las VMs reales. Cada fallo real nuevo se documenta aquí
 como `NN-slug.md` con la plantilla del proyecto.
@@ -28,7 +29,7 @@ como `NN-slug.md` con la plantilla del proyecto.
 
 | Bloque | Avería | Qué se aprende |
 |---|---|---|
-| 1 | `/var/lib/docker` con etiqueta SELinux incorrecta | `chcon` frente a `restorecon`/`semanage fcontext`; AVC con `ausearch` |
+| 1 | `/var/lib/docker` con etiqueta SELinux incorrecta (antes de `siem-stack`; si no, caso 04) | `chcon` frente a `restorecon`/`semanage fcontext`; AVC con `ausearch`; `restorecon` no recupera las etiquetas que pone Docker |
 | 2 | `vm.max_map_count` bajo · OpenSearch parado | *Bootstrap checks*; el *journal* de Graylog evita perder mensajes |
 | 3 | Entrada parada · `POST` sin `X-Requested-By` · GELF sin `short_message` | UDP no confirma la entrega; CSRF en la API; validación del formato |
 | 4 | Puerto 5140 sin `syslogd_port_t` · SIEM apagado · *rollback* | SELinux y puertos; colas en disco; cambios reversibles |

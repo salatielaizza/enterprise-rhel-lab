@@ -147,9 +147,15 @@ docker rm -f web
 
 ### Avería provocada (troubleshooting)
 
-1. **Etiqueta SELinux incorrecta.** `sudo chcon -R -t var_lib_t /var/lib/docker && sudo systemctl restart docker`
+1. **Etiqueta SELinux incorrecta.** Hazla **antes** de `siem-stack` (o con snapshot `siem01-stage5-complete`).
+   `sudo chcon -R -t var_lib_t /var/lib/docker && sudo systemctl restart docker`
    → observa el fallo (`journalctl -u docker -n 30`, `sudo timeout 20 ausearch -m AVC -ts recent`), arréglalo con
-   `restorecon -Rv /var/lib/docker` y explica por qué `chcon` no sobrevive a un *relabel* y `semanage fcontext` sí.
+   `restorecon -R /var/lib/docker` y explica por qué `chcon` no sobrevive a un *relabel* y `semanage fcontext` sí.
+   **Si el stack ya está desplegado**, `restorecon` no basta: los volúmenes y la capa escribible de cada
+   contenedor llevan `container_file_t` con categorías MCS que pone **Docker** al crearlos, no la política.
+   Hay que recrearlos (borra los datos del SIEM; el `.env` se conserva):
+   `sudo docker compose --project-directory /opt/siem down -v && sudo restorecon -R /var/lib/docker && scripts/lab.sh siem-stack`
+   (caso [`etapaN2/04`](../troubleshooting/etapaN2/04-chcon-con-stack-desplegado-restorecon-no-basta.md)).
 2. **Disco lleno.** Calcula cuánto tardaría en llenarse un `/var` de 4 GB a 1.000 mensajes/s de 500 bytes y
    anota por qué el script separa `/var/lib/docker` en su propio LV (y cómo crecería: `lvextend -r -L +10G`).
 
@@ -188,7 +194,8 @@ Lo que hace `02-graylog-stack.sh`, para poder repetirlo a mano: copia `files/gra
 `docker compose config`, descarga las imágenes con versión fijada, arranca y espera a que
 `/api/system/lbstatus` responda `ALIVE`.
 
-Operación diaria del stack (en `siem01`, `cd /opt/siem` con `sudo -i`):
+Operación diaria del stack (en `siem01`, `cd /opt/siem` con `sudo -i`; `/opt/siem` es `root` 0750 porque guarda
+el `.env`. Sin entrar: `sudo docker compose --project-directory /opt/siem ps`):
 
 ```bash
 docker compose ps                          # estado y healthchecks
