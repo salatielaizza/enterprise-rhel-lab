@@ -57,8 +57,16 @@ tz="$(timedatectl show -p Timezone --value 2>/dev/null)"
 pass "zona horaria: ${tz:-?} (Graylog guarda en UTC y muestra en la zona del usuario)"
 
 # --- DNS --------------------------------------------------------------------------------
-if [[ "$(getent hosts "$SIEM_NAME.lab.local" | awk '{print $1}')" == "$SIEM_IP" ]]; then pass "DNS: $SIEM_NAME.lab.local -> $SIEM_IP"
-else fail "DNS: $SIEM_NAME.lab.local no resuelve a $SIEM_IP (lab.sh stage4-dns con las plantillas nuevas)"; fi
+# Dos comprobaciones distintas (caso troubleshooting etapaN2/02):
+#  1) dig @dns01: lo que publica la zona lab.local, sin cachés ni /etc/hosts.
+#  2) getent ahostsv4: lo que resuelve el propio sistema (NSS), SOLO IPv4.
+# No se usa 'getent hosts': devuelve primero la IPv6 si existe, y en el propio
+# siem01 nss-myhostname responde con su fe80:: -> la comparación con la IPv4 fallaba.
+fqdn="$SIEM_NAME.lab.local"
+if dig +short "$fqdn" A @10.10.10.20 2>/dev/null | grep -Fxq "$SIEM_IP"; then pass "DNS (dns01): $fqdn -> $SIEM_IP"
+else fail "DNS (dns01): $fqdn no resuelve a $SIEM_IP (lab.sh stage4-dns con las plantillas nuevas)"; fi
+if getent ahostsv4 "$fqdn" 2>/dev/null | awk '{print $1}' | grep -Fxq "$SIEM_IP"; then pass "DNS (sistema): $fqdn -> $SIEM_IP"
+else fail "DNS (sistema): $fqdn no resuelve a $SIEM_IP por NSS (revisar /etc/resolv.conf y /etc/hosts)"; fi
 if [[ "$(dig +short -x "$SIEM_IP" @10.10.10.20 2>/dev/null)" == "$SIEM_NAME.lab.local." ]]; then pass "DNS inverso de $SIEM_IP"
 else warn "falta el PTR de $SIEM_IP (los eventos mostrarían la IP en vez del nombre)"; fi
 
