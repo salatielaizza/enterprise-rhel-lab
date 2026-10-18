@@ -18,6 +18,7 @@ Este documento tiene dos usos:
 | Caso | Tema |
 |---|---|
 | [01 test-siem-falla-antes-de-desplegar](01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
+| [02 preflight-dns-getent-hosts-ipv6](02-preflight-dns-getent-hosts-ipv6.md) 🔎 | Preflight: "`siem01.lab.local` no resuelve" con la zona correcta: `getent hosts` devolvía primero la `fe80::` de `nss-myhostname` |
 
 🔎 = encontrado de forma orgánica al ejecutar contra las VMs reales. Cada fallo real nuevo se documenta aquí
 como `NN-slug.md` con la plantilla del proyecto.
@@ -73,7 +74,9 @@ Relacionados de otras etapas: [etapa2/04](../etapa2/04-selinux-denial.md) (etiqu
 | `vgs --noheadings --units g --nosuffix -o vg_free vg_system` | Espacio libre del VG | Hacen falta 45 GB para los LVs de Docker y k3s |
 | `df --output=pcent /var` | % de uso de `/var` | Los logs de pods de k3s van a `/var/log/pods` |
 | `chronyc tracking` (`Leap status : Normal`) | ¿Hora sincronizada? | Sin hora correcta no se pueden ordenar ni correlacionar eventos |
-| `getent hosts siem01.lab.local` · `dig +short -x 10.10.10.55 @10.10.10.20` | DNS directo e inverso | El PTR hace que los eventos muestren nombres y no IPs |
+| `dig +short siem01.lab.local A @10.10.10.20` | DNS directo en `dns01` | Lo que publica la zona, sin cachés ni `/etc/hosts` |
+| `getent ahostsv4 siem01.lab.local` | DNS directo del sistema (NSS), solo IPv4 | No `getent hosts`: en el propio host devuelve antes la `fe80::` de `nss-myhostname` (caso 02) |
+| `dig +short -x 10.10.10.55 @10.10.10.20` | DNS inverso | El PTR hace que los eventos muestren nombres y no IPs |
 | `curl -s -o /dev/null -w '%{http_code}' <url>` | Código HTTP sin descargar | Comprueba la salida a `download.docker.com`, Docker Hub (401 = accesible) y `get.k3s.io` |
 | `ss -ltnu \| grep -Eq ':(9000\|5140\|12201) '` | ¿Puertos ya ocupados? | Evita un `bind: address already in use` a mitad del despliegue |
 

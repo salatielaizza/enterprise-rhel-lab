@@ -77,9 +77,10 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 |---|---|
 | [01 preflight-pipefail-sigpipe](etapa8/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
 
-## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (1 caso)
+## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (2 casos)
 | Caso | Tema |
 |---|---|
 | [01 test-siem-falla-antes-de-desplegar](etapaN2/01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
+| [02 preflight-dns-getent-hosts-ipv6](etapaN2/02-preflight-dns-getent-hosts-ipv6.md) 🔎 | Preflight: "`siem01.lab.local` no resuelve" con la zona correcta: `getent hosts` devolvía primero la `fe80::` de `nss-myhostname` |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).
