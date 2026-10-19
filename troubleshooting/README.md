@@ -17,7 +17,7 @@ Un caso que se referencia desde fuera de su propia etapa se enlaza como `etapaN/
 | [02 limpieza-scripts-alternativos-rhel10](etapa1/02-limpieza-scripts-alternativos-rhel10.md) | Consolidación: scripts alternativos de RHEL 10 eliminados en favor de `lab.sh` |
 | [03 rhel8-checksum-version-real-vs-planeada](etapa1/03-rhel8-checksum-version-real-vs-planeada.md) | RHEL 8: versión real instalada (8.6) distinta de la planeada (8.10) |
 
-## [Etapa 2](etapa2/README_troubleshooting_etapa2.md) — administración Linux (9 casos)
+## [Etapa 2](etapa2/README_troubleshooting_etapa2.md) — administración Linux (11 casos)
 | Caso | Tema |
 |---|---|
 | [01 service-down](etapa2/01-service-down.md) | Servicio parado (sshd) y servicio que se cae (lab-app) |
@@ -29,6 +29,8 @@ Un caso que se referencia desde fuera de su propia etapa se enlaza como `etapaN/
 | [07 acl-heredada-lab-app-env-modo-650](etapa2/07-acl-heredada-lab-app-env-modo-650.md) 🔎 | `lab-app.env` queda en 650 en vez de 640: ACL heredada del directorio config |
 | [08 pwck-usuario-ftp-var-ftp-inexistente](etapa2/08-pwck-usuario-ftp-var-ftp-inexistente.md) 🔎 | `pwck`: usuario `ftp` sin `/var/ftp` (solo RHEL 7) |
 | [09 journalctl-u-no-encuentra-lab-app-rhel8](etapa2/09-journalctl-u-no-encuentra-lab-app-rhel8.md) 🔎 | `journalctl -u` no encuentra heartbeats en RHEL 8; usar `-t` |
+| [10 vg-data-sin-espacio-nuevo-disco](etapa2/10-vg-data-sin-espacio-nuevo-disco.md) | `/backup` lleno y `vg_data` sin espacio: disco nuevo con `pvcreate` + `vgextend` + `lvextend -r` |
+| [11 var-lleno-ampliar-vg-system](etapa2/11-var-lleno-ampliar-vg-system.md) | `/var` lleno: `lvextend -r` en `vg_system`; avanzado: ampliar el disco virtual con `growpart` + `pvresize` |
 
 ## [Etapa 3](etapa3/README_troubleshooting_etapa3.md) — networking, NetworkManager, diagnóstico (8 casos)
 | Caso | Tema |
@@ -76,13 +78,5 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 | Caso | Tema |
 |---|---|
 | [01 preflight-pipefail-sigpipe](etapa8/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
-
-## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (4 casos)
-| Caso | Tema |
-|---|---|
-| [01 test-siem-falla-antes-de-desplegar](etapaN2/01-test-siem-falla-antes-de-desplegar.md) 🔎 | `test_siem.sh` daba 20 FAIL (y 4 PASS vacíos) en `siem01` antes de desplegar el SIEM: ahora comprueba por fases |
-| [02 preflight-dns-getent-hosts-ipv6](etapaN2/02-preflight-dns-getent-hosts-ipv6.md) 🔎 | Preflight: "`siem01.lab.local` no resuelve" con la zona correcta: `getent hosts` devolvía primero la `fe80::` de `nss-myhostname` |
-| [03 docker-containerd-image-store-llena-var](etapaN2/03-docker-containerd-image-store-llena-var.md) 🔎 | `siem-stack`: "no space left on device" con `lv_docker` vacío: Docker 29 guardaba las imágenes en `/var/lib/containerd` (en `/var`, 4 GB) |
-| [04 chcon-con-stack-desplegado-restorecon-no-basta](etapaN2/04-chcon-con-stack-desplegado-restorecon-no-basta.md) 🔎 | MongoDB en bucle (`libc.so.6: cannot change memory protections`) tras la avería de `chcon` con el stack desplegado: `restorecon` no recupera `container_file_t`; hay que recrear con `down -v` |
 
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).
