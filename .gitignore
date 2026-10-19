@@ -12,6 +12,7 @@ results/facts/*.env
 # Informes de auditoría del host: contienen usuario, hostname, IPs/MACs
 evidence/
 *.bak
+*.bak[0-9]*
 
 # Etapa 8 (VMware): el vault real solo vive en ansible01; informes de PowerCLI
 scripts/stage8/files/vmware-lab/inventory/group_vars/all/vault.yml
