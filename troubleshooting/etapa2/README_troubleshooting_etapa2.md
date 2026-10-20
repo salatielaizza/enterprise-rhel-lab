@@ -26,12 +26,15 @@ Este documento tiene dos usos:
 | [07 acl-heredada-lab-app-env-modo-650](07-acl-heredada-lab-app-env-modo-650.md) 🔎 | `lab-app.env` queda en 650 en vez de 640: ACL heredada del directorio config |
 | [08 pwck-usuario-ftp-var-ftp-inexistente](08-pwck-usuario-ftp-var-ftp-inexistente.md) 🔎 | `pwck`: usuario `ftp` sin `/var/ftp` (solo RHEL 7) |
 | [09 journalctl-u-no-encuentra-lab-app-rhel8](09-journalctl-u-no-encuentra-lab-app-rhel8.md) 🔎 | `journalctl -u` no encuentra heartbeats en RHEL 8; usar `-t` |
+| [10 vg-data-sin-espacio-nuevo-disco](10-vg-data-sin-espacio-nuevo-disco.md) | `/backup` lleno y `vg_data` sin espacio: disco nuevo con `pvcreate` + `vgextend` + `lvextend -r` |
+| [11 var-lleno-ampliar-vg-system](11-var-lleno-ampliar-vg-system.md) | `/var` lleno: `lvextend -r` en `vg_system`; avanzado: ampliar el disco virtual con `growpart` + `pvresize` |
 
 🔎 = encontrado de forma orgánica al ejecutar contra las VMs reales.
 
 Nota: el caso 01 (`service-down`) también se apoya en habilidades de la Etapa 3 (diagnóstico de red
 antes de descartar firewall); el caso 06 (`ausearch-colgado-timeout`) apareció encadenado detrás de
-[etapa3/06](../etapa3/06-ssh-lento-usedns-fqdn-inexistente.md).
+[etapa3/06](../etapa3/06-ssh-lento-usedns-fqdn-inexistente.md). Los casos 10 y 11 son escenarios de ampliación
+de almacenamiento, los que más se piden en el mercado: añadir un disco a un VG y ampliar un volumen del sistema.
 
 ---
 
@@ -233,6 +236,17 @@ crean y borran un fichero temporal para probar permisos).
 | `stat -c "%U:%G:%a" <fichero>` + `getfacl -p <fichero>` | Modo numérico y ACL, incluida la `mask` | 07 |
 | `pwck -r` | Revisión de usuarios en solo lectura | 08 |
 | `journalctl -t lab-app` / `_SYSTEMD_UNIT=lab-app.service` / `-o verbose` | Filtrar por identificador, por campo exacto, o ver todos los campos | 09 |
+| `df -hT <punto>` / `df -i <punto>` | Uso en bloques y en inodos, con el tipo de sistema de ficheros | 10/11 — ¿lleno de datos o de inodos? |
+| `du -xh --max-depth=1 <punto> \| sort -h` | Qué directorios ocupan más, sin salir de ese sistema de ficheros (`-x`) | 10/11 |
+| `lsof +L1` | Ficheros borrados que algún proceso mantiene abiertos | 10/11 — ocupan espacio hasta reiniciar el proceso |
+| `vgs` / `pvs` / `lvs -o +devices` | Espacio libre del VG, PV que lo forman y en qué PV está cada LV | 10/11 — `VFree = 0` → no se puede ampliar sin más espacio físico |
+| `virsh vol-create-as` + `virsh attach-disk ... --persistent` (host) | Crea un disco qcow2 y lo conecta en caliente a la VM | 10 |
+| `lsblk` + `wipefs -n /dev/vdX` | Identifica el disco nuevo y confirma que está vacío | 10 — evitar formatear el disco equivocado |
+| `pvcreate /dev/vdX` → `vgextend <vg> /dev/vdX` | Disco nuevo como PV y añadido al VG | 10 |
+| `lvextend -r -L +NG /dev/<vg>/<lv>` | Amplía el LV y su sistema de ficheros (`-r`), en caliente | 10/11 |
+| `journalctl --vacuum-size=200M` / `dnf clean all` | Libera espacio del journal y de la caché de paquetes | 11 |
+| `virsh blockresize <vm> vda 25G` (host) | Amplía el disco virtual con la VM encendida | 11 (Parte B) |
+| `growpart /dev/vda 2` → `pvresize /dev/vda2` | Hace crecer la partición y después el PV hasta el nuevo tamaño | 11 (Parte B) |
 
 ---
 
@@ -247,7 +261,10 @@ crean y borran un fichero temporal para probar permisos).
 | "Permission denied" de un usuario | `id <usuario>`, `namei -l <ruta>`, `getfacl -p <ruta>`, `ausearch -m avc` |
 | Un fichero tiene un modo distinto al esperado | `getfacl -p <fichero>` (¿ACL heredada? ¿`mask`?) |
 | sudo no deja ejecutar algo | `sudo -l -U <usuario>`, `visudo -c` |
-| No hay sitio en un volumen | `df -hT`, `vgs`, `lvextend -r -L +1G vg_data/lv_X` |
+| No hay sitio en un volumen | `df -hT`, `du -xh --max-depth=1`, `lsof +L1`, `vgs`, `lvextend -r -L +1G vg_data/lv_X` |
+| El VG no tiene espacio libre (`VFree 0`) | `lsblk` (¿disco nuevo?), `pvcreate`, `vgextend`, `lvextend -r` (caso 10) |
+| Han ampliado el disco virtual y Linux no lo ve | `lsblk`, `growpart`, `pvresize`, `lvextend -r` (caso 11) |
+| `/var` lleno | `journalctl --disk-usage`, `du -sh /var/cache/dnf`, `du -xh /var`, `lvextend -r vg_system/lv_var` (caso 11) |
 | `mount -a` falla | `findmnt --verify`, `blkid`, comparar UUID |
 
 ---
@@ -265,3 +282,7 @@ crean y borran un fichero temporal para probar permisos).
 9. ¿Por qué `mv` desde `/tmp` puede romper un servicio con SELinux y `cp` no?
 10. ¿Qué diferencia hay entre `journalctl -u` y `journalctl -t`?
 11. ¿Se puede encoger un XFS? ¿Y ampliarlo?
+12. Un sistema de ficheros está al 98 % y su VG tiene `VFree 0`. ¿Qué pasos sigues, en orden, sin desmontar?
+13. ¿Qué diferencia hay entre `lvextend` con `-r` y sin `-r`? Si olvidas `-r`, ¿cómo lo arreglas?
+14. Te han ampliado el disco de una VM en VMware. ¿Qué comandos necesitas para que `/var` use ese espacio?
+15. `df` dice que un sistema de ficheros está lleno, pero `du` no encuentra qué lo ocupa. ¿Qué compruebas?

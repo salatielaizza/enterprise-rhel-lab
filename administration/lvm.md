@@ -25,6 +25,8 @@ vg_system (en vda): lv_root 8G, lv_swap 2G, lv_var 4G (~5 GB libres)
 | `sudo blkid -s UUID -o value /dev/vg_data/lv_backup` | UUID | Para `/etc/fstab` estable | Ver `filesystems.md` |
 | `sudo lvextend -L +1G -r /dev/vg_data/lv_backup` | Amplía LV **y** el sistema de ficheros (`-r`) | Crecimiento en caliente | `Logical volume … successfully resized` + crecimiento de XFS |
 | `sudo xfs_growfs /backup` | Crece XFS montado (si no usaste `-r`) | XFS **se amplía por su punto de montaje** | — |
+| `sudo pvcreate /dev/vdc`; `sudo vgextend vg_data /dev/vdc` | Añade un disco nuevo al VG | El VG se ha quedado sin espacio (`VFree 0`) | `Volume group "vg_data" successfully extended` |
+| `sudo growpart /dev/vda 2`; `sudo pvresize /dev/vda2` | Hace crecer la partición y el PV tras ampliar el disco virtual | El disco del sistema creció (VMware, KVM, nube) y el VG no lo ve | `CHANGED: partition=2 …` / `1 physical volume(s) resized` |
 | `sudo lvcreate -s -n lv_backup_snap -L 500M /dev/vg_data/lv_backup` | Snapshot COW | Copia puntual / prueba de cambios | El tamaño (500M) es el espacio para cambios; si se llena, el snapshot se invalida |
 | `sudo mount -o ro,nouuid /dev/vg_data/lv_backup_snap /mnt` | Monta snapshot XFS | Mismo UUID que el original → `nouuid` obligatorio | Sin `nouuid`: *wrong fs type / duplicate UUID* |
 | `sudo lvconvert --merge vg_data/lv_backup_snap` | Revierte el origen al snapshot | Rollback (se completa al reactivar/desmontar) | — |
@@ -49,6 +51,9 @@ lvm2 2.02 (7) vs 2.03 (8+) ◦. En RHEL 9 el **fichero de dispositivos** (`/etc/
 `scripts/stage2/02-lvm.sh`: aborta si el disco está montado o tiene firmas; hace copia de fstab y usa UUID.
 
 ## 10. Ejercicio
+Escenarios guiados de ampliación, como en producción: [etapa2/10](../troubleshooting/etapa2/10-vg-data-sin-espacio-nuevo-disco.md) (VG sin espacio → disco nuevo) y
+[etapa2/11](../troubleshooting/etapa2/11-var-lleno-ampliar-vg-system.md) (`/var` lleno en `vg_system`; ampliar el disco virtual con `growpart` + `pvresize`).
+
 Amplía `lv_backup` +1G online y verifica con `df -h /backup`; crea un snapshot de `lv_application`, borra datos, monta el snapshot con `nouuid` y recupéralos; crea `lv_ext4` de 500M con ext4, redúcelo a 300M desmontado.
 
 ## 11. Criterios de aceptación

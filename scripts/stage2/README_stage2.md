@@ -50,4 +50,4 @@ scripts/lab.sh test all <host|all>     # test_users, test_permissions, test_stor
 
 - Checklist: [`checklists/etapa2.md`](../../checklists/etapa2.md)
 - Tema: [`administration/`](../../administration/users.md) (users, permissions, sudo, lvm, filesystems, systemd, logging)
-- Comandos explicados y 9 casos reales: [`troubleshooting/etapa2/README_troubleshooting_etapa2.md`](../../troubleshooting/etapa2/README_troubleshooting_etapa2.md)
+- Comandos explicados y 11 casos (9 reales y 2 escenarios de ampliación de almacenamiento): [`troubleshooting/etapa2/README_troubleshooting_etapa2.md`](../../troubleshooting/etapa2/README_troubleshooting_etapa2.md)
