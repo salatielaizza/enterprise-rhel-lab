@@ -128,13 +128,14 @@ La imagen usada (`geerlingguy/docker-rockylinux9-ansible`) es la que usa buena p
 `tests/test_ansible.sh` distingue por host (como `lab-healthcheck.sh` en la Etapa 6): en `ansible01` comprueba que Ansible está instalado, que existen inventario/playbooks/clave SSH, y que `vault.yml` está realmente cifrado (no en texto plano); en los 5 nodos gestionados comprueba el marcador `/etc/ansible-lab-managed.txt`, el huso horario, el paquete `tree`, los dos usuarios de demostración (creados y con la contraseña bloqueada) y que la Etapa 7 quedó marcada.
 
 ## Troubleshooting relacionado
-Al ejecutar de verdad contra las VMs reales aparecieron 5 casos, documentados con el mismo formato que
+Al ejecutar de verdad contra las VMs reales aparecieron 6 casos, documentados con el mismo formato que
 los casos `etapa2/06` y `etapa6/01`:
 - [`etapa7/01`](../troubleshooting/etapa7/01-rhel7-timedatectl-p-no-soportado.md) — `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo)
 - [`etapa7/02`](../troubleshooting/etapa7/02-plantilla-timestamp-rompe-idempotencia.md) — un timestamp dentro de una plantilla comparada rompía la idempotencia
 - [`etapa7/03`](../troubleshooting/etapa7/03-group-vars-ubicacion-incorrecta.md) — `group_vars/` en la raíz del proyecto, invisible para `ansible-playbook`
 - [`etapa7/04`](../troubleshooting/etapa7/04-restos-de-ejercicios-en-nodo-de-control.md) — variables de prueba olvidadas en `ansible01` sobreviven a `stage7-setup` (`cp -a` no borra) y desvían el huso de dos hosts
 - [`etapa7/05`](../troubleshooting/etapa7/05-modulo-propio-python3-falla-en-rhel7.md) — el módulo propio `lab.utils.lab_uptime_pretty` usaba f-strings y fallaba con `SyntaxError` en RHEL 7 (Python 2.7)
+- [`etapa7/06`](../troubleshooting/etapa7/06-marca-etapa7-no-se-aplica-ni-se-comprueba.md) — la marca de la Etapa 7 no se aplicaba (`stage7` sin `push`), el test la daba siempre por fallida (`bash -c` sin la función `lab_stage`) y `ansible01` nunca se marcaba
 
 (La lección del conflicto de `--vault-password-file` duplicado, ver "Errores comunes" más abajo, se
 detectó y corrigió **durante la elaboración**, antes de tocar las VMs reales, así que no se documenta

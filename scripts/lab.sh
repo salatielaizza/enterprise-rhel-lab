@@ -216,6 +216,9 @@ stage7_setup() {
 
   info "Comprobando conectividad Ansible (ping + become)..."
   run_remote ansible01 stage7/02-run-playbook.sh ping
+  # El nodo de control también alcanza la etapa 7 (set_stage nunca la reduce):
+  # sin esto, run_all.sh nunca ejecutaba test_ansible.sh en ansible01 (troubleshooting/etapa7/06)
+  run_remote ansible01 stage7/03-mark-stage.sh
   ok "Etapa 7: ansible01 listo. Ejecuta 'lab.sh stage7 site' para aplicar la configuración."
 }
 stage7() {
@@ -224,6 +227,9 @@ stage7() {
   if [[ "$playbook" == site ]]; then
     local h
     for h in "${ANSIBLE_MANAGED_HOSTS[@]}"; do
+      # push: sin él, el nodo usa la copia de ~/lab-scripts del último comando que
+      # le hiciera push, que puede no tener stage7/ (troubleshooting/etapa7/06)
+      push "$h"
       run_remote "$h" stage7/03-mark-stage.sh
     done
   fi

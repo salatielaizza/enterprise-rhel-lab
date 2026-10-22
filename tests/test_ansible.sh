@@ -8,6 +8,12 @@ TEST_NAME=test_ansible; source "$(dirname "$0")/lib.sh"; need_root
 
 HOST="$(hostname -s)"
 
+# lab_stage es una FUNCIÓN de lib.sh: no existe dentro de un 'bash -c' (proceso
+# nuevo, no hereda funciones), así que 'bash -c "(( $(lab_stage) >= 7 ))"' fallaba
+# SIEMPRE aunque /etc/lab-release dijera LAB_STAGE=7 (troubleshooting/etapa7/06).
+# check() ejecuta "$@" en esta misma shell, así que una función propia sí la ve.
+etapa7_marcada() { (( $(lab_stage) >= 7 )); }
+
 if [[ "$HOST" == ansible01 ]]; then
   ADMIN_HOME=/home/adminlab
   LAB="$ADMIN_HOME/ansible-lab"
@@ -25,6 +31,7 @@ if [[ "$HOST" == ansible01 ]]; then
   # stage7-setup sincroniza con rsync --delete: no deben quedar restos de
   # ejercicios ni copias de seguridad en el nodo de control (troubleshooting/etapa7/04).
   check "proyecto sin restos (*.lab-bak.*, *.swp, host_vars/)" bash -c "! find '$LAB' \( -name '*.lab-bak.*' -o -name '*.swp' -o -path '$LAB/inventory/host_vars' \) | grep -q ."
+  check "etapa 7 marcada en el nodo de control (set_stage)" etapa7_marcada
 else
   check "marcador de gestión Ansible presente" test -f /etc/ansible-lab-managed.txt
   # Se lee el enlace /etc/localtime, igual que el rol 'common': 'timedatectl show -p'
@@ -34,6 +41,6 @@ else
   check "usuario ansible.demo1 creado" id ansible.demo1
   check "usuario ansible.demo2 creado" id ansible.demo2
   check "ansible.demo1 tiene la contraseña bloqueada (solo entra por clave)" bash -c "passwd -S ansible.demo1 | awk '{print \$2}' | grep -qE '^(L|LK)$'"
-  check "etapa 7 marcada (set_stage)" bash -c '(( $(lab_stage) >= 7 ))'
+  check "etapa 7 marcada (set_stage)" etapa7_marcada
 fi
 summary
