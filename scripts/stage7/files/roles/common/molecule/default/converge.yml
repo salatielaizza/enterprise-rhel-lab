@@ -1,7 +1,13 @@
 ---
+# 'become: false' a propósito: Molecule con Podman NO entra por SSH sino con
+# 'podman exec', y ya como root dentro del contenedor. Con 'become: true',
+# Ansible lanzaba 'sudo' siendo root y en esta imagen falla
+# ("sudo: PAM account management error ... a password is required").
+# En las VMs reales del lab sí hace falta 'become' (se entra como adminlab),
+# y lo pone ansible.cfg (become = True), no este playbook de prueba.
 - name: Converge
   hosts: all
-  become: true
+  become: false
   tasks:
     - name: Incluir el rol common bajo prueba
       ansible.builtin.include_role:

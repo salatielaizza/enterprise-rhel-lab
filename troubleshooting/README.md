@@ -63,7 +63,7 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 |---|---|
 | [01 log-verbose-set-e-lab-healthcheck](etapa6/01-log-verbose-set-e-lab-healthcheck.md) 🔎 | `lab-healthcheck.timer` fallaba: función `log()` devolvía 1 bajo `set -e` sin `-v` |
 
-## [Etapa 7](etapa7/README.md) — automatización con Ansible (6 casos)
+## [Etapa 7](etapa7/README.md) — automatización con Ansible (7 casos)
 | Caso | Tema |
 |---|---|
 | [01 rhel7-timedatectl-p-no-soportado](etapa7/01-rhel7-timedatectl-p-no-soportado.md) 🔎 | `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo) |
@@ -72,6 +72,7 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 | [04 restos-de-ejercicios-en-nodo-de-control](etapa7/04-restos-de-ejercicios-en-nodo-de-control.md) 🔎 | Variables de prueba olvidadas en `ansible01` sobreviven a `stage7-setup` (`cp -a` no borra) y desvían el huso de dos hosts; `--check` sin `-v` lo ocultaba |
 | [05 modulo-propio-python3-falla-en-rhel7](etapa7/05-modulo-propio-python3-falla-en-rhel7.md) 🔎 | El módulo propio `lab.utils.lab_uptime_pretty` da `SyntaxError` solo en RHEL 7: usaba f-strings y el nodo ejecuta los módulos con Python 2.7 |
 | [06 marca-etapa7-no-se-aplica-ni-se-comprueba](etapa7/06-marca-etapa7-no-se-aplica-ni-se-comprueba.md) 🔎 | `lab.sh stage7 site` no copiaba `03-mark-stage.sh` a los nodos, el test de la marca usaba una función de `lib.sh` dentro de `bash -c` y `ansible01` nunca se marcaba (su `test_ansible` no se ejecutaba) |
+| [07 molecule-escenario-nunca-ejecutado](etapa7/07-molecule-escenario-nunca-ejecutado.md) 🔎 | El escenario de Molecule del rol `common` nunca se había ejecutado: Docker → Podman, credenciales caducadas de Docker Hub en el equipo host, `sudo` siendo root en el contenedor y ruta de roles |
 
 ## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
 | Caso | Tema |

@@ -1,29 +1,32 @@
 ---
-# Escenario de Molecule para el rol 'common', validado de verdad en un sandbox
-# con 'molecule list' (ver automation/ansible.md, sección Molecule). Se ejecuta
-# en el EQUIPO HOST (Linux Mint con Docker), no dentro de las VMs del lab: es un
-# ciclo de prueba rápido para el rol en sí, aislado de la infraestructura real.
-# La imagen 'geerlingguy/docker-rockylinux9-ansible' es la que usa buena parte
-# de la comunidad de roles de Ansible para simular un RHEL9 con systemd real
-# (necesario porque el rol usa 'timedatectl', que exige systemd como PID 1).
+# Escenario de Molecule para el rol 'common'. Se ejecuta en el EQUIPO HOST
+# (Linux Mint) con PODMAN sin root, no dentro de las VMs del lab: es un ciclo de
+# prueba rápido para el rol en sí, aislado de la infraestructura real.
+#   source ~/venvs/molecule/bin/activate
+#   cd scripts/stage7/files/roles/common && molecule test
+# La imagen 'geerlingguy/docker-rockylinux9-ansible' simula un RHEL 9 con
+# systemd real (el rol usa 'timedatectl set-timezone', que necesita systemd como
+# PID 1). Con Podman basta 'systemd: always': él mismo prepara cgroups, /run y
+# /tmp para systemd, sin 'privileged' ni montar /sys/fs/cgroup (eso eran
+# trucos necesarios con Docker).
 dependency:
   name: galaxy
 driver:
-  name: docker
+  name: podman
 platforms:
   - name: lab-common-rhel9
     image: "docker.io/geerlingguy/docker-rockylinux9-ansible:latest"
     command: /usr/sbin/init
-    tmpfs:
-      - /run
-      - /tmp
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    cgroupns_mode: host
-    privileged: true
+    systemd: always
     pre_build_image: true
 provisioner:
   name: ansible
+  # Las versiones actuales de Molecule ya no añaden solas el directorio que
+  # CONTIENE el rol a la ruta de roles: sin esto, 'include_role: name: common'
+  # falla con "The role 'common' was not found". MOLECULE_PROJECT_DIRECTORY es
+  # el directorio del rol (roles/common); su padre es roles/.
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
   playbooks:
     converge: converge.yml
     verify: verify.yml
