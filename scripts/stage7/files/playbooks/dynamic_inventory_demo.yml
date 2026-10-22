@@ -7,9 +7,17 @@
 # con 'ansible_connection=local', no máquinas reales — recoger facts solo
 # repetiría los facts de ansible01 una vez por cada usuario de la API, sin
 # aportar nada.
+#
+# 'become: false' a propósito (mínimo privilegio): ansible.cfg define
+# 'become = True' para todo el proyecto, y eso se aplica TAMBIÉN a las
+# conexiones locales y a 'delegate_to: localhost'. Sin esta línea, el informe
+# se creaba con sudo y quedaba como root:root dentro de la home de adminlab.
+# Este playbook solo muestra datos y escribe en la home de adminlab: no
+# necesita privilegios para nada.
 - name: Etapa 7 (avanzado) — explorar un inventario dinámico real
   hosts: demo_api
   gather_facts: false
+  become: false
   tasks:
     - name: Mostrar los datos que trajo el inventario dinámico
       ansible.builtin.debug:

@@ -14,6 +14,15 @@ evidence/
 *.bak
 *.bak[0-9]*
 
+# Copias de seguridad de los scripts de etapa (cp -a fichero fichero.lab-bak.<fecha>):
+# git ya guarda la versión anterior; además, si se cuelan en scripts/stageN/files/,
+# 'stageN-setup' los copia al nodo de control (ver troubleshooting/etapa7/04)
+*.lab-bak.*
+
+# Ficheros de intercambio de vim (quedan si un vim sigue abierto o se cerró mal)
+*.swp
+*.swo
+
 # Etapa 8 (VMware): el vault real solo vive en ansible01; informes de PowerCLI
 scripts/stage8/files/vmware-lab/inventory/group_vars/all/vault.yml
 scripts/stage8/files/vmware-lab/reports/
