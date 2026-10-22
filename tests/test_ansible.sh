@@ -3,24 +3,33 @@
 # aplicado por el playbook 'site'. Las comprobaciones difieren según el host,
 # igual que hace lab-healthcheck.sh (Etapa 6) con el array SERVICES por rol.
 # shellcheck disable=SC2034  # TEST_NAME lo usa summary() de lib.sh
+# shellcheck disable=SC2016  # comillas simples a propósito: se expande DENTRO del 'bash -c'
 TEST_NAME=test_ansible; source "$(dirname "$0")/lib.sh"; need_root
 
 HOST="$(hostname -s)"
 
 if [[ "$HOST" == ansible01 ]]; then
   ADMIN_HOME=/home/adminlab
+  LAB="$ADMIN_HOME/ansible-lab"
   check "ansible-core instalado" command -v ansible
   check "ansible-playbook instalado" command -v ansible-playbook
-  check "inventario del lab presente" test -f "$ADMIN_HOME/ansible-lab/inventory/hosts.ini"
-  check "ansible.cfg del lab presente" test -f "$ADMIN_HOME/ansible-lab/ansible.cfg"
-  check "playbook site.yml presente" test -f "$ADMIN_HOME/ansible-lab/playbooks/site.yml"
+  check "inventario del lab presente" test -f "$LAB/inventory/hosts.ini"
+  check "ansible.cfg del lab presente" test -f "$LAB/ansible.cfg"
+  check "playbook site.yml presente" test -f "$LAB/playbooks/site.yml"
   check "clave SSH del controlador generada" test -f "$ADMIN_HOME/.ssh/id_ed25519"
   check "clave privada con permisos 600" bash -c "[[ \"\$(stat -c %a $ADMIN_HOME/.ssh/id_ed25519)\" == 600 ]]"
   check "contraseña de Ansible Vault presente y con permisos 600" bash -c "[[ \"\$(stat -c %a $ADMIN_HOME/.vault_pass.txt)\" == 600 ]]"
-  check "group_vars/all/vault.yml está cifrado (no en texto plano)" bash -c "head -1 '$ADMIN_HOME/ansible-lab/group_vars/all/vault.yml' | grep -q '^\$ANSIBLE_VAULT'"
+  # group_vars vive JUNTO al inventario (inventory/group_vars), no en la raíz del
+  # proyecto: ver troubleshooting/etapa7/03.
+  check "inventory/group_vars/all/vault.yml está cifrado (no en texto plano)" bash -c "head -1 '$LAB/inventory/group_vars/all/vault.yml' | grep -q '^\$ANSIBLE_VAULT'"
+  # stage7-setup sincroniza con rsync --delete: no deben quedar restos de
+  # ejercicios ni copias de seguridad en el nodo de control (troubleshooting/etapa7/04).
+  check "proyecto sin restos (*.lab-bak.*, *.swp, host_vars/)" bash -c "! find '$LAB' \( -name '*.lab-bak.*' -o -name '*.swp' -o -path '$LAB/inventory/host_vars' \) | grep -q ."
 else
   check "marcador de gestión Ansible presente" test -f /etc/ansible-lab-managed.txt
-  check "huso horario Europe/Madrid aplicado" bash -c '[[ "$(timedatectl show -p Timezone --value)" == "Europe/Madrid" ]]'
+  # Se lee el enlace /etc/localtime, igual que el rol 'common': 'timedatectl show -p'
+  # no existe en el systemd 219 de RHEL 7 (troubleshooting/etapa7/01).
+  check "huso horario Europe/Madrid aplicado" bash -c '[[ "$(readlink /etc/localtime)" == */zoneinfo/Europe/Madrid ]]'
   check "paquete tree instalado por el rol common" rpm -q tree
   check "usuario ansible.demo1 creado" id ansible.demo1
   check "usuario ansible.demo2 creado" id ansible.demo2

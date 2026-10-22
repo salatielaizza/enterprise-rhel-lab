@@ -1,5 +1,9 @@
 # Etapa 7 · Caso 02 — Un timestamp dentro de una plantilla comparada rompe la idempotencia
 
+> **Actualización 2026-09-29:** el arreglo descrito abajo se aplicó solo en `ansible01` y **nunca llegó al
+> repositorio**, así que el siguiente `stage7-setup` lo sobrescribió y el timestamp reapareció. Ver
+> [Reaparición y solución definitiva](#reaparición-y-solución-definitiva).
+
 **Objetivo**: reconocer un error de diseño clásico en Ansible — incluir un valor que cambia en cada
 ejecución (la hora actual) dentro del contenido de un fichero que el módulo `template` usa para decidir
 si algo "cambió" — y corregirlo sin perder la información de auditoría que ese valor pretendía dar.
@@ -83,6 +87,39 @@ ansible-playbook playbooks/site.yml   # 2ª vez, inmediatamente después: 'ok', 
 ```
 `PLAY RECAP` de la segunda pasada: `changed=0` en los 5 nodos.
 
+## Reaparición y solución definitiva
+
+**2026-09-29.** Tras `scripts/lab.sh stage7-setup`, la simulación volvió a proponer el timestamp en los 5
+nodos:
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff
+```
+```
+ huso_horario_objetivo: Europe/Madrid
++ultima_aplicacion: 2026-09-29T08:53:55Z
+changed: [rhel7-app01] ... (los 5 hosts, más el handler)
+PLAY RECAP: ok=7 changed=2 ... en los 5
+```
+
+Lo llamativo: el fichero **desplegado** en los nodos ya no tenía esa línea (la versión corregida se había
+aplicado el día anterior), pero la plantilla de `ansible01`, recién recopiada desde el repo, sí. El arreglo
+se había hecho **solo en el nodo de control** y `stage7-setup` lo sobrescribió con la versión de git.
+
+**Solución definitiva, en el repo (commit `7461a5e`).** Plantilla sin la línea `ultima_aplicacion` y con el
+motivo explicado en un comentario Jinja, que no aparece en el fichero renderizado (así el contenido
+desplegado sigue siendo idéntico y no provoca ningún cambio):
+
+```jinja2
+{# Sin marca de tiempo a propósito: un valor que cambia en cada ejecución hace
+   que esta tarea salga 'changed' siempre y rompe la idempotencia. La fecha de
+   cada cambio real queda en /var/log/lab-ansible-lab.log (handler). Este
+   comentario Jinja no aparece en el fichero renderizado. #}
+```
+
+Validado con `--check --diff` (template `ok` sin diff, sin handler) y con **4 ejecuciones seguidas de
+`site.yml` con `changed=0`** en los 5 hosts (Fase 11 del recorrido manual).
+
 ## Prevención
 
 Nunca incluir un valor "vivo" (hora actual, PID, número aleatorio) dentro del contenido de un fichero que
@@ -90,3 +127,7 @@ un módulo declarativo (`template`, `copy`, `lineinfile` con `line:` variable...
 cambió. Si hace falta un registro de *cuándo* pasó algo, que viva en un *log* que se **añade** (una línea
 nueva por evento, nunca se reescribe el fichero entero) y se dispare solo mediante `notify`/handler desde
 una tarea que sí sea idempotente por sí misma — nunca en el propio contenido comparado.
+
+Y, de la reaparición: **todo arreglo se hace en el repo** (`scripts/stage7/files/`) y se lleva al nodo de
+control con `stage7-setup`, nunca al revés. Ver también [01](01-rhel7-timedatectl-p-no-soportado.md) (la
+misma causa) y [04](04-restos-de-ejercicios-en-nodo-de-control.md) (el problema simétrico).

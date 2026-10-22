@@ -1,5 +1,11 @@
 # Etapa 7 · Caso 01 — `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo)
 
+> **Actualización 2026-09-29 / 2026-10-22:** la solución con `timedatectl status` + `sed` descrita abajo se
+> aplicó solo en `ansible01` y **nunca llegó al repositorio**, así que el siguiente `stage7-setup` la
+> sobrescribió y el fallo reapareció. La solución definitiva (leer el enlace `/etc/localtime` con el módulo
+> `stat`) y el mismo fallo en `tests/test_ansible.sh` están en
+> [Reaparición y solución definitiva](#reaparición-y-solución-definitiva).
+
 **Objetivo**: reconocer que un mismo comando de `systemd` puede aceptar flags distintas según la versión
 instalada, y escribir una tarea de Ansible que lea el huso horario actual de forma idéntica en las 4
 versiones de RHEL del lab (7 a 10), sin ramificar por versión.
@@ -47,6 +53,8 @@ se documentó para otros comandos en etapas anteriores (por ejemplo `journalctl 
 
 ## Solución aplicada
 
+*(Primera solución, del 2026-09-28. Funcionó, pero solo existió en `ansible01`: ver la sección siguiente.)*
+
 Sustituir el comando por uno basado en `timedatectl status` (formato estable desde RHEL 7 hasta RHEL 10),
 parseado con `sed`, en vez de depender de flags de `timedatectl show`:
 
@@ -76,11 +84,58 @@ ansible-playbook playbooks/site.yml                  # ahora completa las 8 tare
 `PLAY RECAP` pasó de `rhel7-app01: ok=2 failed=1` a `rhel7-app01: ok=7 changed=... failed=0`, en línea con
 el resto de hosts.
 
+## Reaparición y solución definitiva
+
+**2026-09-29 — el fallo vuelve en el rol.** Al retomar la etapa en modo manual, `scripts/lab.sh stage7-setup`
+recopió el proyecto desde `scripts/stage7/files/` a `~adminlab/ansible-lab`, y el rol volvió a tener
+`timedatectl show -p Timezone --value`. El arreglo anterior se había editado **solo en `ansible01`**: el repo
+nunca lo tuvo, así que cada `stage7-setup` lo sobrescribía. Además, el fallo quedó **oculto** en la
+simulación: en `--check`, Ansible no ejecuta las tareas `command`/`shell`, y tanto la lectura como la
+fijación del huso salían `skipping` con `failed=0` en los 5 hosts. Solo un ad-hoc lo destapó:
+
+```bash
+ansible rhel7-app01,rhel9-app01 -m command -a 'timedatectl show -p Timezone --value'
+# rhel7-app01 | FAILED | rc=1 >> timedatectl: invalid option -- 'p'
+# rhel9-app01 | CHANGED | rc=0 >> Europe/Madrid
+```
+
+**Solución definitiva, en el repo (commit `7461a5e`).** En RHEL 7/8/9/10, `/etc/localtime` es un enlace
+simbólico a `../usr/share/zoneinfo/<Zona>`. Se lee con el módulo `stat`, que es de solo lectura (nunca
+marca `changed`), funciona igual en las 4 versiones y **sí se ejecuta en `--check`**:
+
+```yaml
+- name: Leer huso horario actual (enlace simbólico /etc/localtime)
+  ansible.builtin.stat:
+    path: /etc/localtime
+  register: lab_localtime
+
+- name: "Fijar huso horario del lab ({{ lab_timezone }})"
+  ansible.builtin.command: "timedatectl set-timezone {{ lab_timezone }}"
+  when: not (lab_localtime.stat.lnk_target | default('')).endswith('zoneinfo/' ~ lab_timezone)
+```
+
+Validado con `--check --diff` (la lectura sale `ok` en los 5 hosts, también en `--check`) y con una deriva
+provocada a mano (`timedatectl set-timezone UTC` en rhel7-app01): el playbook la detectó y la corrigió.
+
+**2026-10-22 — el mismo comando seguía en el test.** Al preparar el cierre de la etapa, la lectura de
+`tests/test_ansible.sh` mostró la comprobación del huso horario con
+`timedatectl show -p Timezone --value`: habría dado FAIL en rhel7-app01 en `lab.sh test all all`. Se
+corrigió con la misma idea que el rol: `[[ "$(readlink /etc/localtime)" == */zoneinfo/Europe/Madrid ]]`.
+
 ## Prevención
 
 Cuando una tarea de Ansible use un comando de `systemd` (`timedatectl`, `systemctl`, `hostnamectl`...) con
 flags que no sean las más básicas, comprobar primero la versión de `systemd` del host más antiguo del
 inventario (aquí, RHEL 7 con `systemd 219`) en vez de asumir que el comportamiento es uniforme. Preferir,
-cuando exista, el subcomando de solo-lectura más estable (`status`) sobre variantes con flags más
-modernas (`show -p ... --value`), y parsear la salida si hace falta — es más texto de shell, pero
-funciona igual en las 4 versiones del lab.
+cuando exista, un **módulo** o una fuente de datos estable (aquí, el enlace `/etc/localtime` leído con
+`stat`) antes que parsear la salida de un comando.
+
+Además, lecciones de la reaparición:
+
+- **La fuente de verdad es git** (`scripts/stage7/files/`): un arreglo hecho solo en el nodo de control se
+  pierde en el siguiente `stage7-setup`. Ver también [04](04-restos-de-ejercicios-en-nodo-de-control.md),
+  el problema simétrico.
+- **`--check` no valida las tareas `command`/`shell`**: las omite. Las lecturas deben hacerse con módulos
+  de solo lectura (que sí corren en simulación) o llevar `check_mode: false`.
+- **Al cambiar cómo se lee algo en el rol, buscar el mismo comando en los tests**
+  (`grep -rn 'timedatectl show' scripts/ tests/`).

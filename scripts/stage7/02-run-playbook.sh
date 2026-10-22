@@ -7,7 +7,7 @@
 # 'adminlab' (con 'runuser'), porque la clave SSH, el ansible.cfg y el
 # ~/.vault_pass.txt viven en su home, no en la de root.
 #
-# Uso: 02-run-playbook.sh <site|facts|ping|advanced|dynamic_inventory_demo> [--limit <grupo_o_host>]
+# Uso: 02-run-playbook.sh <site|facts|ping|advanced|dynamic_inventory_demo> [--limit <grupo_o_host> | -e var=valor]
 # =============================================================================
 set -euo pipefail
 # shellcheck source=../common.sh
@@ -16,9 +16,18 @@ require_root
 
 ADMIN_USER=adminlab
 ANSIBLE_DIR="/home/$ADMIN_USER/ansible-lab"
-PLAYBOOK="${1:?Uso: 02-run-playbook.sh <site|facts|ping|advanced|dynamic_inventory_demo> [--limit <grupo_o_host>]}"; shift || true
+PLAYBOOK="${1:?Uso: 02-run-playbook.sh <site|facts|ping|advanced|dynamic_inventory_demo> [--limit <grupo_o_host> | -e var=valor]}"; shift || true
 
 [[ -d "$ANSIBLE_DIR" ]] || fatal "$ANSIBLE_DIR no existe: ejecuta antes 'lab.sh stage7-setup'"
+
+# Argumentos extra (--limit, -e...) escapados para pasarlos dentro de 'runuser -c'.
+# OJO: solo si los hay. 'printf "%q " ' SIN argumentos no devuelve vacío sino ''
+# (dos comillas), y ansible-playbook lo interpretaba como un segundo playbook de
+# nombre vacío: "ERROR! the playbook:  could not be found" en 'lab.sh stage7 site'.
+EXTRA=""
+if [[ $# -gt 0 ]]; then
+  EXTRA="$(printf '%q ' "$@")"
+fi
 
 case "$PLAYBOOK" in
   ping)
@@ -31,7 +40,7 @@ case "$PLAYBOOK" in
   site|facts|advanced)
     PB="playbooks/$PLAYBOOK.yml"
     say "ansible-playbook $PB $*"
-    runuser -l "$ADMIN_USER" -c "cd '$ANSIBLE_DIR' && ansible-playbook '$PB' $(printf '%q ' "$@")"
+    runuser -l "$ADMIN_USER" -c "cd '$ANSIBLE_DIR' && ansible-playbook '$PB' $EXTRA"
     ;;
   dynamic_inventory_demo)
     # Este SÍ necesita un inventario distinto (el script dinámico, no hosts.ini):
@@ -40,7 +49,7 @@ case "$PLAYBOOK" in
     PB="playbooks/dynamic_inventory_demo.yml"
     say "ansible-playbook -i inventory/dynamic_inventory_demo.py $PB $*"
     runuser -l "$ADMIN_USER" -c \
-      "cd '$ANSIBLE_DIR' && ansible-playbook -i inventory/dynamic_inventory_demo.py '$PB' $(printf '%q ' "$@")"
+      "cd '$ANSIBLE_DIR' && ansible-playbook -i inventory/dynamic_inventory_demo.py '$PB' $EXTRA"
     ;;
   *)
     fatal "Playbook desconocido: $PLAYBOOK (usa site, facts, ping, advanced o dynamic_inventory_demo)"

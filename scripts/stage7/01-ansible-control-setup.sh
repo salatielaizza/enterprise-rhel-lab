@@ -6,17 +6,19 @@
 # de un bucle "all"). Deja el nodo de control listo para gestionar el resto del
 # lab:
 #   1. Instala ansible-core (EPEL en RHEL 7, AppStream en RHEL 8/9/10).
-#   2. Copia el inventario/playbooks/roles (ya subidos por 'push') a la home de
-#      adminlab, con los permisos correctos.
+#   2. Sincroniza el inventario/playbooks/roles (ya subidos por 'push') con la
+#      home de adminlab como ESPEJO EXACTO del repo (rsync --delete): lo que no
+#      está en git se borra de ansible01 (ver troubleshooting/etapa7/04).
 #   3. Genera un par de claves SSH propio de adminlab@ansible01 (si no existe
 #      ya) — es la clave con la que ansible01 entrará por SSH en el resto de
 #      VMs; lab.sh se encarga de distribuir la pública usando el acceso que el
 #      EQUIPO HOST ya tiene desde la Etapa 1 (no hace falta ninguna contraseña
 #      nueva).
 #   4. Genera una contraseña aleatoria de Ansible Vault (si no existe ya) y, la
-#      primera vez, cifra group_vars/all/vault.yml con ella. La contraseña
-#      NUNCA se copia al repositorio (vive solo en ~adminlab/.vault_pass.txt,
-#      0600), igual que el offline token de Red Hat en el equipo host.
+#      primera vez, cifra inventory/group_vars/all/vault.yml con ella. La
+#      contraseña NUNCA se copia al repositorio (vive solo en
+#      ~adminlab/.vault_pass.txt, 0600), igual que el offline token de Red Hat
+#      en el equipo host.
 #   5. Imprime la clave pública entre marcadores para que lab.sh la capture.
 # =============================================================================
 set -euo pipefail
@@ -43,12 +45,31 @@ else
 fi
 command -v ansible-playbook >/dev/null || fatal "ansible-playbook sigue sin estar disponible tras el intento de instalación"
 
-# --- 2) Contenido del lab (ya copiado por 'push' a ~/lab-scripts/stage7/files) ----
+# --- 2) Contenido del lab: ~/ansible-lab = ESPEJO EXACTO de files/ del repo ------
+# Antes era 'cp -a', que añade y sobrescribe pero NUNCA borra: los restos de
+# ejercicios (host_vars/group_vars de prueba, *.lab-bak.*, *.swp...) sobrevivían
+# en ansible01 y seguían influyendo en cada ejecución (troubleshooting/etapa7/04).
+# Con 'rsync --delete' se borra lo que ya no está en el repo. Se EXCLUYEN (y por
+# tanto rsync no los copia ni los borra):
+#   - inventory/group_vars/all/vault.yml: se genera y cifra AQUÍ (paso 4); no está en git
+#   - __pycache__/: lo crea Python al cargar los plugins de la colección; se regenera solo
 SRC="$(dirname "${BASH_SOURCE[0]}")/files"
+if ! command -v rsync >/dev/null; then
+  say "Instalando rsync (necesario para sincronizar el proyecto)..."
+  dnf install -y rsync >/dev/null 2>&1 || yum install -y rsync >/dev/null
+fi
 mkdir -p "$ANSIBLE_DIR"
-cp -a "$SRC"/. "$ANSIBLE_DIR"/
+BORRADOS="$(rsync -a --delete --itemize-changes \
+              --exclude 'inventory/group_vars/all/vault.yml' \
+              --exclude '__pycache__/' \
+              "$SRC"/ "$ANSIBLE_DIR"/ | awk '$1 == "*deleting" {print $2}')" \
+  || fatal "rsync no pudo sincronizar $SRC con $ANSIBLE_DIR"
 chown -R "$ADMIN_USER:$ADMIN_USER" "$ANSIBLE_DIR"
-say "Inventario/playbooks/roles copiados a $ANSIBLE_DIR"
+say "Inventario/playbooks/roles sincronizados en $ANSIBLE_DIR (espejo exacto del repo)"
+if [[ -n "$BORRADOS" ]]; then
+  say "Eliminados de $ANSIBLE_DIR por no estar en el repo:"
+  while IFS= read -r f; do say "    - $f"; done <<< "$BORRADOS"
+fi
 
 # --- 3) Clave SSH del controlador (idempotente) -----------------------------------
 if [[ ! -f "$KEY" ]]; then
