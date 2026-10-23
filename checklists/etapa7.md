@@ -9,38 +9,41 @@
 ## Comandos (orden)
 | # | Comando | Resultado esperado | Resultado obtenido |
 |---|---|---|---|
-| 1 | `scripts/lab.sh stage7-setup` | ansible-core instalado en ansible01, clave SSH generada y distribuida a los 5 nodos gestionados, `ansible lab -m ping` y `-b -m command -a whoami` en verde | |
-| 2 | `scripts/lab.sh stage7 facts` | por cada host: distro, versión mayor e intérprete Python detectado (RHEL 7 vs 8/9/10 se ve aquí) | |
-| 3 | `scripts/lab.sh stage7 site` | `changed=` > 0 la primera vez, en los 5 nodos gestionados | |
-| 4 | `scripts/lab.sh stage7 site` (repetido) | **`changed=0`** en todos — es la prueba de idempotencia | |
-| 5 | `scripts/lab.sh test all all` | 0 FAIL (incluye `test_ansible`) | |
-| 6 | Ejercicio: cambia `lab_timezone` en `inventory/group_vars/all/vars.yml` a `UTC`, repite `stage7 site` y comprueba `timedatectl` en una VM | solo esa VM marca `changed=1`, el resto de tareas siguen en 0 | |
-| 7 | Ejercicio: comenta `lab_common_packages` de `inventory/group_vars/all/vars.yml` y repite `stage7 site` | cae al *default* del rol (`[tree]`) — demuestra la precedencia de variables | |
-| 8 | `scripts/lab.sh stage7 site --limit rhel9-app01` | el playbook se aplica SOLO a esa VM | |
-| 9 | `sudo -u adminlab ansible-vault view ~/ansible-lab/inventory/group_vars/all/vault.yml` (en ansible01) | el secreto de demo se descifra sin pedir contraseña (usa `vault_password_file`) | |
-| 10 | `scripts/lab.sh facts all && scripts/lab.sh matrix` | `comparison/matrix.generated.md` con datos reales | |
-| 11 | `scripts/lab.sh snapshot create all 7` | `…-stage7-complete` | |
+| 1 | `scripts/lab.sh stage7-setup` | ansible-core instalado en ansible01, clave SSH generada y distribuida a los 5 nodos gestionados, `ansible lab -m ping` y `-b -m command -a whoami` en verde | `ansible [core 2.14.18]`; 5 × `pong` y 5 × `root`; `rsync --delete` eliminó 8 restos (`*.lab-bak.*` y un `group_vars.lab-bak.*` antiguo); `Etapa 7 marcada como alcanzada en ansible01` (2026-10-22) |
+| 2 | `scripts/lab.sh stage7 facts` | por cada host: distro, versión mayor e intérprete Python detectado (RHEL 7 vs 8/9/10 se ve aquí) | RedHat 7.9 `/usr/bin/python` (Python 2) · 8.6 `/usr/libexec/platform-python` · 9.8 `/usr/bin/python3` (rhel9-app01 y dns01) · 10.2 `/usr/bin/python3`; `ok=2 changed=0` en los 5 |
+| 3 | `scripts/lab.sh stage7 site` | `changed=` > 0 la primera vez, en los 5 nodos gestionados | La 1ª aplicación real fue manual (Fases 10-11: corrigió la deriva provocada en rhel7 y rhel9). Por `lab.sh` (2026-10-22): `ok=7 changed=0 failed=0` (nodos ya convergidos) y 5 × `Etapa 7 marcada como alcanzada en <host>` |
+| 4 | `scripts/lab.sh stage7 site` (repetido) | **`changed=0`** en todos — es la prueba de idempotencia | `ok=7 changed=0 failed=0 skipped=1` en los 5 (4 ejecuciones manuales seguidas en la Fase 11 y de nuevo por `lab.sh`) |
+| 5 | `scripts/lab.sh test all all` | 0 FAIL (incluye `test_ansible`) | **0 FAIL en las 6 VMs**: 180/181/181/181/167/166 PASS; `test_ansible` 7/7 en los nodos y 11/11 en ansible01 (2026-10-22) |
+| 6 | Ejercicio: cambia `lab_timezone` en `inventory/group_vars/all/vars.yml` a `UTC`, repite `stage7 site` y comprueba `timedatectl` en una VM | solo esa VM marca `changed=1`, el resto de tareas siguen en 0 | Hecho en la Fase 13 con `group_vars/dns` (Europe/London), `host_vars/rhel8-app01` (Atlantic/Canary) y `-e lab_timezone=UTC`: en `--check`, solo rhel8-app01 y dns01 con `changed=2` (huso + marcador); `-e` gana a todo. Deriva real corregida en la Fase 10 (rhel7 en UTC → `changed=1` solo allí) |
+| 7 | Ejercicio: comenta `lab_common_packages` de `inventory/group_vars/all/vars.yml` y repite `stage7 site` | cae al *default* del rol (`[tree]`) — demuestra la precedencia de variables | Fase 13, apartando `vars.yml` (simulado en rhel9-app01): `lab_timezone` cae a UTC y los paquetes a `[tree]`; la tarea del vault y las de `lab_users` salen `skipping`; quitar paquetes de la lista NO los desinstala |
+| 8 | `scripts/lab.sh stage7 site --limit rhel9-app01` | el playbook se aplica SOLO a esa VM | Solo `rhel9-app01: ok=7 changed=0` en el PLAY RECAP (2026-10-22): los argumentos extra llegan bien tras el arreglo del `printf` |
+| 9 | `sudo -u adminlab ansible-vault view ~/ansible-lab/inventory/group_vars/all/vault.yml` (en ansible01) | el secreto de demo se descifra sin pedir contraseña (usa `vault_password_file`) | `$ANSIBLE_VAULT;1.1;AES256` y descifrado sin pedir nada (Fase 15); además `encrypt_string`, `rekey`, `decrypt --output -`, `create` y `edit` practicados en `~/vault-demo` |
+| 10 | `scripts/lab.sh facts all && scripts/lab.sh matrix` | `comparison/matrix.generated.md` con datos reales | 6 × `datos de <host> -> results/facts/<host>.env` y matriz generada (2026-10-22) |
+| 11 | `scripts/lab.sh snapshot create all 7` | `…-stage7-complete` | 6 snapshots `<vm>-stage7-complete` (2026-10-22 17:23-17:24), con apagado previo para que sean consistentes |
 
 ### Parte avanzada (block/rescue, serial, colección propia, inventario dinámico, Molecule)
 | # | Comando | Resultado esperado | Resultado obtenido |
 |---|---|---|---|
-| 12 | `scripts/lab.sh stage7 advanced` | `PLAY RECAP` con `rescued=0` en los 5 nodos; se ven dos lotes (`serial: 2`) | |
-| 13 | `scripts/lab.sh stage7 advanced -e lab_simulate_failure=true` | `rescued=N` en vez de `failed=N`: el play NO aborta | |
-| 14 | `ansible-doc lab.utils.lab_uptime_pretty` (en ansible01) | Documentación del módulo propio (DOCUMENTATION/EXAMPLES/RETURN) | |
-| 15 | `scripts/lab.sh stage7 dynamic_inventory_demo` | Datos de la API pública mostrados por host, e informe en `~adminlab/dynamic-inventory-demo-report.txt` | |
+| 12 | `scripts/lab.sh stage7 advanced` | `PLAY RECAP` con `rescued=0` en los 5 nodos; se ven tres lotes (`serial: 2` con 5 hosts: 2 + 2 + 1) | `ok=6 changed=1 failed=0 rescued=0` en los 5 y 3 cabeceras `PLAY`; el módulo propio fallaba en rhel7 hasta el caso 05 |
+| 13 | `scripts/lab.sh stage7 advanced -e lab_simulate_failure=true` | `rescued=N` en vez de `failed=N`: el play NO aborta | `rescued=1 failed=0` en los 5; el módulo y el filtro se ejecutan igualmente; `always` escribió en el log (`fallo simulado: true`) |
+| 14 | `ansible-doc lab.utils.lab_uptime_pretty` (en ansible01) | Documentación del módulo propio (DOCUMENTATION/EXAMPLES/RETURN) | `ansible-galaxy collection list` → `lab.utils 1.0.0`; `ansible-doc -l lab.utils` → `lab.utils.lab_uptime_pretty` (Fase 16) |
+| 15 | `scripts/lab.sh stage7 dynamic_inventory_demo` | Datos de la API pública mostrados por host, e informe en `~adminlab/dynamic-inventory-demo-report.txt` | 10 hosts y 11 grupos (`demo_api` + 1 por empresa); `hostname` → `ansible01.lab.local` (conexión local); informe `adminlab:adminlab` tras `become: false` y `changed=0` en la 2ª ejecución |
 | 16 | `source ~/venvs/molecule/bin/activate && cd scripts/stage7/files/roles/common && molecule test` (en el equipo HOST, con **Podman** sin root) | Secuencia completa `create → converge → idempotence → verify → destroy` en verde | `SCENARIO RECAP: actions=12 successful=7 missing=6 failed=0`; converge `changed=4`, idempotence `changed=0`, verify `ok=3` (2026-10-22) |
 
 ## Documentación
-- [ ] `automation/ansible.md`
+- [x] `automation/ansible.md`
+- [x] `scripts/stage7/README_stage7.md` (scripts y recorrido manual de las 19 fases)
+- [x] `troubleshooting/etapa7/README_troubleshooting_etapa7.md` (7 casos y guía de estudio)
 
 ## Criterios de aceptación
-- [ ] `scripts/lab.sh stage7 site` ejecutado dos veces seguidas: la segunda vez `changed=0` en todos los nodos (idempotencia real, no solo teórica)
-- [ ] `ansible.cfg`/`hosts.ini`/`playbooks/*.yml`/`roles/**/*.yml` con `ansible-playbook --syntax-check` limpio
-- [ ] El secreto de demo vive SOLO cifrado con Ansible Vault en el repositorio; la contraseña de vault nunca se ha subido a git
-- [ ] Sabes explicar: agentless/push vs pull, idempotencia, inventario, `become`, roles, `group_vars` vs `defaults` (precedencia), Ansible Vault
-- [ ] Sabes explicar (parte avanzada): `block`/`rescue`/`always`, qué hace `serial`, cómo se resuelve una colección local por `collections_path`, qué es un inventario dinámico y por qué el de demo usa `ansible_connection=local`
+- [x] `scripts/lab.sh stage7 site` ejecutado dos veces seguidas: la segunda vez `changed=0` en todos los nodos (idempotencia real, no solo teórica)
+- [x] `ansible.cfg`/`hosts.ini`/`playbooks/*.yml`/`roles/**/*.yml` con `ansible-playbook --syntax-check` limpio
+- [x] El secreto de demo vive SOLO cifrado con Ansible Vault (en `ansible01`; `vault.yml` no está en el repo) y la contraseña de vault nunca se ha subido a git
+- [x] Sabes explicar: agentless/push vs pull, idempotencia, inventario, `become`, roles, `group_vars` vs `defaults` (precedencia), Ansible Vault
+- [x] Sabes explicar (parte avanzada): `block`/`rescue`/`always`, qué hace `serial`, cómo se resuelve una colección local por `collections_path`, qué es un inventario dinámico y por qué el de demo usa `ansible_connection=local`
 - [x] `molecule test` pasa en local (equipo host, Podman) para el rol `common`
-- [ ] Repositorio en Git con historial limpio
+- [x] Repositorio en Git con historial limpio
+- [x] `scripts/lab.sh test all all` con 0 FAIL en las 6 VMs y snapshots `*-stage7-complete`
 
 ## Errores encontrados y solución
 | Error | Causa | Solución |
@@ -57,7 +60,15 @@
 | `molecule test` del rol `common` nunca había funcionado: `Can't pull image` (`incorrect username or password`), después `sudo: PAM account management error` y después `The role 'common' was not found` | El escenario era para Docker y para una versión antigua de Molecule, y nunca se había ejecutado (solo `molecule list`). Además, el equipo host tenía en `~/.docker/config.json` credenciales caducadas de Docker Hub con usuario `AWS` (un login de ECR) que Podman también lee | Detectado en la Fase 18 al ejecutarlo por primera vez con Podman. Corregido: `driver: podman` + `systemd: always`; `become: false` en `converge.yml` (Molecule entra con `podman exec` como root); `ANSIBLE_ROLES_PATH` en `provisioner.env`; imagen descargada con `REGISTRY_AUTH_FILE` vacío. Validado: `molecule test` con `failed=0`. Ver [`troubleshooting/etapa7/07`](../troubleshooting/etapa7/07-molecule-escenario-nunca-ejecutado.md) |
 
 ## Conocimientos adquiridos (resumen propio)
--
+- Ansible es *agentless* y *push*: SSH + Python en los nodos; `ping` sube un módulo, lo ejecuta y lo borra (`-vvv`).
+- `ansible.cfg` se busca en el directorio actual: todo se lanza desde `~/ansible-lab` de `ansible01`.
+- Idempotencia: los módulos declaran el estado; `command`/`shell` no, y necesitan `changed_when`/`when`. Leer con módulos (`stat`).
+- `--check --diff` para simular, con `-v` para no fiarse de un `skipping`; `--check` no ejecuta `command`/`shell`.
+- Precedencia: `defaults` < `group_vars/all` < `group_vars/<grupo>` < `host_vars` < `-e`. Quitar algo de una lista no lo desinstala.
+- Vault protege en git y en disco; `rekey` no arregla una contraseña filtrada; `view`/`edit` en vez de `decrypt`.
+- RHEL 7 usa Python 2.7 y `systemd` 219: los módulos propios deben ser compatibles y los comandos de `systemd`, básicos.
+- La fuente de verdad es git: lo que solo está en el nodo de control se pierde, y lo que no está en git no debe sobrevivir.
+- Molecule prueba un rol en un contenedor desechable antes de tocar servidores.
 
 ## Ampliaciones futuras (fuera del alcance actual de esta etapa)
 - Un rol `lab_webapp` que despliegue una app de demostración con Apache httpd o NGINX (Etapa 9), reutilizando `group_vars`/`roles` de esta etapa.

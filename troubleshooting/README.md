@@ -63,7 +63,7 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 |---|---|
 | [01 log-verbose-set-e-lab-healthcheck](etapa6/01-log-verbose-set-e-lab-healthcheck.md) 🔎 | `lab-healthcheck.timer` fallaba: función `log()` devolvía 1 bajo `set -e` sin `-v` |
 
-## [Etapa 7](etapa7/README.md) — automatización con Ansible (7 casos)
+## [Etapa 7](etapa7/README_troubleshooting_etapa7.md) — automatización con Ansible (7 casos)
 | Caso | Tema |
 |---|---|
 | [01 rhel7-timedatectl-p-no-soportado](etapa7/01-rhel7-timedatectl-p-no-soportado.md) 🔎 | `timedatectl show -p Timezone --value` falla en RHEL 7 (`systemd` demasiado antiguo) |

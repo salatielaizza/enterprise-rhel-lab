@@ -18,7 +18,7 @@ desarrollador y CI/CD integrado, tratadas juntas por lo emparentadas que están)
 continuo aplicado a la propia automatización del laboratorio).
 
 El plan se organiza, de partida, en **19 etapas** (ver tabla más abajo), pero no es un temario cerrado:
-puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 6 están
+puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 7 están
 **completas** (validadas con `0 FAIL` en las 6 VMs). Regla del proyecto:
 *manual → documentado → repetible → automatizado*.
 
@@ -27,9 +27,9 @@ puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1 a 7** de un plan de **19 etapas**. Las **Etapas 1 a 6** están
+Este repositorio cubre hoy las **Etapas 1 a 8** de un plan de **19 etapas**. Las **Etapas 1 a 7** están
 completas y validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`,
-`dns01`, `ansible01`): 171/172/172/172/158/153 PASS respectivamente, 0 FAIL en todas. Las Etapas 1-4
+`dns01`, `ansible01`): 180/181/181/181/167/166 PASS respectivamente tras la Etapa 7, 0 FAIL en todas. Las Etapas 1-4
 incluyen BIND, chrony y SSH/SFTP endurecido (caso `etapa4/07` documentado en `troubleshooting/`); las
 Etapas 5 y 6 añaden SELinux enforcing, auditd y hardening del SO, más herramientas propias en bash con
 temporizador systemd — en el camino se aplicó la lección ya conocida del caso `etapa2/06` (`ausearch`
@@ -37,8 +37,12 @@ sin `timeout`) y se encontró y corrigió uno nuevo, el **caso `etapa6/01`** (un
 devolver distinto de cero bajo `set -e` y aborta el script), ambos documentados en `troubleshooting/`
 (que ahora organiza los casos en un directorio por etapa, numerados desde 01 en cada una). La
 **Etapa 7** (automatización con Ansible: `ansible01` como nodo de control, roles idempotentes, Ansible
-Vault) tiene su automatización, tests y documentación escritos, pendiente de ejecutar y validar en las
-VMs reales. La **Etapa 8** ya tiene su automatización y sus tests escritos (`scripts/stage8/`,
+Vault, `block/rescue`, `serial`, colección propia, inventario dinámico y Molecule con Podman) está
+**completa** (2026-10-22): se recorrió primero a mano en 19 fases (documentadas en
+`scripts/stage7/README_stage7.md`) y después con `lab.sh`, y dejó **7 casos reales** en
+`troubleshooting/etapa7/` (entre ellos, arreglos que solo existían en el nodo de control y se perdían,
+un módulo propio incompatible con el Python 2.7 de RHEL 7 y un escenario de Molecule que nunca se había
+ejecutado). La **Etapa 8** ya tiene su automatización y sus tests escritos (`scripts/stage8/`,
 `tests/test_vmware.sh`, `tests/test_nfs_datastore.sh`, `checklists/etapa8.md`), sin ejecutar todavía en el
 lab y con su documentación de tema (`virtualization/`) pendiente; las Etapas 9-19 están pendientes, sin
 empezar — este es un proyecto vivo, no cerrado.
@@ -70,7 +74,7 @@ Red Hat).
 | 4 | 🔐 Servicios enterprise (DNS/BIND, hora/chrony, SSH/SFTP) | ✅ Completa |
 | 5 | 🛡️ Seguridad (SELinux avanzado, auditoría, hardening) | ✅ Completa |
 | 6 | 📜 Bash avanzado y scripting | ✅ Completa |
-| 7 | 🤖 Ansible (automatización, inventario, roles) | 📝 Planificada |
+| 7 | 🤖 Ansible (automatización, inventario, roles, Vault, Molecule) | ✅ Completa |
 | 8 | 🖥️ VMware vSphere (ESXi 8 anidado en KVM; vCenter en evaluación con clúster y vMotion sobre datastore NFS; PowerCLI y Ansible `community.vmware`; HA, DRS y switches distribuidos en Hands-on Labs; integrado con `dns01`/`ansible01` y comparado con KVM/libvirt) | 📝 Planificada |
 | 9 | 🛰️ Red Hat Satellite (repositorios, parches, suscripciones y aprovisionamiento centralizados) | ⏳ Pendiente |
 | 10 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
@@ -103,7 +107,7 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 | 🔐 4 | BIND (DNS), chrony (hora), SSH/SFTP | `lab.sh stage4-dns`, `stage4-clients` | `networking/dns.md`, `time/chrony.md`, `networking/ssh.md` | [`README_troubleshooting_etapa4.md`](troubleshooting/etapa4/README_troubleshooting_etapa4.md) |
 | 🛡️ 5 | SELinux enforcing, reglas de auditd, hardening del SO | `lab.sh stage5` | `security/selinux.md`, `security/audit.md`, `security/hardening.md` | [`README_troubleshooting_etapa5.md`](troubleshooting/etapa5/README_troubleshooting_etapa5.md) |
 | 📜 6 | Herramientas propias en bash (`lab-healthcheck.sh`, `lab-logscan.sh`) + temporizador systemd | `lab.sh stage6` | `scripting/bash-avanzado.md` | [`README_troubleshooting_etapa6.md`](troubleshooting/etapa6/README_troubleshooting_etapa6.md) |
-| 🤖 7 | ansible01 como nodo de control: roles idempotentes, Ansible Vault, block/rescue/serial, colección propia (módulo+filtro), inventario dinámico, Molecule | `lab.sh stage7-setup`, `stage7` | `automation/ansible.md` | Se crea al cerrar la etapa (índice actual: [`etapa7/README.md`](troubleshooting/etapa7/README.md)) |
+| 🤖 7 | ansible01 como nodo de control: roles idempotentes, Ansible Vault, block/rescue/serial, colección propia (módulo+filtro), inventario dinámico, Molecule con Podman | `lab.sh stage7-setup`, `stage7`; `molecule test` (host) | `automation/ansible.md`, recorrido manual en `scripts/stage7/README_stage7.md` | [`README_troubleshooting_etapa7.md`](troubleshooting/etapa7/README_troubleshooting_etapa7.md) |
 | 🖥️ 8 | ESXi 8 anidado en KVM (gratuito independiente + estándar en evaluación), vCenter (VCSA) con clúster, datastore NFS en `dns01` y vMotion; PowerCLI y Ansible (`community.vmware`/`vmware.vmware`, venv propio con ansible-core ≥ 2.19); `rhel9-vm01` dentro de ESXi con los roles de la Etapa 7; HA/DRS/vDS en Hands-on Labs | `lab.sh esxi-preflight/esxi-iso/esxi-create/esxi-up/esxi-down/esxi-status/esxi-snapshot`, `stage8-nfs`, `vcsa-deploy`, `stage8-setup`, `stage8-guest-key`, `stage8`, `stage8-close` | [`checklists/etapa8.md`](checklists/etapa8.md); `virtualization/*.md` pendiente | Se crea al cerrar la etapa |
 
 ## 🏗️ Arquitectura en una mirada
@@ -135,6 +139,9 @@ Detalle en `architecture/`. Los nombres, IPs y UIDs/GIDs **no cambian** en etapa
 - ~170 GB de disco virtual como máximo (qcow2 *thin*), RAM suficiente para encender las VMs **de forma selectiva**
   (las seis juntas suman ~16 GB).
 - Red Hat Developer Subscription (gratuita) y un *offline token* para descargar ISOs (`scripts/download-isos.sh`).
+- **Etapa 7:** las 6 VMs encendidas para `stage7-setup`, `stage7 site` y `test all all`. Para Molecule (opcional),
+  **Podman** sin root en el host y un venv propio (`~/venvs/molecule` con `molecule`, `molecule-plugins[podman]`,
+  `ansible-core` y la colección `containers.podman`; ver `scripts/stage7/README_stage7.md`).
 
 **Etapa 8 (VMware vSphere)** — además de lo anterior:
 
@@ -183,8 +190,10 @@ scripts/lab.sh stage4-dns                                              # Etapa 4
 scripts/lab.sh stage4-clients all && scripts/lab.sh test all all       #          DNS lab + chrony + SSH
 scripts/lab.sh stage5 all         && scripts/lab.sh test all all       # Etapa 5: SELinux + auditd + hardening
 scripts/lab.sh stage6 all         && scripts/lab.sh test all all       # Etapa 6: herramientas bash + temporizador systemd
-scripts/lab.sh stage7-setup                                            # Etapa 7: ansible01 como nodo de control (una vez)
+scripts/lab.sh stage7-setup                                            # Etapa 7: ansible01 como nodo de control (6 VMs encendidas)
 scripts/lab.sh stage7 site        && scripts/lab.sh test all all       #          aplica el playbook (repetible, idempotente)
+( source ~/venvs/molecule/bin/activate && cd scripts/stage7/files/roles/common && molecule test )   # rol common con Podman (opcional)
+scripts/lab.sh snapshot create all 7                                   #          <vm>-stage7-complete
 scripts/lab.sh facts all && scripts/lab.sh matrix                      # matriz con DATOS REALES
 ```
 
