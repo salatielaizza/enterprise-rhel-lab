@@ -436,7 +436,7 @@ Ejercicios:
 5. `reclaimPolicy: Delete`: borra el PVC y comprueba que el directorio desaparece.
 
 **Qué documentar:** PV/PVC/StorageClass, `WaitForFirstConsumer`, `ReadWriteOnce`, por qué en producción se usa
-almacenamiento de red (NFS, Ceph, cabinas con CSI; la Etapa 14 monta NFS) y que `local-path` **no publica métricas de
+almacenamiento de red (NFS, Ceph, cabinas con CSI; la Etapa 15 monta NFS) y que `local-path` **no publica métricas de
 volumen** (`kubelet_volume_stats_*` sale vacío: lo verás en la 8.8).
 
 ---
@@ -582,7 +582,7 @@ Ejercicios comparando con Kubernetes "a pelo":
 
 **OpenShift Virtualization** (KubeVirt) ejecuta VMs como objetos de Kubernetes y es la alternativa de Red Hat a vSphere
 tras la compra de VMware por Broadcom. CRC no la soporta (no hay virtualización anidada suficiente): se estudia en teoría
-y se relaciona con la Etapa 9 (VMware) y la 13 (migraciones). Anota en el checklist sus conceptos: `VirtualMachine`,
+y se relaciona con la Etapa 10 (VMware) y la 14 (migraciones). Anota en el checklist sus conceptos: `VirtualMachine`,
 `DataVolume`, migración en vivo, Migration Toolkit for Virtualization.
 
 `crc stop` al terminar; `crc delete` si necesitas liberar el disco. `crc cleanup` deshace lo que hizo `crc setup` en el host.

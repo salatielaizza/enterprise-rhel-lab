@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Etapa 9 — Datastore NFS compartido de los ESXi. Se ejecuta en dns01 (en los demás no hace nada):
+# Etapa 10 — Datastore NFS compartido de los ESXi. Se ejecuta en dns01 (en los demás no hace nada):
 #   scripts/lab.sh test test_nfs_datastore.sh dns01
 # shellcheck disable=SC2034  # TEST_NAME lo usa summary() de lib.sh
 TEST_NAME=test_nfs_datastore; source "$(dirname "$0")/lib.sh"; need_root

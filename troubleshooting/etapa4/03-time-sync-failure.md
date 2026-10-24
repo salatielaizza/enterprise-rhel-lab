@@ -30,4 +30,4 @@ dns01 no responde a NTP (servicio parado o 123/udp bloqueado).
 `chronyc tracking` → `Leap status : Normal`; `^*` sobre 10.10.10.20; `scripts/lab.sh test test_time.sh all`.
 
 ## Prevención
-Servicio habilitado, puerto documentado, alertas de "no sincronizado" (Etapas 8 y 17), y `makestep` tras restaurar snapshots.
+Servicio habilitado, puerto documentado, alertas de "no sincronizado" (Etapas 8 y 18), y `makestep` tras restaurar snapshots.

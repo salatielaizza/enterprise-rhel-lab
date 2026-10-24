@@ -351,8 +351,8 @@ El job `lab-vms` ya está en los valores del chart. Comprueba `up{job="lab-vms"}
 sudo systemctl stop named        # en dns01 -> DNSdelLabParado (1 min); arráncalo y llega RESOLVED
 virsh shutdown dns01             # en el host -> VMDelLabCaida
 ```
-**Lección:** la misma plataforma de alertas para contenedores y para servidores clásicos. La Etapa 17 extiende esto a
-todo el lab (y a los ESXi de la Etapa 9). Hacerlo con Ansible para todas las VMs es un buen ejercicio de la 8.13.
+**Lección:** la misma plataforma de alertas para contenedores y para servidores clásicos. La Etapa 18 extiende esto a
+todo el lab (y a los ESXi de la Etapa 10). Hacerlo con Ansible para todas las VMs es un buen ejercicio de la 8.13.
 
 ---
 

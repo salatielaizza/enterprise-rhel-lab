@@ -78,10 +78,10 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 Etapa pendiente. Los escenarios provocados de la 8.8 (monitorización) y la 8.9 (Terraform) están en
 [`kubernetes/`](../kubernetes/etapa8-kubernetes-openshift.md); aquí irán los casos reales al ejecutarla.
 
-## [Etapa 9](etapa9/README_troubleshooting_etapa9.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
+## [Etapa 10](etapa10/README_troubleshooting_etapa10.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
 | Caso | Tema |
 |---|---|
-| [01 preflight-pipefail-sigpipe](etapa9/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
+| [01 preflight-pipefail-sigpipe](etapa10/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
 
 ## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (4 casos)
 | Caso | Tema |

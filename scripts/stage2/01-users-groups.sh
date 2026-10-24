@@ -2,7 +2,7 @@
 # =============================================================================
 # 01-users-groups.sh — Grupos y usuarios del laboratorio (idempotente)
 # UID/GID FIJOS y iguales en todos los hosts: imprescindible más adelante para
-# NFS (Etapa 14), LDAP (15) y Ansible. adminlab (UID 1001) lo crea el kickstart.
+# NFS (Etapa 15), LDAP (15) y Ansible. adminlab (UID 1001) lo crea el kickstart.
 # Las cuentas nuevas quedan BLOQUEADAS: define su contraseña con 'passwd <usuario>'.
 # =============================================================================
 set -euo pipefail

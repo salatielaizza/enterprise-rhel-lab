@@ -1,6 +1,6 @@
 # Migración RHEL 7 → 8 → 9 → 10 (estrategia y uso del laboratorio)
 
-> Documento de **planificación**. Los procedimientos con Leapp y las pruebas de aplicación se ejecutarán en la Etapa 13 (migraciones); aquí se fija el marco y qué evidencias recoge el laboratorio desde ya. Marcas: ✔ confirmado · ◦ por verificar.
+> Documento de **planificación**. Los procedimientos con Leapp y las pruebas de aplicación se ejecutarán en la Etapa 14 (migraciones); aquí se fija el marco y qué evidencias recoge el laboratorio desde ya. Marcas: ✔ confirmado · ◦ por verificar.
 
 ## 1. Objetivo
 Decidir *cómo* llevar una aplicación de RHEL 7 a 9 o 10 con riesgo controlado, y usar las cuatro VMs como banco de pruebas de compatibilidad.
@@ -55,7 +55,7 @@ Servicio no arranca en destino → `journalctl -u`, `ausearch -m avc`, rutas de 
 Migrar sin inventario; saltar versiones mayores en in-place; olvidar cambiar formatos de red (RHEL 10); no probar en el hardware/CPU de destino; no revisar contextos SELinux personalizados.
 
 ## 9. Automatización futura
-Etapa 7 (Ansible: inventario y roles por versión) y Etapa 13 (Leapp, pruebas de compatibilidad, runbooks).
+Etapa 7 (Ansible: inventario y roles por versión) y Etapa 14 (Leapp, pruebas de compatibilidad, runbooks).
 
 ## 10. Ejercicio (pregunta de entrevista)
 *"¿Cómo migrarías esta aplicación de RHEL 7 a RHEL 9?"* Redacta el plan con: inventario, estrategia elegida y por qué, orden de pasos, validaciones, riesgos y vuelta atrás, apoyándote en las diferencias medidas con `lab.sh facts`.

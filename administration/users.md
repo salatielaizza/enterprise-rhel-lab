@@ -10,7 +10,7 @@ VM instalada (Etapa 1), acceso como `adminlab` con sudo, snapshot `…-stage1-co
 ## 3. Arquitectura
 Grupos: sysadmins 2001, developers 2002, application 2003, backup 2004. Usuarios: adminlab 1001, devuser 1002,
 appuser 1003, backupuser 1004 (ver `architecture/hosts.md`). Los IDs fijos evitan que un fichero "pertenezca" a
-usuarios distintos según el host (crítico en NFS, Etapa 14, y LDAP, Etapa 15).
+usuarios distintos según el host (crítico en NFS, Etapa 15, y LDAP, Etapa 16).
 
 ## 4. Procedimiento manual y comandos
 | Comando | Qué hace | Por qué | Salida esperada / si falla |

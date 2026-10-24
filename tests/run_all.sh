@@ -33,7 +33,7 @@ tests=(test_install.sh)
 [[ $stage -ge 5 ]] && tests+=(test_selinux.sh test_audit.sh test_hardening.sh)
 [[ $stage -ge 6 ]] && tests+=(test_bash_tools.sh)
 [[ $stage -ge 7 ]] && tests+=(test_ansible.sh)
-[[ $stage -ge 9 ]] && tests+=(test_vmware.sh test_nfs_datastore.sh)   # cada uno solo actúa en su host (ansible01 / dns01)
+[[ $stage -ge 10 ]] && tests+=(test_vmware.sh test_nfs_datastore.sh)   # cada uno solo actúa en su host (ansible01 / dns01)
 # Etapa N2 (SIEM): no depende de LAB_STAGE sino del papel de la VM (servidor o agente)
 if [[ "$(hostname -s)" == siem01 || -f /etc/rsyslog.d/90-siem-forward.conf ]] || rpm -q nxlog-ce >/dev/null 2>&1; then
   tests+=(test_siem.sh)

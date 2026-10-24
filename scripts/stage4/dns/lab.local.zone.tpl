@@ -31,7 +31,7 @@ gitea           IN  A   10.10.10.115
 argocd          IN  A   10.10.10.116
 tienda          IN  A   10.10.10.117
 
-; Etapa 9 — VMware vSphere. Se crean ANTES de instalar: vCenter exige A y PTR correctos
+; Etapa 10 — VMware vSphere. Se crean ANTES de instalar: vCenter exige A y PTR correctos
 ; desde el primer momento (su instalador falla en la fase 2 si no los encuentra).
 esxi01          IN  A   10.10.10.60
 esxi02          IN  A   10.10.10.61

@@ -90,8 +90,8 @@ con detección y alertas, buenas prácticas de seguridad aplicadas y verificable
 | 8.1 | `scripts/lab.sh vm-convert export rhel9-app01` (VM apagada) | VMDK sparse + `.sha256` | |
 | 8.2 | `vm-convert export ... --format stream` + `qemu-img info` | `create type: streamOptimized` | |
 | 8.3 | `vm-convert import <vmdk> rhel9-conv01` + arranque por consola | Arranca; machine-id y claves SSH nuevas | |
-| 8.4 | (Etapa 9 fase A) VMDK → `esxi01` con `vmkfstools -i` + VM en Host Client + `open-vm-tools` | Arranca en ESXi con red VMXNET 3 | |
-| 8.5 | (Etapa 9 fase A) `virt-v2v -i vmx -it ssh` de `rhel9-vm01` a KVM | `rhel9-vm01-kvm` arranca en KVM | |
+| 8.4 | (Etapa 10 fase A) VMDK → `esxi01` con `vmkfstools -i` + VM en Host Client + `open-vm-tools` | Arranca en ESXi con red VMXNET 3 | |
+| 8.5 | (Etapa 10 fase A) `virt-v2v -i vmx -it ssh` de `rhel9-vm01` a KVM | `rhel9-vm01-kvm` arranca en KVM | |
 | 8.6 | Exportar OVF desde el Host Client y empaquetar OVA; `vm-convert import <ova>` | VM importada | |
 | 8.7 | Averías: `--no-prep` (dracut); `govc` contra ESXi gratuito; IP duplicada | Explicadas | |
 | 8.8 | Limpieza: `virsh undefine rhel9-conv01 --remove-all-storage` y VMs de prueba en ESXi | Sin restos | |
@@ -108,14 +108,14 @@ con detección y alertas, buenas prácticas de seguridad aplicadas y verificable
 | # | Comando / acción | Resultado esperado | Resultado obtenido |
 |---|---|---|---|
 | C.1 | `scripts/lab.sh test all siem01` y `scripts/lab.sh test all all` | 0 FAIL | |
-| C.2 | `scripts/lab.sh down siem01` y `virsh snapshot-create-as siem01 siem01-stageN2-complete` (`lab.sh snapshot` solo admite etapas 1-9) | Snapshot de cierre | |
+| C.2 | `scripts/lab.sh down siem01` y `virsh snapshot-create-as siem01 siem01-stageN2-complete` (`lab.sh snapshot` solo admite etapas numéricas, 1-20) | Snapshot de cierre | |
 | C.3 | Casos reales en `troubleshooting/etapaN2/` + tabla del índice | Enlaces sin romper | |
 
 ## Criterios de aceptación
 - [ ] `test_siem.sh` en 0 FAIL en `siem01` y en todas las VMs con agente.
 - [ ] Mensajes de las 5 VMs del grupo `lab`, de auditd (NXLog) y de Kubernetes visibles en Graylog.
 - [ ] Una alerta real (Event Definition) y una de `detect_bruteforce.py` disparadas por la simulación.
-- [ ] Una VM convertida KVM → VMDK → KVM y, con la Etapa 9, KVM → ESXi y ESXi → KVM.
+- [ ] Una VM convertida KVM → VMDK → KVM y, con la Etapa 10, KVM → ESXi y ESXi → KVM.
 - [ ] Ninguna credencial en el repositorio (`git grep -n -i 'password\|secret'` solo encuentra plantillas y nombres de variables).
 
 ## Errores encontrados y solución
@@ -128,7 +128,7 @@ con detección y alertas, buenas prácticas de seguridad aplicadas y verificable
 
 ## Ampliaciones futuras
 - TLS en las entradas (Syslog 6514, GELF TLS) con certificados de una CA del lab; HTTPS en la web con un proxy inverso.
-- Copias de seguridad: `mongodump` y *snapshots* de OpenSearch a un repositorio NFS (Etapa 14).
+- Copias de seguridad: `mongodump` y *snapshots* de OpenSearch a un repositorio NFS (Etapa 15).
 - Graylog Data Node (opción recomendada por Graylog para producción) en lugar de OpenSearch propio.
 - Agentes en Windows con NXLog (`im_msvistalog`) y Sysmon; Graylog Sidecar para gestionar agentes de forma central.
-- Métricas del SIEM en Prometheus/Grafana (Etapa 8, y de todo el lab en la Etapa 17) y pipeline de CI que valide compose, manifiestos y playbook (Etapa 19).
+- Métricas del SIEM en Prometheus/Grafana (Etapa 8, y de todo el lab en la Etapa 18) y pipeline de CI que valide compose, manifiestos y playbook (Etapa 20).

@@ -31,4 +31,4 @@ A) `sudo systemctl start sshd` (y `enable` si estaba deshabilitado). B) Eliminar
 `ssh rhel9-app01 true`; `systemctl is-active lab-app`; `scripts/lab.sh test test_services.sh rhel9-app01`.
 
 ## Prevención
-`systemctl enable`, `Restart=` adecuado, monitorización de servicios (Etapas 8 y 17), y nunca parar sshd sin consola de respaldo.
+`systemctl enable`, `Restart=` adecuado, monitorización de servicios (Etapas 8 y 18), y nunca parar sshd sin consola de respaldo.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # 03-snapshot.sh — Snapshots por etapa con nombre estable: rhelN-stageM-complete
-# Uso: 03-snapshot.sh <create|list|revert|delete> <host> [etapa 1-9]
+# Uso: 03-snapshot.sh <create|list|revert|delete> <host> [etapa 1-20]
 #   create  apaga la VM (ACPI) para un snapshot limpio, lo crea y la vuelve a encender
 #   revert  vuelve al snapshot de esa etapa
 # Nombres: rhel7-stage1-complete, rhel10-stage3-complete, dns01-stage4-complete...
@@ -16,7 +16,7 @@ host_row "$vm" >/dev/null || die "Host desconocido: $vm"
 
 snap_name() { echo "${vm%-app01}-stage${1}-complete"; }
 domstate() { virsh domstate "$vm" | tr -d '[:space:]'; }
-need_stage() { [[ "$stage" =~ ^[1-9]$ ]] || die "Indica la etapa (1-9)"; }
+need_stage() { [[ "$stage" =~ ^([1-9]|1[0-9]|20)$ ]] || die "Indica la etapa (1-20)"; }
 
 case "$action" in
   list) virsh snapshot-list "$vm" ;;

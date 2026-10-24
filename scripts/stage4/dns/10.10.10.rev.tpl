@@ -19,7 +19,7 @@ $TTL 3600
 100     IN  PTR k8s-cp01.lab.local.
 101     IN  PTR k8s-w01.lab.local.
 102     IN  PTR k8s-w02.lab.local.
-; Etapa 9 — VMware vSphere
+; Etapa 10 — VMware vSphere
 60      IN  PTR esxi01.lab.local.
 61      IN  PTR esxi02.lab.local.
 62      IN  PTR esxi03.lab.local.

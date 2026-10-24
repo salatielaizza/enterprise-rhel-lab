@@ -5,7 +5,8 @@ comparar versiones y practicar administración de sistemas como en un entorno re
 desatendida (kickstart), gestión de usuarios/permisos/systemd/LVM, redes (NetworkManager), servicios
 enterprise (DNS/BIND, hora/chrony, SSH/SFTP), seguridad (SELinux, auditoría), automatización con Ansible,
 **Kubernetes y OpenShift** (clúster con kubeadm sobre RHEL 9, monitorizado con **Prometheus y Grafana** a
-base de averías reales y gestionado como código con **Terraform**), virtualización con **VMware vSphere**
+base de averías reales y gestionado como código con **Terraform**), nube pública con **AWS y Azure**,
+virtualización con **VMware vSphere**
 (ESXi anidado dentro de KVM, vCenter con clúster y vMotion, PowerCLI, y HA/DRS/switches distribuidos en
 Hands-on Labs, integrado con el resto del lab, para comparar los dos grandes hipervisores enterprise, cada
 vez más relevante dado el cambio de licencias de Broadcom que está empujando a muchas empresas hacia
@@ -15,7 +16,7 @@ compartido (NFS/CIFS), identidad centralizada (LDAP/Kerberos), alta disponibilid
 monitorización de todo el lab (Prometheus/Grafana), contenedores con Docker y, como cierre, **CI/CD**
 (integración y despliegue continuo aplicado a la propia automatización del laboratorio).
 
-El plan se organiza, de partida, en **19 etapas** (ver tabla más abajo), pero no es un temario cerrado:
+El plan se organiza, de partida, en **20 etapas** (ver tabla más abajo), pero no es un temario cerrado:
 puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 7 están
 **completas** (validadas con `0 FAIL` en las 6 VMs). Regla del proyecto:
 *manual → documentado → repetible → automatizado*.
@@ -25,7 +26,7 @@ puede ampliarse o reordenarse según lo que se quiera practicar. Las Etapas 1 a 
 
 ## 🗺️ Estado del proyecto y hoja de ruta
 
-Este repositorio cubre hoy las **Etapas 1 a 9** de un plan de **19 etapas**. Las **Etapas 1 a 7** están
+Este repositorio cubre hoy las **Etapas 1 a 10** de un plan de **20 etapas**. Las **Etapas 1 a 7** están
 completas y validadas con `scripts/lab.sh test all all` en 0 FAIL en las 6 VMs (`rhel7/8/9/10-app01`,
 `dns01`, `ansible01`): 180/181/181/181/167/166 PASS respectivamente tras la Etapa 7, 0 FAIL en todas. Las Etapas 1-4
 incluyen BIND, chrony y SSH/SFTP endurecido (caso `etapa4/07` documentado en `troubleshooting/`); las
@@ -46,19 +47,21 @@ La **Etapa 8** pasa a ser **Kubernetes y OpenShift**, ampliada con **Prometheus/
 paso a paso en 13 subetapas, ficheros listos para aplicar (`scripts/stage8/files/`), 13 escenarios de averías
 para aprender a monitorizar y 8 escenarios de infraestructura como código, todo pendiente de ejecutar. Va justo
 después de Ansible porque se apoya en ella (`ansible01` administra el clúster) y porque es lo que más piden las
-ofertas de plataforma en Madrid. **VMware vSphere pasa a la Etapa 9** (ya tiene su automatización y sus tests
-escritos: `scripts/stage9/`, `tests/test_vmware.sh`, `tests/test_nfs_datastore.sh`, `checklists/etapa9.md`, sin
-ejecutar todavía y con su documentación de tema en `virtualization/` pendiente) y **Red Hat Satellite a la 10**.
-VMware condiciona etapas posteriores: migración VMware → KVM con `virt-v2v` (Etapa 13), NFS como datastore de
-ESXi (Etapa 14) y monitorización de ESXi (Etapa 17); la migración de VMs a OpenShift Virtualization se estudia
-en la Etapa 8. Satellite centraliza parches, repositorios y suscripciones de todas las VMs RHEL antes de las
-etapas que más dependen de ello. El resto de etapas avanzan un número y el plan sigue teniendo 19: el servidor web
-sigue dividido en dos (Etapa **12a**: nginx + Gitea + PostgreSQL; Etapa **12b**: httpd + Nextcloud + PostgreSQL),
-la monitorización de todo el lab (Etapa 17) parte de lo aprendido en la 8, y la antigua etapa de Kubernetes al
-final del plan desaparece porque ahora es la 8. Las Etapas 10-19 están pendientes, sin empezar — este es un
-proyecto vivo, no cerrado.
+ofertas de plataforma en Madrid. La **Etapa 9** es **Cloud con AWS y Azure** (pendiente de planificar): va justo
+después porque reutiliza Terraform y Kubernetes de la 8, y es lo que más piden las vacantes DevOps en Madrid.
+**VMware vSphere pasa a la Etapa 10** (ya tiene su automatización y sus tests escritos: `scripts/stage10/`,
+`tests/test_vmware.sh`, `tests/test_nfs_datastore.sh`, `checklists/etapa10.md`, sin ejecutar todavía y con su
+documentación de tema en `virtualization/` pendiente) y **Red Hat Satellite a la 11**. VMware condiciona etapas
+posteriores: migración VMware → KVM con `virt-v2v` (Etapa 14), NFS como datastore de ESXi (Etapa 15) y
+monitorización de ESXi (Etapa 18); la migración de VMs a OpenShift Virtualization se estudia en la Etapa 8.
+Satellite centraliza parches, repositorios y suscripciones de todas las VMs RHEL antes de las etapas que más
+dependen de ello. El resto de etapas avanzan y el plan pasa a tener 20: el servidor web sigue dividido en dos
+(Etapa **13a**: nginx + Gitea + PostgreSQL; Etapa **13b**: httpd + Nextcloud + PostgreSQL), la monitorización de
+todo el lab (Etapa 18) parte de lo aprendido en la 8, y la antigua etapa de Kubernetes al final del plan
+desaparece porque ahora es la 8. Las Etapas 9 y 11-20 están pendientes, sin empezar — este es un proyecto vivo,
+no cerrado.
 
-> **Enfoque de la Etapa 9 (VMware):** la combinación más realista sin licencia de pago es (1) **ESXi
+> **Enfoque de la Etapa 10 (VMware):** la combinación más realista sin licencia de pago es (1) **ESXi
 > gratuito** (8.0U3e) como host independiente y permanente; (2) **vCenter y ESXi estándar en evaluación de
 > 60 días** para el clúster y vMotion (un ESXi gratuito no puede unirse a vCenter), documentado y
 > automatizado para poder reconstruirlo, con snapshot antes de que caduque; (3) los **VMware Hands-on Labs**
@@ -77,18 +80,19 @@ proyecto vivo, no cerrado.
 | 6 | 📜 Bash avanzado y scripting | ✅ Completa |
 | 7 | 🤖 Ansible (automatización, inventario, roles, Vault, Molecule) | ✅ Completa |
 | 8 | ☸️ Kubernetes y OpenShift (kubeadm sobre RHEL 9, red, almacenamiento, seguridad, Helm; **Prometheus/Grafana** con averías reales; **Terraform** como IaC; OpenShift Local; GitOps con Argo CD; operación y upgrade) | 📝 Planificada |
-| 9 | 🖥️ VMware vSphere (ESXi 8 anidado en KVM; vCenter en evaluación con clúster y vMotion sobre datastore NFS; PowerCLI y Ansible `community.vmware`; HA, DRS y switches distribuidos en Hands-on Labs; integrado con `dns01`/`ansible01` y comparado con KVM/libvirt) | 📝 Planificada |
-| 10 | 🛰️ Red Hat Satellite (repositorios, parches, suscripciones y aprovisionamiento centralizados) | ⏳ Pendiente |
-| 11 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
-| 12a | 🧭 Servidor web con nginx — reverse proxy + Gitea (Git self-hosted) + PostgreSQL | ⏳ Pendiente |
-| 12b | 🧭 Servidor web con httpd — PHP-FPM + Nextcloud + PostgreSQL | ⏳ Pendiente |
-| 13 | 🚚 Migraciones (Leapp entre versiones de RHEL + VMware → KVM con `virt-v2v`) | ⏳ Pendiente |
-| 14 | 🗄️ NFS / CIFS (almacenamiento compartido; NFS también como datastore de ESXi) | ⏳ Pendiente |
-| 15 | 🔑 LDAP / Kerberos (identidad centralizada) | ⏳ Pendiente |
-| 16 | ⚖️ Alta disponibilidad (Pacemaker/Corosync) | ⏳ Pendiente |
-| 17 | 📊 Monitorización de todo el lab (Prometheus/Grafana, a partir de la Etapa 8; ESXi incluidos) | ⏳ Pendiente |
-| 18 | 📦 Contenedores (Docker) | ⏳ Pendiente |
-| 19 | 🔁 CI/CD | ⏳ Pendiente |
+| 9 | ☁️ Cloud: AWS y Azure (cuentas seguras y control de costes, redes, cómputo, almacenamiento, Terraform, EKS/AKS, monitorización, CI/CD) | ⏳ Pendiente |
+| 10 | 🖥️ VMware vSphere (ESXi 8 anidado en KVM; vCenter en evaluación con clúster y vMotion sobre datastore NFS; PowerCLI y Ansible `community.vmware`; HA, DRS y switches distribuidos en Hands-on Labs; integrado con `dns01`/`ansible01` y comparado con KVM/libvirt) | 📝 Planificada |
+| 11 | 🛰️ Red Hat Satellite (repositorios, parches, suscripciones y aprovisionamiento centralizados) | ⏳ Pendiente |
+| 12 | 🔀 Git / Infraestructura como código | ⏳ Pendiente |
+| 13a | 🧭 Servidor web con nginx — reverse proxy + Gitea (Git self-hosted) + PostgreSQL | ⏳ Pendiente |
+| 13b | 🧭 Servidor web con httpd — PHP-FPM + Nextcloud + PostgreSQL | ⏳ Pendiente |
+| 14 | 🚚 Migraciones (Leapp entre versiones de RHEL + VMware → KVM con `virt-v2v`) | ⏳ Pendiente |
+| 15 | 🗄️ NFS / CIFS (almacenamiento compartido; NFS también como datastore de ESXi) | ⏳ Pendiente |
+| 16 | 🔑 LDAP / Kerberos (identidad centralizada) | ⏳ Pendiente |
+| 17 | ⚖️ Alta disponibilidad (Pacemaker/Corosync) | ⏳ Pendiente |
+| 18 | 📊 Monitorización de todo el lab (Prometheus/Grafana, a partir de la Etapa 8; ESXi incluidos) | ⏳ Pendiente |
+| 19 | 📦 Contenedores (Docker) | ⏳ Pendiente |
+| 20 | 🔁 CI/CD | ⏳ Pendiente |
 | N | 🧰 DevOps: Docker, Kubernetes, Jenkins y monitorización —  (ver [sección final](#-etapa-n--devops-docker-kubernetes-jenkins-y-monitorización)) | 📝 Planificada |
 | N2 | 📡 SIEM: Graylog, OpenSearch/Elasticsearch, Syslog, NXLog, Docker, Kubernetes y conversión de VMs VMware ↔ KVM (ver [sección final](#-etapa-n2--siem-graylog-opensearch-syslog-nxlog-contenedores-y-vmware)) | 📝 Planificada |
 
@@ -96,10 +100,10 @@ Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en l
 (ver `architecture/hosts.md`) se mantienen estables para las etapas futuras — por ejemplo,
 `ansible01` (10.10.10.30) ya está reservada para la Etapa 7, `k8s-cp01`/`k8s-w01`/`k8s-w02` (10.10.10.100-.102)
 y el rango de MetalLB (10.10.10.110-.119) para la Etapa 8, `esxi01`/`esxi02`/`esxi03`/`vcsa01`/`rhel9-vm01`
-(10.10.10.60-.64; vCenter y `rhel9-vm01` corren **dentro** de los ESXi) para la Etapa 9, y
-`rhel9a-web01`/`rhel9b-web02`/`rhel9-monitor01` (10.10.10.40/.41/.50) para las etapas 12a, 12b y 17.
+(10.10.10.60-.64; vCenter y `rhel9-vm01` corren **dentro** de los ESXi) para la Etapa 10, y
+`rhel9a-web01`/`rhel9b-web02`/`rhel9-monitor01` (10.10.10.40/.41/.50) para las etapas 13a, 13b y 18.
 
-## 🔧 Contenido de las Etapas 1-9
+## 🔧 Contenido de las Etapas 1-10
 
 | Etapa | Contenido | Automatización | Documentación | Guía de troubleshooting y estudio |
 |---|---|---|---|---|
@@ -111,7 +115,7 @@ y el rango de MetalLB (10.10.10.110-.119) para la Etapa 8, `esxi01`/`esxi02`/`es
 | 📜 6 | Herramientas propias en bash (`lab-healthcheck.sh`, `lab-logscan.sh`) + temporizador systemd | `lab.sh stage6` | `scripting/bash-avanzado.md` | [`README_troubleshooting_etapa6.md`](troubleshooting/etapa6/README_troubleshooting_etapa6.md) |
 | 🤖 7 | ansible01 como nodo de control: roles idempotentes, Ansible Vault, block/rescue/serial, colección propia (módulo+filtro), inventario dinámico, Molecule con Podman | `lab.sh stage7-setup`, `stage7`; `molecule test` (host) | `automation/ansible.md`, recorrido manual en `scripts/stage7/README_stage7.md` | [`README_troubleshooting_etapa7.md`](troubleshooting/etapa7/README_troubleshooting_etapa7.md) |
 | ☸️ 8 | Kubernetes con kubeadm (3 nodos RHEL 9, containerd, Calico, MetalLB, Traefik, local-path), RBAC y Pod Security, Helm (Gitea), Prometheus/Grafana con 13 escenarios de averías, Terraform (import, módulos, drift, estado remoto), OpenShift Local, CI y GitOps con Argo CD, upgrade y copias de etcd | A mano (sin comandos `lab.sh` propios); VMs con `lab.sh vm-create/stage2-5/test`; ficheros en `scripts/stage8/files/`; `ci/validar.sh` | [`kubernetes/etapa8-kubernetes-openshift.md`](kubernetes/etapa8-kubernetes-openshift.md), [`checklists/etapa8.md`](checklists/etapa8.md) | [`README_troubleshooting_etapa8.md`](troubleshooting/etapa8/README_troubleshooting_etapa8.md) |
-| 🖥️ 9 | ESXi 8 anidado en KVM (gratuito independiente + estándar en evaluación), vCenter (VCSA) con clúster, datastore NFS en `dns01` y vMotion; PowerCLI y Ansible (`community.vmware`/`vmware.vmware`, venv propio con ansible-core ≥ 2.19); `rhel9-vm01` dentro de ESXi con los roles de la Etapa 7; HA/DRS/vDS en Hands-on Labs | `lab.sh esxi-preflight/esxi-iso/esxi-create/esxi-up/esxi-down/esxi-status/esxi-snapshot`, `stage9-nfs`, `vcsa-deploy`, `stage9-setup`, `stage9-guest-key`, `stage9`, `stage9-close` | [`checklists/etapa9.md`](checklists/etapa9.md); `virtualization/*.md` pendiente | [`README_troubleshooting_etapa9.md`](troubleshooting/etapa9/README_troubleshooting_etapa9.md) |
+| 🖥️ 10 | ESXi 8 anidado en KVM (gratuito independiente + estándar en evaluación), vCenter (VCSA) con clúster, datastore NFS en `dns01` y vMotion; PowerCLI y Ansible (`community.vmware`/`vmware.vmware`, venv propio con ansible-core ≥ 2.19); `rhel9-vm01` dentro de ESXi con los roles de la Etapa 7; HA/DRS/vDS en Hands-on Labs | `lab.sh esxi-preflight/esxi-iso/esxi-create/esxi-up/esxi-down/esxi-status/esxi-snapshot`, `stage10-nfs`, `vcsa-deploy`, `stage10-setup`, `stage10-guest-key`, `stage10`, `stage10-close` | [`checklists/etapa10.md`](checklists/etapa10.md); `virtualization/*.md` pendiente | [`README_troubleshooting_etapa10.md`](troubleshooting/etapa10/README_troubleshooting_etapa10.md) |
 
 ## 🏗️ Arquitectura en una mirada
 
@@ -121,14 +125,14 @@ y el rango de MetalLB (10.10.10.110-.119) para la Etapa 8, `esxi01`/`esxi02`/`es
    ┌────────────┬────────────┬─────┴──────┬──────────────┬──────────────────┬─────────────────────┐
 rhel7-app01  rhel8-app01  rhel9-app01  rhel10-app01     dns01              ansible01
  .11          .12          .13          .14              .20 BIND + NTP     .30 Ansible (Etapa 7)
-                                                         + NFS (Etapa 9)    + kubectl, helm, terraform (Etapa 8)
-                                                                            + venv VMware y PowerCLI (Etapa 9)
+                                                         + NFS (Etapa 10)    + kubectl, helm, terraform (Etapa 8)
+                                                                            + venv VMware y PowerCLI (Etapa 10)
 
  Etapa 8 — Kubernetes (opcionales en hosts.conf): k8s-cp01 .100 (k8s-api) · k8s-w01 .101 · k8s-w02 .102
            Service LoadBalancer con MetalLB .110-.119: ingress .110, grafana .111, prometheus .112, alertmanager .113,
            podinfo .114, gitea .115, argocd .116, tienda .117 · pods 10.244.0.0/16 · services 10.96.0.0/12
 
- Etapa 9 — VMware vSphere: ESXi ANIDADO (VMs de KVM que ejecutan sus propias VMs), también en lab-net
+ Etapa 10 — VMware vSphere: ESXi ANIDADO (VMs de KVM que ejecutan sus propias VMs), también en lab-net
  ┌─────────────────────────────┐   ┌──────────────────── lab-cluster (vCenter) ─────────────────────┐
  │ esxi01 .60  GRATUITO        │   │ esxi02 .61  EVALUACIÓN 60 d        esxi03 .62  EVALUACIÓN 60 d │
  │ independiente (Host Client) │   │  └─ vcsa01 .63  vCenter            vmk1 vMotion .72            │
@@ -138,7 +142,7 @@ rhel7-app01  rhel8-app01  rhel9-app01  rhel10-app01     dns01              ansib
    Fase A (ESXi gratuito) convive con el resto del lab · Fase B (vCenter): app01 y esxi01 apagadas
 ```
 Inventario de los ESXi: `scripts/vmware.conf` (fuera de `hosts.conf`, para que `lab.sh … all` nunca los trate como RHEL).
-Reservados para etapas futuras: `rhel9a-web01` .40 y `rhel9b-web02` .41 (Etapas 12a/12b), `rhel9-monitor01` .50 (Etapa 17).
+Reservados para etapas futuras: `rhel9a-web01` .40 y `rhel9b-web02` .41 (Etapas 13a/13b), `rhel9-monitor01` .50 (Etapa 18).
 Detalle en `architecture/`. Los nombres, IPs y UIDs/GIDs **no cambian** en etapas futuras.
 
 ## 📋 Requisitos
@@ -160,7 +164,7 @@ Detalle en `architecture/`. Los nombres, IPs y UIDs/GIDs **no cambian** en etapa
 - OpenShift Local (8.10, opcional): 4 vCPU y ~11 GiB **con el clúster apagado**, 35 GB de disco en el host y cuenta de
   Red Hat Developer; `crc setup` cambia el host, así que antes se revisa con `crc setup --check-only`.
 
-**Etapa 9 (VMware vSphere)** — además de lo anterior:
+**Etapa 10 (VMware vSphere)** — además de lo anterior:
 
 | Recurso | Fase A: ESXi gratuito | Fase B: vCenter + clúster en evaluación |
 |---|---|---|
@@ -227,25 +231,25 @@ done
 scripts/stage8/files/ci/validar.sh                                            # yamllint, kubeconform, promtool, terraform fmt
 ```
 
-**Etapa 9 — VMware vSphere** (paso a paso, con resultados esperados, en [`checklists/etapa9.md`](checklists/etapa9.md)):
+**Etapa 10 — VMware vSphere** (paso a paso, con resultados esperados, en [`checklists/etapa10.md`](checklists/etapa10.md)):
 
 ```bash
 # Fase A — ESXi gratuito (convive con el resto del lab)
 scripts/lab.sh esxi-preflight A                    # auditoría de SOLO LECTURA del host (nested, RAM, disco, ISOs, DNS)
 scripts/lab.sh stage4-dns                          # zonas con esxi01-03, vcsa01 y rhel9-vm01 (A + PTR)
 scripts/lab.sh esxi-create esxi01 --manual         # instalación A MANO del ESXi gratuito (consola: virt-viewer)
-scripts/lab.sh stage9-setup                        # ansible01: venv, colecciones, PowerCLI; después 'ansible-vault edit'
-scripts/lab.sh stage9-guest-key                    # rhel9-vm01 (creada a mano dentro de esxi01) acepta a ansible01
-scripts/lab.sh stage9 guest-baseline               # misma base que el resto del lab (roles de la Etapa 7)
+scripts/lab.sh stage10-setup                       # ansible01: venv, colecciones, PowerCLI; después 'ansible-vault edit'
+scripts/lab.sh stage10-guest-key                   # rhel9-vm01 (creada a mano dentro de esxi01) acepta a ansible01
+scripts/lab.sh stage10 guest-baseline              # misma base que el resto del lab (roles de la Etapa 7)
 scripts/lab.sh esxi-iso esxi01 && scripts/lab.sh esxi-create esxi01 --force   # reinstalación DESATENDIDA
 # Fase B — vCenter en evaluación (apaga antes las app01 y esxi01)
 scripts/lab.sh esxi-preflight B
 scripts/lab.sh esxi-iso all && scripts/lab.sh esxi-create esxi02 && scripts/lab.sh esxi-create esxi03
-scripts/lab.sh stage9-nfs                          # disco SCSI + export NFS en dns01
+scripts/lab.sh stage10-nfs                         # disco SCSI + export NFS en dns01
 scripts/lab.sh vcsa-deploy --precheck-only && scripts/lab.sh vcsa-deploy   # vCenter en esxi02 (anota la fecha)
-scripts/lab.sh stage9 cluster && scripts/lab.sh stage9 esxi-config         # clúster, hosts, NFS, NTP, DNS
-scripts/lab.sh stage9 guest && scripts/lab.sh stage9 vmotion               # vMotion en caliente de rhel9-vm01
-scripts/lab.sh esxi-down all && scripts/lab.sh esxi-snapshot create esxi02 9   # (y esxi01/esxi03) antes de que caduque
+scripts/lab.sh stage10 cluster && scripts/lab.sh stage10 esxi-config       # clúster, hosts, NFS, NTP, DNS
+scripts/lab.sh stage10 guest && scripts/lab.sh stage10 vmotion             # vMotion en caliente de rhel9-vm01
+scripts/lab.sh esxi-down all && scripts/lab.sh esxi-snapshot create esxi02 10  # (y esxi01/esxi03) antes de que caduque
 ```
 
 **Tests generales** (todos de solo lectura):
@@ -256,16 +260,16 @@ scripts/lab.sh test test_network.sh rhel9-app01    # un test concreto en una VM 
 scripts/lab.sh status                              # VMs RHEL: estado, SSH y snapshots
 scripts/lab.sh test all k8s-cp01                   # Etapa 8: base del lab en un nodo de Kubernetes (ídem workers)
 scripts/stage8/files/ci/validar.sh                 # Etapa 8: manifiestos, reglas y pruebas de alertas, Terraform
-scripts/lab.sh esxi-preflight A                    # host: requisitos de la Etapa 9 (o B)
+scripts/lab.sh esxi-preflight A                    # host: requisitos de la Etapa 10 (o B)
 scripts/lab.sh esxi-status                         # ESXi: estado, licencia y CADUCIDAD, NTP, datastores, VMs
-scripts/lab.sh test test_vmware.sh ansible01       # Etapa 9: herramientas, DNS y vSphere (según la fase activa)
-scripts/lab.sh test test_nfs_datastore.sh dns01    # Etapa 9: export NFS del datastore compartido
-scripts/lab.sh stage9 verify                       # Etapa 9: verificación completa de vSphere con Ansible
+scripts/lab.sh test test_vmware.sh ansible01       # Etapa 10: herramientas, DNS y vSphere (según la fase activa)
+scripts/lab.sh test test_nfs_datastore.sh dns01    # Etapa 10: export NFS del datastore compartido
+scripts/lab.sh stage10 verify                      # Etapa 10: verificación completa de vSphere con Ansible
 ```
 
 `test all all` muestra al final una tabla por VM (PASS, FAIL, tiempo). Los nodos de Kubernetes no entran en `all`
-(son opcionales): se prueban por nombre, `test all k8s-cp01`. Los tests de la Etapa 9 se lanzan sueltos
-hasta cerrarla con `lab.sh stage9-close` (que exige la Etapa 7 cerrada); a partir de ahí, `test all all` los incluye.
+(son opcionales): se prueban por nombre, `test all k8s-cp01`. Los tests de la Etapa 10 se lanzan sueltos
+hasta cerrarla con `lab.sh stage10-close` (que exige la Etapa 7 cerrada); a partir de ahí, `test all all` los incluye.
 
 Ayuda completa: `scripts/lab.sh help`. Las VMs se encienden/apagan con `lab.sh up|down <host|all>`, y los ESXi,
 de forma ordenada, con `lab.sh esxi-up|esxi-down <esxi0N|all>`.
@@ -292,11 +296,11 @@ se genera exclusivamente con datos leídos de las VMs (`lab.sh facts`).
 `scripts/` automatización (host: `lab.sh`, `0N-*.sh`; VMs: `stage2/`, `stage3/`, `stage4/`, `stage5/`, `stage6/`, `stage7/`;
 cada `stageN/` tiene su `README_stageN.md` con qué hace cada script, en qué orden, dónde corre y qué toca — la Etapa 1, sin carpeta propia, en `scripts/README_stage1.md`;
 `stage8/files/` con los manifiestos, valores de Helm, reglas y dashboards, escenarios de averías y Terraform de la Etapa 8;
-`stage9/` con scripts de host para ESXi/vCenter, scripts de `dns01`/`ansible01` y `files/vmware-lab/` (Ansible + PowerCLI);
+`stage10/` con scripts de host para ESXi/vCenter, scripts de `dns01`/`ansible01` y `files/vmware-lab/` (Ansible + PowerCLI);
 inventario de ESXi en `vmware.conf`) ·
 `scripts/kickstart/` plantillas de instalación · `tests/` pruebas PASS/FAIL de solo lectura ·
 `architecture/` · `rhel7/ … rhel10/` · `administration/` · `networking/` · `time/` · `security/` · `scripting/` · `automation/` ·
-`kubernetes/` (Etapa 8: guía, Prometheus/Grafana y Terraform) · `virtualization/` (Etapa 9, pendiente) · `devops/` (Etapa N, preparación rápida) ·
+`kubernetes/` (Etapa 8: guía, Prometheus/Grafana y Terraform) · `virtualization/` (Etapa 10, pendiente) · `devops/` (Etapa N, preparación rápida) ·
 `troubleshooting/` (un directorio por etapa con sus casos y su guía `README_troubleshooting_etapaN.md`; índice en `troubleshooting/README.md`) · `migration/` · `comparison/` · `checklists/` · `results/` (evidencias; `facts/` se genera).
 
 ## 🔒 Seguridad
@@ -308,7 +312,7 @@ Etapa 8: las contraseñas (Grafana, Gitea) se generan con `openssl rand` y viven
 `kubeconfig` de administrador y el estado de Terraform (con secretos en claro) se quedan en `ansible01` y en el namespace
 `tfstate` (`.terraform/`, `*.tfstate` y `*.tfplan` en `.gitignore`); Terraform recibe la contraseña por `TF_VAR_`, nunca
 desde un fichero del repositorio.
-Etapa 9: la contraseña de root de los ESXi solo se guarda como hash dentro de los ISO generados (fuera del repo: `*.iso` en
+Etapa 10: la contraseña de root de los ESXi solo se guarda como hash dentro de los ISO generados (fuera del repo: `*.iso` en
 `.gitignore`); las de vCenter se piden al desplegar y se borran del JSON temporal al terminar; las que usa Ansible viven
 cifradas en el `vault.yml` de `ansible01`, con la misma contraseña de Vault que la Etapa 7. La clave `~/.ssh/lab_esxi_rsa`
 es RSA porque el `sshd` de ESXi 8 funciona en modo FIPS (no acepta ed25519).
@@ -319,7 +323,7 @@ es RSA porque el `sshd` de ESXi 8 funciona en modo FIPS (no acepta ed25519).
 
 Prueba práctica y adelanto de tecnologías del perfil *Linux Administrator DevOps* en el área de **APS** (*Application Production Support*). Presenta **teoría básica + práctica manual**, sobre
 una sola VM, `rhel9-monitor01` (10.10.10.50). Sirve de anticipo de las Etapas 8 (Kubernetes),
-17 (monitorización), 18 (Docker) y 19 (CI/CD), que mantienen su planificación completa.
+18 (monitorización), 19 (Docker) y 20 (CI/CD), que mantienen su planificación completa.
 
 | Bloque | Contenido |
 |---|---|
@@ -340,7 +344,7 @@ Guía completa: [`devops/etapaN-devops.md`](devops/etapaN-devops.md).
 
 Prueba práctica y adelanto de tecnologías: un **SIEM** en una VM nueva, `siem01` (10.10.10.55), alimentado por las
 VMs del lab, para practicar su operación, troubleshooting y documentación. Sirve de anticipo de las Etapas 8
-(Kubernetes), 13 (VMware → KVM), 17 (monitorización) y 18 (Docker), que mantienen su planificación completa.
+(Kubernetes), 14 (VMware → KVM), 18 (monitorización) y 19 (Docker), que mantienen su planificación completa.
 
 | Bloque | Contenido |
 |---|---|
