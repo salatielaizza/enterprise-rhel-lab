@@ -23,6 +23,9 @@ evidence/
 *.swp
 *.swo
 
+# Apuntes y ejercicios personales (p. ej. practica/etapa7-ansible.md): solo en local, nunca en GitHub
+practica/
+
 # Etapa 8 (VMware): el vault real solo vive en ansible01; informes de PowerCLI
 scripts/stage8/files/vmware-lab/inventory/group_vars/all/vault.yml
 scripts/stage8/files/vmware-lab/reports/
