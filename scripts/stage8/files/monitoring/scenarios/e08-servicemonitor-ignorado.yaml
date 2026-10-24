@@ -1,0 +1,71 @@
+# Escenario E08 de la Etapa 8.8 — ServiceMonitor que Prometheus ignora
+# Una segunda instancia de podinfo ("catalogo") con su Service y un ServiceMonitor con dos fallos típicos (y un tercero de red):
+#   1. sin la etiqueta release: kube-prometheus-stack  -> el Prometheus del chart no lo selecciona
+#   2. port: metrics, pero el puerto del Service se llama http -> aunque se seleccione, no hay endpoints que rascar
+#   3. (si están las NetworkPolicies de la 8.4) nada permite la entrada desde monitoring -> objetivo DOWN por timeout
+# Aplicar: kubectl apply -f scenarios/e08-servicemonitor-ignorado.yaml   (la guía dice cómo diagnosticar y arreglar)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalogo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: catalogo
+    lab/escenario: "E08"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalogo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalogo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.15.0
+          command: ["./podinfo", "--port=9898"]
+          ports:
+            - {name: http, containerPort: 9898}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: catalogo
+    lab/escenario: "E08"
+spec:
+  selector:
+    app.kubernetes.io/name: catalogo
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: catalogo
+  namespace: demo
+  labels: {lab/escenario: "E08"}
+  # (fallo 1) falta la etiqueta  release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalogo
+  endpoints:
+    - port: metrics          # (fallo 2) el puerto del Service se llama "http"
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,19 @@
+# Se aplica en la 8.8, cuando ya existen los CRDs del Prometheus Operator (antes da
+# "no matches for kind ServiceMonitor").
+# Le dice al Prometheus Operator QUÉ rascar. Sin la etiqueta release: kube-prometheus-stack
+# el Prometheus del chart no lo selecciona (escenario E08 de la 8.8).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo
+  namespace: demo
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

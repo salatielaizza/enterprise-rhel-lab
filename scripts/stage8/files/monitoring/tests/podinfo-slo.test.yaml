@@ -1,0 +1,38 @@
+# Pruebas unitarias de las alertas de podinfo con promtool (sin clúster):
+#   promtool test rules tests/podinfo-slo.test.yaml
+# Simula series de tiempo y comprueba qué alertas están disparadas en cada momento.
+# Es lo que un pipeline de CI (8.11) ejecuta antes de dejar subir una regla nueva.
+rule_files:
+  - podinfo-slo.rules.yaml
+evaluation_interval: 30s
+tests:
+  - name: "10 % de errores 5xx durante 10 minutos -> PodinfoErroresAltos"
+    interval: 30s
+    input_series:
+      # 18 peticiones correctas y 2 con error cada 30 s: 10 % de errores
+      - series: 'http_requests_total{namespace="demo", status="200"}'
+        values: '0+18x40'
+      - series: 'http_requests_total{namespace="demo", status="500"}'
+        values: '0+2x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: PodinfoErroresAltos
+        exp_alerts: []                       # aún dentro del "for: 2m": pendiente, no disparada
+      - eval_time: 10m
+        alertname: PodinfoErroresAltos
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              namespace: demo
+            exp_annotations:
+              summary: "podinfo: 10% de respuestas 5xx (umbral 5 %)"
+              description: "Más del 5 % de las peticiones a podinfo terminan en 5xx desde hace 2 minutos."
+  - name: "Solo respuestas 200 -> ninguna alerta de errores"
+    interval: 30s
+    input_series:
+      - series: 'http_requests_total{namespace="demo", status="200"}'
+        values: '0+20x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: PodinfoErroresAltos
+        exp_alerts: []

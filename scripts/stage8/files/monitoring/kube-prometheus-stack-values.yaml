@@ -1,0 +1,100 @@
+# =============================================================================
+# Valores de kube-prometheus-stack (chart 88.6.2) — Etapa 8.8
+#   helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     --version 88.6.2 -n monitoring -f kube-prometheus-stack-values.yaml
+# Lo mismo lo despliega Terraform en la 8.9 (helm_release con este mismo fichero).
+#
+# Qué instala: Prometheus Operator, Prometheus, Alertmanager, Grafana, node-exporter
+# (un pod por nodo) y kube-state-metrics, más ~150 reglas de alerta y ~25 dashboards de serie.
+# =============================================================================
+fullnameOverride: kps                      # nombres cortos: kps-prometheus, kps-alertmanager...
+
+grafana:
+  admin:
+    existingSecret: grafana-admin          # sin contraseña por defecto: Secret creado antes (8.8, paso 2)
+    userKey: admin-user
+    passwordKey: admin-password
+  service:
+    type: LoadBalancer
+    annotations:
+      metallb.io/loadBalancerIPs: 10.10.10.111   # grafana.lab.local
+    port: 80
+  defaultDashboardsTimezone: browser
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard             # cualquier ConfigMap con esta etiqueta se carga como dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  persistence:
+    enabled: false                         # dashboards como código (ConfigMaps): no hace falta disco
+
+prometheus:
+  service:
+    type: LoadBalancer
+    annotations:
+      metallb.io/loadBalancerIPs: 10.10.10.112   # prometheus.lab.local
+  prometheusSpec:
+    retention: 7d
+    retentionSize: 8GB                     # lo que se cumpla antes; el PVC es de 10 Gi
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    resources:
+      requests: {cpu: 200m, memory: 768Mi}
+      limits: {memory: 1536Mi}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    # Las VMs del lab (fuera del clúster) con node_exporter: escenario E12
+    additionalScrapeConfigs:
+      - job_name: lab-vms
+        static_configs:
+          - targets: ["dns01.lab.local:9100", "ansible01.lab.local:9100"]
+            labels:
+              entorno: lab
+
+alertmanager:
+  service:
+    type: LoadBalancer
+    annotations:
+      metallb.io/loadBalancerIPs: 10.10.10.113   # alertmanager.lab.local
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: "null"                 # Watchdog: la alerta que SIEMPRE suena (prueba de vida)
+          matchers: ['alertname = "Watchdog"']
+        - receiver: guardia
+          matchers: ['severity =~ "warning|critical"']
+          continue: false
+    inhibit_rules:
+      - source_matchers: ['severity = "critical"']
+        target_matchers: ['severity = "warning"']
+        equal: ["alertname", "namespace"]
+    receivers:
+      - name: "null"
+      - name: guardia                      # "el móvil de guardia": un webhook que solo registra lo que le llega
+        webhook_configs:
+          - url: http://alert-receiver.monitoring.svc.cluster.local:8080/
+            send_resolved: true
+
+kubeControllerManager:
+  endpoints: [10.10.10.100]
+kubeScheduler:
+  endpoints: [10.10.10.100]
+kubeEtcd:
+  endpoints: [10.10.10.100]
+  service:
+    port: 2381
+    targetPort: 2381

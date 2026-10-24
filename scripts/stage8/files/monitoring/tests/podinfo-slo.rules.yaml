@@ -1,0 +1,53 @@
+# GENERADO desde ../rules/podinfo-slo.yaml (spec.groups) para promtool: no editar a mano.
+# Regenerar: python3 -c "import yaml; d=yaml.safe_load(open('rules/podinfo-slo.yaml')); yaml.safe_dump({'groups': d['spec']['groups']}, open('tests/podinfo-slo.rules.yaml', 'w'), allow_unicode=True, sort_keys=False)"
+groups:
+- name: podinfo.red
+  interval: 30s
+  rules:
+  - record: podinfo:http_requests:rate5m
+    expr: sum by (namespace) (rate(http_requests_total{namespace="demo"}[5m]))
+  - record: podinfo:http_errors:ratio_rate5m
+    expr: "sum by (namespace) (rate(http_requests_total{namespace=\"demo\", status=~\"\
+      5..\"}[5m]))\n  /\nsum by (namespace) (rate(http_requests_total{namespace=\"\
+      demo\"}[5m]))\n"
+  - record: podinfo:http_latency:p95_5m
+    expr: "histogram_quantile(0.95,\n  sum by (le, namespace) (rate(http_request_duration_seconds_bucket{namespace=\"\
+      demo\"}[5m])))\n"
+- name: podinfo.alertas
+  rules:
+  - alert: PodinfoErroresAltos
+    expr: podinfo:http_errors:ratio_rate5m > 0.05
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: 'podinfo: {{ $value | humanizePercentage }} de respuestas 5xx (umbral
+        5 %)'
+      description: Más del 5 % de las peticiones a podinfo terminan en 5xx desde hace
+        2 minutos.
+  - alert: PodinfoLatenciaAlta
+    expr: podinfo:http_latency:p95_5m > 1
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: 'podinfo: p95 de latencia {{ $value | humanizeDuration }} (umbral 1
+        s)'
+  - alert: PodinfoSinTrafico
+    expr: podinfo:http_requests:rate5m < 0.1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: podinfo no recibe tráfico (¿loadgen parado o Service sin endpoints?)
+  - alert: ContenedorOOMKilled
+    expr: "increase(kube_pod_container_status_restarts_total[10m]) > 0\n  and on (namespace,\
+      \ pod, container)\nkube_pod_container_status_last_terminated_reason{reason=\"\
+      OOMKilled\"} == 1\n"
+    labels:
+      severity: warning
+    annotations:
+      summary: '{{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container }})
+        reiniciado por OOMKilled'
+      description: El contenedor superó su límite de memoria. Revisa limits.memory
+        o una fuga de memoria.

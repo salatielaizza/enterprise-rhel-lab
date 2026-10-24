@@ -1,0 +1,63 @@
+# =============================================================================
+# Reglas propias para podinfo — escenarios E04 (errores) y E05 (latencia) de la 8.8.
+# Método RED: Rate (tráfico), Errors (errores), Duration (latencia).
+# Primero REGLAS DE GRABACIÓN (precalculan la serie) y después ALERTAS sobre ellas.
+# La etiqueta release: kube-prometheus-stack hace que el Prometheus del chart la cargue.
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: podinfo-slo
+  namespace: demo
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: podinfo.red
+      interval: 30s
+      rules:
+        - record: podinfo:http_requests:rate5m
+          expr: sum by (namespace) (rate(http_requests_total{namespace="demo"}[5m]))
+        - record: podinfo:http_errors:ratio_rate5m
+          expr: |
+            sum by (namespace) (rate(http_requests_total{namespace="demo", status=~"5.."}[5m]))
+              /
+            sum by (namespace) (rate(http_requests_total{namespace="demo"}[5m]))
+        - record: podinfo:http_latency:p95_5m
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, namespace) (rate(http_request_duration_seconds_bucket{namespace="demo"}[5m])))
+    - name: podinfo.alertas
+      rules:
+        - alert: PodinfoErroresAltos
+          expr: podinfo:http_errors:ratio_rate5m > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "podinfo: {{ $value | humanizePercentage }} de respuestas 5xx (umbral 5 %)"
+            description: "Más del 5 % de las peticiones a podinfo terminan en 5xx desde hace 2 minutos."
+        - alert: PodinfoLatenciaAlta
+          expr: podinfo:http_latency:p95_5m > 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "podinfo: p95 de latencia {{ $value | humanizeDuration }} (umbral 1 s)"
+        - alert: PodinfoSinTrafico
+          expr: podinfo:http_requests:rate5m < 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "podinfo no recibe tráfico (¿loadgen parado o Service sin endpoints?)"
+        - alert: ContenedorOOMKilled
+          expr: |
+            increase(kube_pod_container_status_restarts_total[10m]) > 0
+              and on (namespace, pod, container)
+            kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container }}) reiniciado por OOMKilled"
+            description: "El contenedor superó su límite de memoria. Revisa limits.memory o una fuga de memoria."

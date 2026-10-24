@@ -1,0 +1,74 @@
+# =============================================================================
+# podinfo — aplicación de ejemplo de la Etapa 8 (namespace demo)
+# Expone métricas Prometheus en /metrics (puerto http 9898):
+#   http_requests_total{status}                         contador de peticiones por código
+#   http_request_duration_seconds_bucket{method,path,status}  histograma de latencia
+# y trae averías "de serie" para los escenarios de la 8.8: /status/{code}, /delay/{s},
+# /panic, POST /readyz/disable, y los flags --random-error, --stress-cpu, --stress-memory.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: podinfo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: podinfo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.15.0
+          command: ["./podinfo", "--port=9898", "--level=info"]
+          ports:
+            - {name: http, containerPort: 9898}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: podinfo
+  annotations:
+    metallb.io/loadBalancerIPs: 10.10.10.114      # podinfo.lab.local
+spec:
+  type: LoadBalancer
+  # Local: conserva la IP real del cliente (sin SNAT). Necesario para que la NetworkPolicy
+  # "podinfo-desde-red-del-lab" (ipBlock 10.10.10.0/24) vea 10.10.10.x y no la IP del túnel de Calico.
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: podinfo
+  ports:
+    - {name: http, port: 80, targetPort: http}

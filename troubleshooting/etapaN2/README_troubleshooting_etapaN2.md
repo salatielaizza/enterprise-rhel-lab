@@ -43,7 +43,7 @@ Relacionados de otras etapas: [etapa2/04](../etapa2/04-selinux-denial.md) (etiqu
 [etapa3/01](../etapa3/01-firewall-block.md) (firewalld), [etapa4/03](../etapa4/03-time-sync-failure.md) (hora),
 [etapa6/01](../etapa6/01-log-verbose-set-e-lab-healthcheck.md) (`set -e`),
 [etapa7/03](../etapa7/03-group-vars-ubicacion-incorrecta.md) (fuente de verdad del proyecto Ansible),
-[etapa8/01](../etapa8/01-preflight-pipefail-sigpipe.md) (`| grep -q` con `pipefail`).
+[etapa9/01](../etapa9/01-preflight-pipefail-sigpipe.md) (`| grep -q` con `pipefail`).
 
 ---
 
@@ -158,7 +158,7 @@ Claves del `docker-compose.yml`:
 | `cp -a files/siem-lab/. ~adminlab/siem-lab/` | Recopia el proyecto en cada ejecución | La fuente de verdad es git (caso etapa7/03) |
 | `runuser -l adminlab -c "cd ~/siem-lab && ansible-playbook ..."` | Ejecuta como `adminlab` | Su clave SSH, su `ansible.cfg` y su Vault |
 | `inventory = /home/adminlab/ansible-lab/inventory/hosts.ini` | Reutiliza el inventario de la Etapa 7 | Las `group_vars` junto al inventario se cargan igual |
-| `semanage port -l \| awk '... END { exit !f }'` | ¿5140 ya es `syslogd_port_t`? | Un solo `awk` lee toda la entrada: sin SIGPIPE con `pipefail` (etapa8/01) |
+| `semanage port -l \| awk '... END { exit !f }'` | ¿5140 ya es `syslogd_port_t`? | Un solo `awk` lee toda la entrada: sin SIGPIPE con `pipefail` (etapa9/01) |
 | `semanage port -a -t syslogd_port_t -p tcp 5140` (o `-m`) | Permite a rsyslog conectar a ese puerto | Sin esto, AVC `name_connect` y no se reenvía nada |
 | `omfwd` + `RSYSLOG_SyslogProtocol23Format` | Reenvío en RFC 5424 | Graylog separa host, aplicación, PID y nivel |
 | `queue.type="LinkedList"` + `queue.filename` + `queue.saveOnShutdown` | Cola en memoria con desbordamiento a disco | No se pierde nada si el SIEM cae |

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Etapa 8 — VMware vSphere. Se ejecuta en ansible01 (en los demás hosts no hace nada):
+# Etapa 9 — VMware vSphere. Se ejecuta en ansible01 (en los demás hosts no hace nada):
 #   scripts/lab.sh test test_vmware.sh ansible01
 #
-# 1) Herramientas: venv propio de la Etapa 8, colecciones, pyVmomi, vault cifrado, PowerCLI.
+# 1) Herramientas: venv propio de la Etapa 9, colecciones, pyVmomi, vault cifrado, PowerCLI.
 # 2) DNS directo e inverso de esxi01-03, vcsa01 y rhel9-vm01 en dns01.
 # 3) vSphere, con playbooks/90-verify.yml (solo lectura), UNA etiqueta por check:
 #    cada objetivo se comprueba solo si está encendido (fase A: esxi01; fase B: vCenter),
@@ -26,20 +26,20 @@ as_admin() { runuser -l "$ADMIN" -c "$1"; }
 verify() { as_admin "cd '$PROJ' && ANSIBLE_DEPRECATION_WARNINGS=False '$VENV/bin/ansible-playbook' playbooks/90-verify.yml --tags $1"; }
 
 # --- 1) Herramientas ----------------------------------------------------------------
-check "venv de la Etapa 8 con ansible-playbook" test -x "$VENV/bin/ansible-playbook"
+check "venv de la Etapa 9 con ansible-playbook" test -x "$VENV/bin/ansible-playbook"
 check "ansible-core del venv >= 2.19" bash -c "'$VENV/bin/python' -c 'import ansible.release as r, sys; v=tuple(map(int, r.__version__.split(\".\")[:2])); sys.exit(0 if v >= (2, 19) else 1)'"
 check "pyVmomi importable en el venv" "$VENV/bin/python" -c 'import pyVmomi'
 coll_ok() { as_admin "'$VENV/bin/ansible-galaxy' collection list -p '$AH/.ansible/collections' 2>/dev/null" | grep -q "^$1 "; }
 check "colección community.vmware instalada" coll_ok community.vmware
 check "colección vmware.vmware instalada" coll_ok vmware.vmware
 check "proyecto ~/vmware-lab presente" test -f "$PROJ/ansible.cfg"
-check "vault.yml de la Etapa 8 cifrado" bash -c "head -1 '$PROJ/inventory/group_vars/all/vault.yml' | grep -q '^\$ANSIBLE_VAULT'"
+check "vault.yml de la Etapa 9 cifrado" bash -c "head -1 '$PROJ/inventory/group_vars/all/vault.yml' | grep -q '^\$ANSIBLE_VAULT'"
 vault_real() { ! as_admin "cd '$PROJ' && '$VENV/bin/ansible-vault' view inventory/group_vars/all/vault.yml" | grep -q CAMBIAR; }
 check "vault.yml sin marcadores 'CAMBIAR' (contraseñas reales puestas)" vault_real
 if command -v pwsh >/dev/null; then
   check "PowerCLI instalado para adminlab" bash -c "runuser -l $ADMIN -c \"pwsh -NoLogo -NoProfile -Command 'if (Get-Module -ListAvailable -Name VCF.PowerCLI, VMware.PowerCLI) { exit 0 } else { exit 1 }'\""
 else
-  info "PowerShell no instalado (stage8-setup --no-powercli): se omite PowerCLI"
+  info "PowerShell no instalado (stage9-setup --no-powercli): se omite PowerCLI"
 fi
 
 # --- 2) DNS ---------------------------------------------------------------------------

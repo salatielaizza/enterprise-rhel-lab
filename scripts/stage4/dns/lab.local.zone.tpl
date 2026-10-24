@@ -16,7 +16,22 @@ rhel10-app01    IN  A   10.10.10.14
 dns01           IN  A   10.10.10.20
 ansible01       IN  A   10.10.10.30
 
-; Etapa 8 — VMware vSphere. Se crean ANTES de instalar: vCenter exige A y PTR correctos
+; Etapa 8 — Kubernetes/OpenShift. k8s-api = controlPlaneEndpoint de kubeadm (hoy el único nodo de
+; control; con un segundo nodo de control solo cambia este registro). .110-.119 = pool de MetalLB.
+k8s-cp01        IN  A   10.10.10.100
+k8s-w01         IN  A   10.10.10.101
+k8s-w02         IN  A   10.10.10.102
+k8s-api         IN  A   10.10.10.100
+ingress         IN  A   10.10.10.110
+grafana         IN  A   10.10.10.111
+prometheus      IN  A   10.10.10.112
+alertmanager    IN  A   10.10.10.113
+podinfo         IN  A   10.10.10.114
+gitea           IN  A   10.10.10.115
+argocd          IN  A   10.10.10.116
+tienda          IN  A   10.10.10.117
+
+; Etapa 9 — VMware vSphere. Se crean ANTES de instalar: vCenter exige A y PTR correctos
 ; desde el primer momento (su instalador falla en la fase 2 si no los encuentra).
 esxi01          IN  A   10.10.10.60
 esxi02          IN  A   10.10.10.61

@@ -1,0 +1,59 @@
+# =============================================================================
+# kubeadm-config.yaml — Etapa 8.2: configuración del clúster (en k8s-cp01)
+#   sudo kubeadm init --config kubeadm-config.yaml --upload-certs
+#
+# Decisiones:
+#   - controlPlaneEndpoint = k8s-api.lab.local (registro DNS en dns01): añadir un 2.º
+#     nodo de control más adelante solo cambia ese registro, no el certificado.
+#   - Red de pods 10.244.0.0/16 y de servicios 10.96.0.0/12: no chocan con 10.10.10.0/24
+#     (lab), 192.168.122.0/24 (red default de libvirt) ni la red de casa.
+#   - controller-manager, scheduler, etcd y kube-proxy exponen MÉTRICAS fuera de 127.0.0.1:
+#     si no, kube-prometheus-stack los da por caídos (TargetDown falsos; escenario E00 de la 8.8).
+#     firewalld solo deja llegar a esos puertos desde la red del lab.
+# =============================================================================
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: 10.10.10.100
+  bindPort: 6443
+nodeRegistration:
+  name: k8s-cp01
+  criSocket: unix:///run/containerd/containerd.sock
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+clusterName: lab-k8s
+kubernetesVersion: v1.36.5          # una versión por detrás de la última: la 8.12 practica el upgrade a 1.37
+controlPlaneEndpoint: k8s-api.lab.local:6443
+networking:
+  dnsDomain: cluster.local
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/12
+apiServer:
+  certSANs:
+    - k8s-api.lab.local
+    - k8s-cp01.lab.local
+    - 10.10.10.100
+controllerManager:
+  extraArgs:                         # v1beta4: lista de {name, value}
+    - name: bind-address
+      value: 0.0.0.0
+scheduler:
+  extraArgs:
+    - name: bind-address
+      value: 0.0.0.0
+etcd:
+  local:
+    extraArgs:
+      - name: listen-metrics-urls
+        value: http://0.0.0.0:2381
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd                # el mismo que containerd (SystemdCgroup = true)
+containerLogMaxSize: 10Mi            # /var del kickstart tiene 4 GB: logs de pods acotados
+containerLogMaxFiles: 3
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+metricsBindAddress: 0.0.0.0:10249

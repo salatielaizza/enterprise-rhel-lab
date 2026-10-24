@@ -26,9 +26,9 @@ evidence/
 # Apuntes y ejercicios personales (p. ej. practica/etapa7-ansible.md): solo en local, nunca en GitHub
 practica/
 
-# Etapa 8 (VMware): el vault real solo vive en ansible01; informes de PowerCLI
-scripts/stage8/files/vmware-lab/inventory/group_vars/all/vault.yml
-scripts/stage8/files/vmware-lab/reports/
+# Etapa 9 (VMware): el vault real solo vive en ansible01; informes de PowerCLI
+scripts/stage9/files/vmware-lab/inventory/group_vars/all/vault.yml
+scripts/stage9/files/vmware-lab/reports/
 *.dryrun.KS.CFG
 lab_esxi_rsa*
 
@@ -39,3 +39,9 @@ scripts/stageN2/files/graylog/.env
 *.rpm
 __pycache__/
 scripts/ll
+
+# Etapa 8 (Terraform): el estado y los planes guardan secretos en claro; .terraform/ son providers descargados
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan

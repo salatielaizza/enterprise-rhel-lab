@@ -1,0 +1,36 @@
+# Escenario E03 de la Etapa 8.8 — CPU throttling: un núcleo al 100 % con un límite de 0,1 CPU
+# Aplicar:  kubectl apply -f scenarios/e03-cpu-throttling.yaml       Deshacer:  kubectl delete -f scenarios/e03-cpu-throttling.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: e03-cpu
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: e03-cpu
+    lab/escenario: "E03"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: e03-cpu
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: e03-cpu
+        lab/escenario: "E03"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: ghcr.io/stefanprodan/podinfo:6.15.0
+          command: ["./podinfo", "--port=9898", "--stress-cpu=1"]
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}

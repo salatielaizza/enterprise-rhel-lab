@@ -34,4 +34,4 @@ SELinux en Enforcing con contextos propios saneados, auditoría (auditd) vigilan
 
 ## Ampliaciones futuras (fuera del alcance actual de esta etapa)
 - Más pruebas de auditoría: creación/baja de usuarios de prueba controlados, vigilancia de `su`/`sudo` de un usuario concreto.
-- Desplegar una aplicación de demostración servida por Apache httpd o NGINX (Etapa 9) y repetir este mismo hardening (SELinux, auditd) sobre un servicio web real, para comparar.
+- Desplegar una aplicación de demostración servida por Apache httpd o NGINX (Etapas 12a/12b) y repetir este mismo hardening (SELinux, auditd) sobre un servicio web real, para comparar.

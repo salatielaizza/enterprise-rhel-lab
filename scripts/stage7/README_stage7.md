@@ -371,4 +371,4 @@ scripts/lab.sh test all all                                 # 0 FAIL; test_ansib
 - Checklist: [`checklists/etapa7.md`](../../checklists/etapa7.md)
 - Tema: [`automation/ansible.md`](../../automation/ansible.md)
 - Guía de estudio y casos reales: [`README_troubleshooting_etapa7.md`](../../troubleshooting/etapa7/README_troubleshooting_etapa7.md)
-- La Etapa 8 reutiliza sus roles, su clave SSH y su contraseña de Vault: [`scripts/stage8/README_stage8.md`](../stage8/README_stage8.md)
+- La Etapa 9 reutiliza sus roles, su clave SSH y su contraseña de Vault: [`scripts/stage9/README_stage9.md`](../stage9/README_stage9.md)

@@ -34,4 +34,4 @@ Escribir y desplegar herramientas propias en bash "de producción" (`set -euo pi
 
 ## Ampliaciones futuras (fuera del alcance actual de esta etapa)
 - Pruebas que creen usuarios de prueba de forma controlada, para practicar automatización de altas/bajas.
-- Extender `lab-logscan.sh` para analizar logs de un servidor web (Apache httpd/NGINX) cuando se despliegue en la Etapa 9, comparando el mismo enfoque de scripting sobre un servicio distinto a SSH.
+- Extender `lab-logscan.sh` para analizar logs de un servidor web (Apache httpd/NGINX) cuando se despliegue en las Etapas 12a/12b, comparando el mismo enfoque de scripting sobre un servicio distinto a SSH.

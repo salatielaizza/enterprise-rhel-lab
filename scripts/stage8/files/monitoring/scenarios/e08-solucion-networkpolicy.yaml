@@ -1,0 +1,23 @@
+# Escenario E08 de la Etapa 8.8 — fallo 3 (solo si aplicaste las NetworkPolicies de la 8.4)
+# El namespace demo deniega por defecto la entrada: Prometheus (namespace monitoring) no llega a catalogo:9898
+# y el objetivo sale DOWN con "context deadline exceeded". Esta política abre SOLO ese acceso.
+# Aplicar: kubectl apply -f scenarios/e08-solucion-networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: catalogo-desde-monitoring
+  namespace: demo
+  labels:
+    lab/escenario: "E08"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: catalogo
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - {protocol: TCP, port: 9898}

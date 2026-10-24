@@ -74,10 +74,14 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 | [06 marca-etapa7-no-se-aplica-ni-se-comprueba](etapa7/06-marca-etapa7-no-se-aplica-ni-se-comprueba.md) 🔎 | `lab.sh stage7 site` no copiaba `03-mark-stage.sh` a los nodos, el test de la marca usaba una función de `lib.sh` dentro de `bash -c` y `ansible01` nunca se marcaba (su `test_ansible` no se ejecutaba) |
 | [07 molecule-escenario-nunca-ejecutado](etapa7/07-molecule-escenario-nunca-ejecutado.md) 🔎 | El escenario de Molecule del rol `common` nunca se había ejecutado: Docker → Podman, credenciales caducadas de Docker Hub en el equipo host, `sudo` siendo root en el contenedor y ruta de roles |
 
-## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
+## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — Kubernetes y OpenShift, Prometheus/Grafana, Terraform (0 casos)
+Etapa pendiente. Los escenarios provocados de la 8.8 (monitorización) y la 8.9 (Terraform) están en
+[`kubernetes/`](../kubernetes/etapa8-kubernetes-openshift.md); aquí irán los casos reales al ejecutarla.
+
+## [Etapa 9](etapa9/README_troubleshooting_etapa9.md) — VMware vSphere: ESXi anidado, vCenter, PowerCLI (1 caso)
 | Caso | Tema |
 |---|---|
-| [01 preflight-pipefail-sigpipe](etapa8/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
+| [01 preflight-pipefail-sigpipe](etapa9/01-preflight-pipefail-sigpipe.md) 🔎 | Preflight: "red lab-net no activa" con la red activa (`cmd \| grep -q` + `pipefail` → SIGPIPE 141) |
 
 ## [Etapa N2](etapaN2/README_troubleshooting_etapaN2.md) — SIEM: Graylog, OpenSearch, Syslog, NXLog, Docker, k3s y VMware (4 casos)
 | Caso | Tema |

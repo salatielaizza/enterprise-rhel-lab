@@ -1,0 +1,56 @@
+# =============================================================================
+# Gitea con Helm — Etapa 8.7 (repositorio Git dentro del clúster; la 8.11 lo usa para GitOps con Argo CD)
+# Una sola réplica con SQLite: sin PostgreSQL ni Valkey (los subcharts que el chart trae activados
+# por defecto pedirían varios GB de RAM). Antes de instalar, compara con los valores del chart:
+#   helm show values gitea-charts/gitea --version <versión> | less
+# Los nombres de claves de este fichero son los del README del chart ("single-pod"); si una versión
+# nueva los cambia, helm lo ignorará en silencio: compruébalo con  helm get values gitea -n gitea
+# =============================================================================
+gitea:
+  admin:
+    existingSecret: gitea-admin        # claves username y password (se crea a mano, nunca en el repo)
+    email: adminlab@lab.local
+  config:
+    server:
+      DOMAIN: gitea.lab.local
+      ROOT_URL: http://gitea.lab.local/
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+    service:
+      DISABLE_REGISTRATION: true       # las cuentas las crea el administrador
+
+postgresql-ha:
+  enabled: false
+postgresql:
+  enabled: false
+valkey-cluster:
+  enabled: false
+valkey:
+  enabled: false
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: local-path            # 8.5: el volumen queda en el nodo donde arranque el pod
+
+strategy:
+  type: Recreate                      # volumen ReadWriteOnce: dos pods a la vez no pueden montarlo
+
+service:
+  http:
+    type: LoadBalancer
+    port: 80
+    annotations:
+      metallb.io/loadBalancerIPs: 10.10.10.115    # gitea.lab.local
+  ssh:
+    type: ClusterIP                   # en el lab se clona por HTTP
+
+resources:
+  requests: {cpu: 100m, memory: 256Mi}
+  limits: {cpu: 500m, memory: 512Mi}

@@ -1,0 +1,51 @@
+# =============================================================================
+# Alertas de las VMs del lab que NO están en el clúster (job lab-vms) — escenario E12.
+# node_exporter en dns01 y ansible01; el colector systemd informa del estado de named.
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lab-vms
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: lab.vms
+      rules:
+        - alert: VMDelLabCaida
+          expr: up{job="lab-vms"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.instance }} no responde a Prometheus desde hace 1 minuto"
+        - alert: DNSdelLabParado
+          expr: node_systemd_unit_state{job="lab-vms", name="named.service", state="active"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "named parado en {{ $labels.instance }}: el lab se queda sin DNS"
+        - alert: VMDelLabDiscoCasiLleno
+          expr: |
+            (node_filesystem_avail_bytes{job="lab-vms", fstype=~"xfs|ext4"}
+              / node_filesystem_size_bytes{job="lab-vms", fstype=~"xfs|ext4"}) < 0.15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.instance }}: {{ $labels.mountpoint }} con menos del 15 % libre"
+    - name: lab.nodos-k8s
+      rules:
+        # Las reglas de serie (NodeFilesystemAlmostOutOfSpace) esperan 30 min antes de avisar: en el lab
+        # se quiere ver el efecto en 2 min (escenario E10). En producción, la de serie es la buena.
+        - alert: NodoK8sDiscoCasiLleno
+          expr: |
+            (node_filesystem_avail_bytes{job="node-exporter", fstype=~"xfs|ext4", mountpoint=~"/var/lib/(kubelet|containerd|local-path)"}
+              / node_filesystem_size_bytes{job="node-exporter", fstype=~"xfs|ext4", mountpoint=~"/var/lib/(kubelet|containerd|local-path)"}) < 0.10
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.instance }}: {{ $labels.mountpoint }} con menos del 10 % libre (el kubelet empezará a desalojar pods)"

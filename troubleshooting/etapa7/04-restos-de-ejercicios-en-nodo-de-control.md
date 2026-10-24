@@ -43,7 +43,7 @@ En la Fase 11 (2026-10-04) los 5 hosts daban `changed=0` en 4 ejecuciones seguid
 |---|---|
 | Los nodos se actualizaron (cambio de `distribution_version` en el template) | El `--diff` mostró que las líneas `distro:` no cambiaban (`RedHat 8.6`, `RedHat 9.8`) |
 | Alguien editó `/etc/ansible-lab-managed.txt` a mano en los nodos | El contenido `before` era el correcto (`Europe/Madrid`): lo que cambiaba era el valor **objetivo** |
-| Los ficheros de prueba se colaron en el repo (por ejemplo en los commits de la Etapa 8) | `find scripts/stage7/files/inventory -type f` solo muestra `hosts.ini`, `group_vars/all/vars.yml` y `dynamic_inventory_demo.py`; `git status -s` vacío |
+| Los ficheros de prueba se colaron en el repo (por ejemplo en los commits de la etapa de VMware) | `find scripts/stage7/files/inventory -type f` solo muestra `hosts.ini`, `group_vars/all/vars.yml` y `dynamic_inventory_demo.py`; `git status -s` vacío |
 | La tarea "Fijar huso" no se iba a ejecutar porque salía `skipping` | Ver Diagnóstico: en `--check` el `skipping` ocultaba un *"Command would have run"* |
 
 ## Diagnóstico

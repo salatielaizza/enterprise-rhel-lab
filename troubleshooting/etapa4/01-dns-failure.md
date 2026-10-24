@@ -33,4 +33,4 @@ Evidencia clave: ICMP OK + puerto 53 sin respuesta ⇒ el problema está en el *
 `dig @10.10.10.20 rhel7-app01.lab.local +short` → 10.10.10.11; `scripts/lab.sh test test_dns.sh rhel9-app01`.
 
 ## Prevención
-Validar siempre con `named-checkconf -z` y `named-checkzone` antes de recargar; segundo DNS (futuro); monitorización de 53/udp (Etapa 11).
+Validar siempre con `named-checkconf -z` y `named-checkzone` antes de recargar; segundo DNS (futuro); monitorización de 53/udp (Etapas 8 y 17).

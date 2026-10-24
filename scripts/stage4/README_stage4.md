@@ -24,7 +24,7 @@ scripts/lab.sh host-dns                    # opcional: el host resuelve *.lab.lo
 | `02-setup-chrony.sh --role server\|client` | todas | Servidor: pool público + `allow 10.10.10.0/24` + `local stratum 10`. Cliente: única fuente `10.10.10.20` | `/etc/chrony.conf`, firewalld (`ntp`, solo servidor) | `chrony.conf.lab-orig`; bloque entre marcas `BEGIN/END lab-chrony` (repetible); fuentes originales comentadas con `#lab-disabled#` (reversible) |
 | `03-ssh-hardening.sh` | todas | `PermitRootLogin no`, solo claves, `MaxAuthTries 3`, `AllowGroups`, `UseDNS no`... + usuario `sftpdemo` en chroot | `sshd_config` o drop-in `00-lab-hardening.conf` (RHEL 9/10), `/srv/sftp/`, SELinux | `sshd_config.lab-bak.<fecha>`; `sshd -t` y, si falla, **restaura y no recarga**; `reload` (no `restart`) para no cortar sesiones; aborta si `adminlab` no tiene clave o no está en `sysadmins` |
 | `dns/named.conf` | — | Escucha en `127.0.0.1` y `10.10.10.20`, recursión solo para el lab, forwarder `10.10.10.1` | — | — |
-| `dns/lab.local.zone.tpl` · `dns/10.10.10.rev.tpl` | — | Zona directa e inversa (también los registros reservados de la Etapa 8: `esxi01-03`, `vcsa01`, `rhel9-vm01`) | — | Son la **fuente de verdad**: un cambio se aplica con `lab.sh stage4-dns` |
+| `dns/lab.local.zone.tpl` · `dns/10.10.10.rev.tpl` | — | Zona directa e inversa (también los registros reservados de la Etapa 9: `esxi01-03`, `vcsa01`, `rhel9-vm01`) | — | Son la **fuente de verdad**: un cambio se aplica con `lab.sh stage4-dns` |
 
 Los scripts terminan con `set_stage 4`.
 

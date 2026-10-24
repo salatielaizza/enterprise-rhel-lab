@@ -1,0 +1,36 @@
+# Escenario E09 de la Etapa 8.8 — ImagePullBackOff: despliegue con una versión de imagen que no existe
+# Aplicar:  kubectl apply -f scenarios/e09-imagen-inexistente.yaml       Deshacer:  kubectl delete -f scenarios/e09-imagen-inexistente.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: e09-version
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: e09-version
+    lab/escenario: "E09"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: e09-version
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: e09-version
+        lab/escenario: "E09"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: ghcr.io/stefanprodan/podinfo:6.99.99
+          command: ["./podinfo", "--port=9898"]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}

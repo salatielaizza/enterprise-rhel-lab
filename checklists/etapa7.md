@@ -71,7 +71,7 @@
 - Molecule prueba un rol en un contenedor desechable antes de tocar servidores.
 
 ## Ampliaciones futuras (fuera del alcance actual de esta etapa)
-- Un rol `lab_webapp` que despliegue una app de demostración con Apache httpd o NGINX (Etapa 9), reutilizando `group_vars`/`roles` de esta etapa.
+- Un rol `lab_webapp` que despliegue una app de demostración con Apache httpd o NGINX (Etapas 12a/12b), reutilizando `group_vars`/`roles` de esta etapa.
 - `ansible-lint` en un hook de pre-commit, si se instala en el equipo host.
 - Mover el inventario dinámico de demo a su propio directorio (p. ej. `inventory_demo/`), para que no herede los `group_vars/` ni el vault del lab; implica actualizar `02-run-playbook.sh`, el playbook, los tests y la documentación.
 - Un inventario dinámico DE VERDAD sobre las propias VMs del lab (no el de demo, que es deliberadamente ficticio), generado desde `results/facts/` o `virsh list`.

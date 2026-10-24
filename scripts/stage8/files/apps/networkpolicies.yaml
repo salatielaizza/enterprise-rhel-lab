@@ -1,0 +1,68 @@
+# =============================================================================
+# NetworkPolicies del namespace demo — Etapa 8.4 (Calico las aplica)
+# Modelo "denegar por defecto y abrir lo justo". Prueba de cada regla en la guía.
+# Si aplicas solo la primera, Prometheus deja de poder rascar podinfo (TargetDown: escenario
+# de la 8.8): una política de red mal hecha se ve en la monitorización antes que en otro sitio.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: denegar-entrada-por-defecto
+  namespace: demo
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: podinfo-desde-loadgen
+  namespace: demo
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: loadgen
+      ports:
+        - {protocol: TCP, port: 9898}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: podinfo-desde-monitoring
+  namespace: demo
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - {protocol: TCP, port: 9898}
+---
+# Acceso desde la red del lab (el navegador del host entra por la IP de MetalLB, .114)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: podinfo-desde-red-del-lab
+  namespace: demo
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.10.10.0/24
+      ports:
+        - {protocol: TCP, port: 9898}

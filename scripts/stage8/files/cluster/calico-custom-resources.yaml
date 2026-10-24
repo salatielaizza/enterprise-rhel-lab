@@ -1,0 +1,22 @@
+# Calico (operador Tigera) — Etapa 8.2. Se aplica DESPUÉS de:
+#   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/tigera-operator.yaml
+# Diferencia con el ejemplo oficial: la red de pods es la de kubeadm-config.yaml (10.244.0.0/16).
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    ipPools:
+      - name: default-ipv4-ippool
+        blockSize: 26
+        cidr: 10.244.0.0/16
+        encapsulation: VXLANCrossSubnet   # todos los nodos en la misma subred: sin encapsular entre ellos
+        natOutgoing: Enabled
+        nodeSelector: all()
+---
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}

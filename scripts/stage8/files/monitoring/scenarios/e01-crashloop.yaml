@@ -1,0 +1,36 @@
+# Escenario E01 de la Etapa 8.8 — CrashLoopBackOff: la aplicación arranca con un parámetro que no existe y termina al instante
+# Aplicar:  kubectl apply -f scenarios/e01-crashloop.yaml       Deshacer:  kubectl delete -f scenarios/e01-crashloop.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: e01-crash
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: e01-crash
+    lab/escenario: "E01"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: e01-crash
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: e01-crash
+        lab/escenario: "E01"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: ghcr.io/stefanprodan/podinfo:6.15.0
+          command: ["./podinfo", "--puerto=9898"]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}

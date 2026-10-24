@@ -1,0 +1,52 @@
+# =============================================================================
+# loadgen — tráfico constante contra podinfo (sin él, los paneles de tráfico salen vacíos)
+# Cambia PATHS para provocar errores o latencia (escenarios E04 y E05 de la 8.8):
+#   kubectl -n demo set env deploy/loadgen PATHS="/ /status/500 /status/503"
+#   kubectl -n demo set env deploy/loadgen PATHS="/ /delay/2"
+#   kubectl -n demo set env deploy/loadgen PATHS="/"          # vuelta a la normalidad
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: loadgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loadgen
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loadgen
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: loadgen
+          image: busybox:1.37
+          env:
+            - {name: TARGET, value: "http://podinfo.demo.svc.cluster.local"}
+            - {name: PATHS, value: "/"}
+            - {name: RPS, value: "5"}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                for p in $PATHS; do
+                  i=0
+                  while [ $i -lt "$RPS" ]; do wget -q -O /dev/null -T 5 "$TARGET$p" 2>/dev/null; i=$((i+1)); done
+                done
+                sleep 1
+              done
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 200m, memory: 32Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}

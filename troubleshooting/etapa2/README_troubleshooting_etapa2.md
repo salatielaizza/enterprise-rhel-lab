@@ -66,7 +66,7 @@ Todos los scripts cargan `common.sh` (`require_root`, `say`, `fatal`, `set_stage
 
 | Comando | Qué hace | Por qué |
 |---|---|---|
-| `getent group sysadmins` | Consulta si el grupo existe (en `/etc/group` o en cualquier fuente NSS) | `getent` respeta LDAP/SSSD; leer solo `/etc/group` no (importante en la Etapa 13) |
+| `getent group sysadmins` | Consulta si el grupo existe (en `/etc/group` o en cualquier fuente NSS) | `getent` respeta LDAP/SSSD; leer solo `/etc/group` no (importante en la Etapa 15, LDAP) |
 | `groupadd -g 2001 sysadmins` | Crea el grupo con un **GID fijo** | Los mismos IDs en todos los hosts: imprescindible para NFS, LDAP y Ansible |
 | `id devuser` | Muestra UID, GID y grupos; si el usuario no existe, falla | Comprobación idempotente |
 | `useradd -m -u 1002 -g developers -s /bin/bash -c "Lab devuser" devuser` | Crea el usuario | `-m` crea el home, `-u` UID fijo, `-g` grupo **primario**, `-s` shell, `-c` comentario (GECOS) |

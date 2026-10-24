@@ -1,9 +1,9 @@
 # Etapa N2 — SIEM: Graylog, OpenSearch/Elasticsearch, Syslog, NXLog, contenedores y VMware
 
 > **Prueba práctica y adelanto de tecnologías.** Monta en el lab un SIEM completo sobre entornos virtualizados
-> y contenedores, alimentado por las VMs que ya existen (Etapas 1-8), y practica su operación, su
-> troubleshooting y su documentación. Adelanta parte de las Etapas 12 (migraciones VMware → KVM),
-> 16 (monitorización), 17 (Docker) y 18 (Kubernetes), que mantienen su planificación completa.
+> y contenedores, alimentado por las VMs que ya existen (Etapas 1-7), y practica su operación, su
+> troubleshooting y su documentación. Adelanta parte de las Etapas 8 (Kubernetes),
+> 13 (migraciones VMware → KVM), 17 (monitorización) y 18 (Docker), que mantienen su planificación completa.
 >
 > **Estado: 📝 Planificada.** Automatización, tests y guía escritos y validados en estático (sintaxis,
 > `shellcheck`, `yamllint`, `ansible-lint`, `docker compose config`, `kubeconform` y pruebas de las
@@ -39,7 +39,7 @@ Operar un SIEM de punta a punta como se hace en un equipo de infraestructura:
                                 └──── GELF TCP 12201 ─────────────►└─ k3s (LV propio /var/lib/rancher)
                                                                        ├─ logging/fluent-bit (DaemonSet) ── GELF TCP ──► graylog
                                                                        └─ demo/pagos-demo (app que genera logs)
- VMware (Etapa 8): esxi01 .60 (gratuito) · esxi02/03 + vcsa01 (evaluación) ◄── VMDK / OVA / virt-v2v ──► KVM (host)
+ VMware (Etapa 9): esxi01 .60 (gratuito) · esxi02/03 + vcsa01 (evaluación) ◄── VMDK / OVA / virt-v2v ──► KVM (host)
 ```
 
 | Flujo | Origen → destino | Protocolo | Para qué |
@@ -58,7 +58,7 @@ Operar un SIEM de punta a punta como se hace en un equipo de infraestructura:
 | `siem01` | 4 vCPU · 10 GB RAM · 80 GB (qcow2 *thin*) | OpenSearch 1 GB de *heap*, Graylog ~1,5 GB, MongoDB 0,5 GB de caché, k3s ~0,7 GB |
 | VMs encendidas | `dns01`, `ansible01`, `siem01`, `rhel9-app01` (+ el resto de `app01` si hay margen) | ≈ 18-26 GB de los 31 GB del host |
 | Disco real estimado | 12-20 GB | Imágenes ~3 GB + índices; crece con la retención |
-| Etapa 8 (VMware) | Solo para la parte B del bloque 8 | Fase A (`esxi01`) basta; la fase B nunca a la vez que `siem01` (RAM) |
+| Etapa 9 (VMware) | Solo para la parte B del bloque 8 | Fase A (`esxi01`) basta; la fase B nunca a la vez que `siem01` (RAM) |
 
 Orden recomendado (cada bloque deja algo funcionando y verificable): 0 → 1 → 2 → 3 → 4 → 6 → 5 → 7 → 8 → 9 → 10.
 Los bloques 0-4 y 6 son el núcleo; 5, 7 y 8 amplían; 9 y 10 se repasan sobre lo ya montado.
@@ -505,7 +505,7 @@ scripts/lab.sh vm-convert import ~/lab-export/rhel9-app01/rhel9-app01-sparse.vmd
 virsh start rhel9-conv01 && virsh console rhel9-conv01           # login por consola: hostname, ip a, machine-id
 ```
 
-### Práctica — parte B (con `esxi01` de la Etapa 8, fase A)
+### Práctica — parte B (con `esxi01` de la Etapa 9, fase A)
 
 **KVM → ESXi** (por SSH y `vmkfstools`; funciona con el ESXi gratuito):
 
@@ -533,7 +533,7 @@ virt-xml rhel9-vm01-kvm --remove-device --network all      # misma regla: sin IP
 OVA a mano (`tar -cvf rhel9-vm01.ova rhel9-vm01.ovf rhel9-vm01.mf rhel9-vm01-disk1.vmdk`: el orden importa) o con
 `ovftool` (descarga gratuita de Broadcom). Importar un OVA en KVM: `scripts/lab.sh vm-convert import <fichero>.ova rhel9-ova01`.
 
-**Con vCenter** (fase B de la Etapa 8, API de escritura disponible): `govc import.ova`, `govc import.vmdk`,
+**Con vCenter** (fase B de la Etapa 9, API de escritura disponible): `govc import.ova`, `govc import.vmdk`,
 `govc export.ovf`, *Deploy OVF Template* y *Export OVF Template* en el vSphere Client, y bibliotecas de contenido.
 
 ### Avería provocada

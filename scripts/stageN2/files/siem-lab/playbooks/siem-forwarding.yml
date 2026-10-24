@@ -42,7 +42,7 @@
         state: present
       when: siem_state == 'present'
 
-    # Un solo awk que lee toda la salida: nada de 'semanage ... | grep -q' con pipefail (caso etapa8/01)
+    # Un solo awk que lee toda la salida: nada de 'semanage ... | grep -q' con pipefail (caso etapa9/01)
     - name: SELinux — comprobar si syslogd_port_t ya incluye tcp/{{ siem_port }}
       ansible.builtin.shell: >-
         set -o pipefail;

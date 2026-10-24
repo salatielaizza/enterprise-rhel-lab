@@ -77,12 +77,12 @@ scripts/lab.sh vm-convert export|import|inspect ...   # host: KVM <-> VMware
 - Etapas 1-5 en `siem01` (usuarios, red, DNS/hora/SSH, SELinux) y DNS regenerado (`lab.sh stage4-dns`).
 - `siem01` registrada en Red Hat y con salida a Internet (Docker Hub, `download.docker.com`, `get.k3s.io`).
 - `siem-forward`: Etapa 7 preparada (`lab.sh stage7-setup`). `siem-nxlog`: RPM de NXLog CE para RHEL 9 descargado en el host.
-- `vm-convert`: `qemu-utils`, `libguestfs-tools` y `virt-v2v` en el host; la parte ESXi, la fase A de la Etapa 8.
+- `vm-convert`: `qemu-utils`, `libguestfs-tools` y `virt-v2v` en el host; la parte ESXi, la fase A de la Etapa 9.
 
 ## Lecciones del proyecto aplicadas aquí
 
 - `if …; then …; fi` en vez de `[[ ]] && …` al final de funciones (caso `etapa6/01`).
-- Nada de `comando | grep -q` con `pipefail` (caso `etapa8/01`): `awk` que lee toda la entrada.
+- Nada de `comando | grep -q` con `pipefail` (caso `etapa9/01`): `awk` que lee toda la entrada.
 - `ausearch` siempre con `timeout` (caso `etapa2/06`).
 - La fuente de verdad del proyecto Ansible es git: se recopia en cada ejecución (caso `etapa7/03`).
 - DNS comparado con `dig @dns01` y `getent ahostsv4`, nunca con la primera línea de `getent hosts` (caso `etapaN2/02`).
@@ -102,4 +102,4 @@ scripts/lab.sh test all siem01                 # base del lab + SIEM en siem01
 - Guía: [`siem/etapaN2-siem.md`](../../siem/etapaN2-siem.md)
 - Checklist: [`checklists/etapaN2.md`](../../checklists/etapaN2.md)
 - Comandos explicados y averías: [`troubleshooting/etapaN2/README_troubleshooting_etapaN2.md`](../../troubleshooting/etapaN2/README_troubleshooting_etapaN2.md)
-- Base que reutiliza: Etapa 5 (auditd y SELinux, [`README_stage5.md`](../stage5/README_stage5.md)), Etapa 7 (Ansible, [`README_stage7.md`](../stage7/README_stage7.md)) y Etapa 8 (ESXi, [`README_stage8.md`](../stage8/README_stage8.md))
+- Base que reutiliza: Etapa 5 (auditd y SELinux, [`README_stage5.md`](../stage5/README_stage5.md)), Etapa 7 (Ansible, [`README_stage7.md`](../stage7/README_stage7.md)) y Etapa 9 (ESXi, [`README_stage9.md`](../stage9/README_stage9.md))
