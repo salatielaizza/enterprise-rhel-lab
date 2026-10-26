@@ -44,4 +44,5 @@ scripts/ll
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfstate.*
 *.tfplan

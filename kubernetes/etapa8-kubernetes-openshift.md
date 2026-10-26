@@ -27,44 +27,44 @@ Prometheus/Grafana, Terraform y Ansible, y GitOps/CI-CD.
    Pods 10.244.0.0/16 (Calico, VXLAN)   Services 10.96.0.0/12   LoadBalancer (MetalLB L2) .110-.119
 ```
 
-| Nombre (lab.local) | IP | Qué es | Subetapa |
-|---|---|---|---|
-| `k8s-cp01` / `k8s-api` | .100 | Plano de control (API, etcd, scheduler, controller-manager) | 8.2 |
-| `k8s-w01`, `k8s-w02` | .101, .102 | Nodos de trabajo | 8.2 |
-| `ingress` | .110 | Controlador de entrada (Traefik) | 8.4 |
-| `grafana` / `prometheus` / `alertmanager` | .111 / .112 / .113 | kube-prometheus-stack | 8.8 |
-| `podinfo` | .114 | Aplicación de ejemplo | 8.3-8.4 |
-| `gitea` | .115 | Git dentro del clúster | 8.7 |
-| `argocd` | .116 | GitOps | 8.11 |
-| `tienda` | .117 | App creada con Terraform | 8.9 |
+| Nombre (lab.local)                        | IP                 | Qué es                                                      | Subetapa |
+| ----------------------------------------- | ------------------ | ----------------------------------------------------------- | -------- |
+| `k8s-cp01` / `k8s-api`                    | .100               | Plano de control (API, etcd, scheduler, controller-manager) | 8.2      |
+| `k8s-w01`, `k8s-w02`                      | .101, .102         | Nodos de trabajo                                            | 8.2      |
+| `ingress`                                 | .110               | Controlador de entrada (Traefik)                            | 8.4      |
+| `grafana` / `prometheus` / `alertmanager` | .111 / .112 / .113 | kube-prometheus-stack                                       | 8.8      |
+| `podinfo`                                 | .114               | Aplicación de ejemplo                                       | 8.3-8.4  |
+| `gitea`                                   | .115               | Git dentro del clúster                                      | 8.7      |
+| `argocd`                                  | .116               | GitOps                                                      | 8.11     |
+| `tienda`                                  | .117               | App creada con Terraform                                    | 8.9      |
 
 Los tres nodos están en `scripts/hosts.conf` como **opcionales**: `lab.sh ... all` no los incluye; se nombran siempre.
 
 ### Recursos (host con 31 GiB)
 
-| Conjunto | RAM | Notas |
-|---|---|---|
-| `dns01` + `ansible01` | 5 GiB | Siempre encendidas en esta etapa (DNS, hora y nodo de control) |
-| Clúster (cp01 4 GiB + 2 × 5 GiB) | 14 GiB | Total ≈ 19 GiB: caben también las `app01` si hace falta |
-| OpenShift Local (8.10) | 10,5-11 GiB | **Con el clúster apagado** (`lab.sh down k8s-w01`, etc.) |
+| Conjunto                         | RAM         | Notas                                                          |
+| -------------------------------- | ----------- | -------------------------------------------------------------- |
+| `dns01` + `ansible01`            | 5 GiB       | Siempre encendidas en esta etapa (DNS, hora y nodo de control) |
+| Clúster (cp01 4 GiB + 2 × 5 GiB) | 14 GiB      | Total ≈ 19 GiB: caben también las `app01` si hace falta        |
+| OpenShift Local (8.10)           | 10,5-11 GiB | **Con el clúster apagado** (`lab.sh down k8s-w01`, etc.)       |
 
 Cada nodo tiene un disco de datos de 40 GB: la Etapa 2 usa 8 GB (`vg_data`) y la 8.2 crea `lv_containerd` (16 GB),
 `lv_kubelet` (6 GB) y `lv_localpath` (8 GB). Así un disco lleno de imágenes o de volúmenes no llena `/var` (4 GB).
 
 ### Versiones fijadas (octubre de 2026)
 
-| Componente | Versión | Dónde |
-|---|---|---|
-| Kubernetes | v1.36.5 (repositorio `pkgs.k8s.io` v1.36); upgrade a 1.37 en la 8.12 | `cluster/kubeadm-config.yaml` |
-| containerd | `containerd.io` del repositorio de Docker para RHEL | 8.2 |
-| Calico (operador Tigera) | v3.32.1 | `cluster/calico-custom-resources.yaml` |
-| MetalLB (chart) | 0.16.1 | 8.4 y `terraform/10-plataforma` |
-| local-path-provisioner | v0.0.37 | 8.5 |
-| kube-prometheus-stack (chart) | 88.6.2 | 8.8 y `terraform/10-plataforma` |
-| podinfo | 6.15.0 | `apps/podinfo.yaml` |
-| node_exporter (VMs) | v1.12.1 | 8.8, E12 |
-| Argo CD | v3.5.2 | 8.11 |
-| Terraform | 1.16.x (repositorio de HashiCorp); providers `kubernetes ~> 3.4`, `helm ~> 3.3` | 8.9 |
+| Componente                    | Versión                                                                         | Dónde                                  |
+| ----------------------------- | ------------------------------------------------------------------------------- | -------------------------------------- |
+| Kubernetes                    | v1.36.5 (repositorio `pkgs.k8s.io` v1.36); upgrade a 1.37 en la 8.12            | `cluster/kubeadm-config.yaml`          |
+| containerd                    | `containerd.io` del repositorio de Docker para RHEL                             | 8.2                                    |
+| Calico (operador Tigera)      | v3.32.1                                                                         | `cluster/calico-custom-resources.yaml` |
+| MetalLB (chart)               | 0.16.1                                                                          | 8.4 y `terraform/10-plataforma`        |
+| local-path-provisioner        | v0.0.37                                                                         | 8.5                                    |
+| kube-prometheus-stack (chart) | 88.6.2                                                                          | 8.8 y `terraform/10-plataforma`        |
+| podinfo                       | 6.15.0                                                                          | `apps/podinfo.yaml`                    |
+| node_exporter (VMs)           | v1.12.1                                                                         | 8.8, E12                               |
+| Argo CD                       | v3.5.2                                                                          | 8.11                                   |
+| Terraform                     | 1.16.x (repositorio de HashiCorp); providers `kubernetes ~> 3.4`, `helm ~> 3.3` | 8.9                                    |
 
 Antes de instalar cada pieza, **comprueba** que esa versión sigue siendo la recomendada (notas de la versión) y anota en el
 checklist la que uses de verdad. Nunca `latest`.
