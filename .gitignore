@@ -46,3 +46,7 @@ scripts/ll
 *.tfstate.*
 *.tfstate.*
 *.tfplan
+
+# Etapa N3 (práctica de Ansible): el vault real nunca se sube; las colecciones se descargan con requirements.yml
+scripts/stageN3/files/practica-ansible/inventory/group_vars/all/vault.yml
+scripts/stageN3/files/practica-ansible/collections/

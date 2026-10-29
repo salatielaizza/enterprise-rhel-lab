@@ -1,0 +1,39 @@
+---
+- name: P8 - controlar los errores
+  hosts: app
+  become: true
+  tasks:
+    - name: Comprobar si existe un fichero (que falte NO es un error)
+      ansible.builtin.command: test -f /etc/no-existe.conf
+      register: comprobacion
+      changed_when: false
+      failed_when: comprobacion.rc not in [0, 1]
+      check_mode: false   # es solo lectura: que se ejecute también en --check
+
+    - name: Informar del resultado
+      ansible.builtin.debug:
+        msg: "¿Existe /etc/no-existe.conf? {{ comprobacion.rc == 0 }}"
+
+    - name: Un comando que falla, pero no debe parar el play
+      ansible.builtin.command: /bin/false
+      changed_when: false
+      ignore_errors: true
+
+    - name: Bloque con un fallo controlado en legacy     # [task] que contiene un block
+      block:                                             # [block]
+        - name: Fallar a propósito solo en el grupo legacy
+          ansible.builtin.fail:
+            msg: "Esta tarea no está soportada en RHEL 7"
+          when: inventory_hostname in groups['legacy']
+
+        - name: Tarea normal (solo si no hubo fallo)
+          ansible.builtin.debug:
+            msg: "Bloque completado en {{ inventory_hostname }}"
+      rescue:                                            # [block]
+        - name: Capturar el fallo
+          ansible.builtin.debug:
+            msg: "rescue en {{ inventory_hostname }}: {{ ansible_failed_result.msg }}"
+      always:                                            # [block]
+        - name: Esto se ejecuta siempre
+          ansible.builtin.debug:
+            msg: "always en {{ inventory_hostname }}"

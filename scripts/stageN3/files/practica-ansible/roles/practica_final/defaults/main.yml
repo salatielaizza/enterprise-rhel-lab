@@ -1,0 +1,4 @@
+---
+practica_final_usuario: operador
+practica_final_cron_minutos: "*/15"
+practica_final_fichero: /etc/practica-final.txt

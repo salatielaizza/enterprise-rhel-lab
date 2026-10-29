@@ -1,0 +1,12 @@
+---
+- name: P6 - contraseña de usuario desde Ansible Vault
+  hosts: app
+  become: true
+  tasks:
+    - name: Fijar la contraseña de practica1 (el valor viene cifrado del vault)
+      ansible.builtin.user:
+        name: practica1
+        # Sal FIJA: sin ella, el hash cambia en cada ejecución y la tarea
+        # saldría 'changed' siempre (rompería la idempotencia)
+        password: "{{ practica_password | password_hash('sha512', 'practicasalt2026') }}"
+      no_log: true                         # [task] nunca imprimir el secreto ni su hash

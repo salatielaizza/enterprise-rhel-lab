@@ -1,0 +1,39 @@
+---
+- name: Cronie instalado (el módulo cron necesita el comando crontab)
+  ansible.builtin.package:
+    name: cronie
+    state: present
+  tags: [cron]
+
+- name: Crond arrancado y habilitado
+  ansible.builtin.service:
+    name: crond
+    state: started
+    enabled: true
+  tags: [cron]
+
+- name: Usuario operador con contraseña del vault
+  ansible.builtin.user:
+    name: "{{ practica_final_usuario }}"
+    comment: "Operador (práctica final)"
+    shell: /bin/bash
+    password: "{{ practica_password | password_hash('sha512', 'operadorsalt2026') }}"
+  no_log: true
+  tags: [usuarios]
+
+- name: Tarea programada del operador
+  ansible.builtin.cron:
+    name: "uptime del operador"
+    user: "{{ practica_final_usuario }}"
+    minute: "{{ practica_final_cron_minutos }}"
+    job: "uptime >> /tmp/{{ practica_final_usuario }}-uptime.log"
+  tags: [cron]
+
+- name: Fichero de resumen del host
+  ansible.builtin.template:
+    src: practica-final.j2
+    dest: "{{ practica_final_fichero }}"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [fichero]

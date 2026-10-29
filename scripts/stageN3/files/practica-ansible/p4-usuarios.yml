@@ -1,0 +1,33 @@
+---
+- name: P4 - variables, facts, when y loop
+  hosts: all
+  become: true
+  tasks:
+    - name: Mostrar lo que Ansible sabe de cada host (facts)
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ ansible_facts['distribution'] }}
+          {{ ansible_facts['distribution_version'] }}, Python
+          {{ ansible_facts['python_version'] }}, {{ ansible_facts['memtotal_mb'] }} MB
+
+    - name: Crear los usuarios de práctica (loop sobre una variable)
+      ansible.builtin.user:
+        name: "{{ item.nombre }}"
+        comment: "{{ item.comentario }}"
+        shell: /bin/bash
+        state: present
+      loop: "{{ practica_usuarios }}"
+      loop_control:
+        label: "{{ item.nombre }}"
+
+    - name: Solo en RHEL 8 o superior (when con un fact)
+      ansible.builtin.copy:
+        dest: /etc/practica-moderno.txt
+        content: "Este host usa dnf y Python 3\n"
+        mode: "0644"
+      when: ansible_facts['distribution_major_version'] | int >= 8
+
+    - name: Solo en el grupo legacy (when con el inventario)
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} es legacy: yum y Python 2"
+      when: inventory_hostname in groups['legacy']

@@ -1,0 +1,11 @@
+---
+- name: P9 - un módulo de una colección de Galaxy (ansible.posix)
+  hosts: modernos
+  become: true
+  tasks:
+    - name: Puerto 8080/tcp en firewalld (permanente y en caliente)
+      ansible.posix.firewalld:
+        port: 8080/tcp
+        permanent: true
+        immediate: true
+        state: "{{ practica_fw_state | default('enabled') }}"

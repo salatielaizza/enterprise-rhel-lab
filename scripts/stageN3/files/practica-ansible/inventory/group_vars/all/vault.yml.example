@@ -1,0 +1,6 @@
+---
+# EJEMPLO, sin cifrar y sin el valor real. No se usa tal cual:
+#   ansible-vault create inventory/group_vars/all/vault.yml
+# y dentro escribe la línea de abajo con tu contraseña de práctica.
+# vault.yml (el real, cifrado) está en .gitignore: nunca se sube al repositorio.
+vault_practica_password: "CAMBIAR"

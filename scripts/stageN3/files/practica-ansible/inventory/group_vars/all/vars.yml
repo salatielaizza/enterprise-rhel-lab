@@ -1,0 +1,9 @@
+---
+practica_usuarios:
+  - nombre: practica1
+    comentario: "Usuario de práctica 1"
+  - nombre: practica2
+    comentario: "Usuario de práctica 2"
+
+# El valor real vive cifrado en vault.yml (P6)
+practica_password: "{{ vault_practica_password }}"

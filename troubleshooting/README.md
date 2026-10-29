@@ -91,4 +91,15 @@ Etapa pendiente. Los escenarios provocados de la 8.8 (monitorización) y la 8.9 
 | [03 docker-containerd-image-store-llena-var](etapaN2/03-docker-containerd-image-store-llena-var.md) 🔎 | `siem-stack`: "no space left on device" con `lv_docker` vacío: Docker 29 guardaba las imágenes en `/var/lib/containerd` (en `/var`, 4 GB) |
 | [04 chcon-con-stack-desplegado-restorecon-no-basta](etapaN2/04-chcon-con-stack-desplegado-restorecon-no-basta.md) 🔎 | MongoDB en bucle (`libc.so.6: cannot change memory protections`) tras la avería de `chcon` con el stack desplegado: `restorecon` no recupera `container_file_t`; hay que recrear con `down -v` |
 
+## [Etapa N3](etapaN3/README_troubleshooting_etapaN3.md) — práctica de Ansible sin scripts (7 casos)
+| Caso | Tema |
+|---|---|
+| [01 setup-filter-errata-devuelve-vacio](etapaN3/01-setup-filter-errata-devuelve-vacio.md) 🔎 | `setup` con `filter=ansible_distribuition*` (errata) devuelve `SUCCESS` sin *facts* |
+| [02 check-servicio-de-paquete-no-instalado](etapaN3/02-check-servicio-de-paquete-no-instalado.md) 🔎 | `--check`: `Could not find the requested service atd`, porque el paquete solo se "instaló" en la simulación |
+| [03 rol-ficheros-fuera-de-su-sitio](etapaN3/03-rol-ficheros-fuera-de-su-sitio.md) 🔎 | El rol no ejecuta nada y el handler "no existe": esqueleto de `role init` sin rellenar y ficheros en `roles/tasks` |
+| [04 yaml-indentacion-claves-del-play](etapaN3/04-yaml-indentacion-claves-del-play.md) 🔎 | `mapping values are not allowed in this context`: `hosts:` con más sangría que `name:` |
+| [05 vault-con-contenido-comentado](etapaN3/05-vault-con-contenido-comentado.md) 🔎 | `no_log` oculta el error: el `vault.yml` cifrado solo contenía comentarios |
+| [06 check-repetido-no-prueba-idempotencia](etapaN3/06-check-repetido-no-prueba-idempotencia.md) 🔎 | Dos `--check` seguidos dan `changed=1`: el fichero no existe (`@@ -0,0`) |
+| [07 defaults-main-yml-mal-nombrado](etapaN3/07-defaults-main-yml-mal-nombrado.md) 🔎 | `defaults/main-yml` no se carga y `no_log` oculta el `undefined variable` |
+
 **Regla**: anota hipótesis y evidencia *antes* de arreglar. Los mensajes exactos pueden variar entre versiones (documenta las diferencias que veas en `results/`).

@@ -95,6 +95,7 @@ no cerrado.
 | 20 | 🔁 CI/CD | ⏳ Pendiente |
 | N | 🧰 DevOps: Docker, Kubernetes, Jenkins y monitorización —  (ver [sección final](#-etapa-n--devops-docker-kubernetes-jenkins-y-monitorización)) | 📝 Planificada |
 | N2 | 📡 SIEM: Graylog, OpenSearch/Elasticsearch, Syslog, NXLog, Docker, Kubernetes y conversión de VMs VMware ↔ KVM (ver [sección final](#-etapa-n2--siem-graylog-opensearch-syslog-nxlog-contenedores-y-vmware)) | 📝 Planificada |
+| N3 | 🎯 Práctica de Ansible sin scripts: proyecto propio desde cero (P1-P10: ad-hoc, playbooks, handlers, roles, Vault, Jinja2, control de errores, colecciones) (ver [sección final](#-etapa-n3--práctica-de-ansible-sin-scripts)) | ✅ Completa |
 
 Los nombres de host, IPs, UID/GID y la estructura de directorios ya fijados en las Etapas 1-4
 (ver `architecture/hosts.md`) se mantienen estables para las etapas futuras — por ejemplo,
@@ -301,6 +302,7 @@ inventario de ESXi en `vmware.conf`) ·
 `scripts/kickstart/` plantillas de instalación · `tests/` pruebas PASS/FAIL de solo lectura ·
 `architecture/` · `rhel7/ … rhel10/` · `administration/` · `networking/` · `time/` · `security/` · `scripting/` · `automation/` ·
 `kubernetes/` (Etapa 8: guía, Prometheus/Grafana y Terraform) · `virtualization/` (Etapa 10, pendiente) · `devops/` (Etapa N, preparación rápida) ·
+`automation/etapaN3-practica-ansible.md` y `scripts/stageN3/` (Etapa N3: práctica de Ansible sin scripts, proyecto de referencia en `files/practica-ansible/` y `validar.sh`) ·
 `troubleshooting/` (un directorio por etapa con sus casos y su guía `README_troubleshooting_etapaN.md`; índice en `troubleshooting/README.md`) · `migration/` · `comparison/` · `checklists/` · `results/` (evidencias; `facts/` se genera).
 
 ## 🔒 Seguridad
@@ -316,6 +318,8 @@ Etapa 10: la contraseña de root de los ESXi solo se guarda como hash dentro de 
 `.gitignore`); las de vCenter se piden al desplegar y se borran del JSON temporal al terminar; las que usa Ansible viven
 cifradas en el `vault.yml` de `ansible01`, con la misma contraseña de Vault que la Etapa 7. La clave `~/.ssh/lab_esxi_rsa`
 es RSA porque el `sshd` de ESXi 8 funciona en modo FIPS (no acepta ed25519).
+Etapa N3: el proyecto de referencia solo incluye `vault.yml.example` (valor `CAMBIAR`); el `vault.yml` real, cifrado,
+y las colecciones descargadas (`collections/`) están en `.gitignore`. La carpeta local `practica/` tampoco se sube.
 
 ## 🧰 Etapa N — DevOps: Docker, Kubernetes, Jenkins y monitorización
 
@@ -361,6 +365,31 @@ VMs del lab, para practicar su operación, troubleshooting y documentación. Sir
 | 10 | Diagnóstico por capas: infraestructura física, virtual y de conectividad |
 
 Guía completa: [`siem/etapaN2-siem.md`](siem/etapaN2-siem.md).
+
+## 🎯 Etapa N3 — Práctica de Ansible sin scripts
+
+> **Estado: ✅ Completa** (2026-10-29). Diez ejercicios hechos a mano contra las VMs reales y 7 casos reales de troubleshooting.
+
+Consolidación de la Etapa 7: un proyecto Ansible **propio, escrito desde cero y sin `lab.sh`**, con su propio
+`ansible.cfg` (`become = False`) e inventario por grupos (`legacy`, `modernos`, `servicios`, `app:children`), operado
+contra `rhel7/8/9/10-app01` y `dns01`. No añade hosts ni comandos a `lab.sh`.
+
+| Ejercicio | Contenido |
+|---|---|
+| P1 | Proyecto mínimo: `ansible.cfg`, inventario con grupos padre, `ping` y `become` |
+| P2 | Ad-hoc: patrones (`:!`, `:&`), *facts* filtrados, `copy`/`file`/`fetch`, idempotencia |
+| P3 | Primer playbook: paquete, servicio, fichero y handler; límites de `--check` |
+| P4 | Variables de grupo, *facts*, `when` y `loop` con `loop_control` |
+| P5 | Rol propio con `ansible-galaxy role init`: `defaults`, plantilla, handler y precedencia de variables |
+| P6 | Ansible Vault propio: secreto cifrado, `password_hash` con sal fija y `no_log` |
+| P7 | Plantillas Jinja2: `if`, `for` y filtros (`default`, `upper`, `map`, `join`) |
+| P8 | Control de errores: `failed_when`, `ignore_errors`, `block`/`rescue`/`always`, `check_mode` |
+| P9 | Colección de Galaxy (`ansible.posix`) con versión fijada, instalada dentro del proyecto |
+| P10 | Ejercicio final: rol completo con usuario, `cron`, plantilla y etiquetas, idempotente |
+
+Guía completa: [`automation/etapaN3-practica-ansible.md`](automation/etapaN3-practica-ansible.md) · Proyecto de
+referencia y validación estática: [`scripts/stageN3/`](scripts/stageN3/README_stageN3.md) · Casos y guía de estudio:
+[`troubleshooting/etapaN3/`](troubleshooting/etapaN3/README_troubleshooting_etapaN3.md).
 
 ## ☸️ Etapa 8 — Kubernetes y OpenShift, con Prometheus/Grafana y Terraform
 

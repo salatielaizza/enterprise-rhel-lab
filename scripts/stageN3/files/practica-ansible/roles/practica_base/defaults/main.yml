@@ -1,0 +1,4 @@
+---
+# Prioridad MÍNIMA: cualquier group_vars/host_vars/-e la pisa
+practica_base_mensaje: "Servidor gestionado por Ansible"
+practica_base_fichero: /etc/practica-role.txt

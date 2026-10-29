@@ -1,0 +1,6 @@
+---
+- name: P10 - ejercicio final
+  hosts: "app:!legacy"
+  become: true
+  roles:
+    - role: practica_final

@@ -176,3 +176,9 @@ Ansible es, con diferencia, la herramienta de automatización más solicitada en
 
 ## Ampliaciones futuras
 Un rol `lab_webapp` cuando se desplieguen NGINX y Apache httpd (Etapas 13a y 13b), reutilizando los mismos `group_vars`/patrones de esta etapa; `ansible-lint` como comprobación adicional a `--syntax-check`, si se instala en el equipo host; explorar `ansible-pull` como contraste pedagógico frente al modelo *push* usado aquí; un inventario dinámico de verdad sobre las propias VMs del lab (generado desde `results/facts/` o desde `virsh list`, en vez de IPs fijas en `hosts.ini`) — el de `dynamic_inventory_demo.py` es deliberadamente ficticio para no arriesgar nada, pero la mecánica es la misma; llevar el escenario de Molecule a CI (GitHub Actions) si el repositorio se sube a un remoto con integración continua; mover el inventario dinámico de demo a su propio directorio para que no herede los `group_vars/` del lab; y, antes de usar ansible-core 2.24, sustituir `ansible_date_time` por `ansible_facts['date_time']` en el handler del rol `common` y en `advanced.yml` (aviso `INJECT_FACTS_AS_VARS` visto con el ansible-core del venv de Molecule).
+
+## Práctica sin scripts (Etapa N3)
+Tras cerrar esta etapa, los mismos conceptos se practicaron escribiendo un proyecto Ansible propio desde cero, sin
+`lab.sh` (diez ejercicios, P1-P10): [`automation/etapaN3-practica-ansible.md`](etapaN3-practica-ansible.md), con su
+proyecto de referencia en [`scripts/stageN3/`](../scripts/stageN3/README_stageN3.md) y sus casos reales en
+[`troubleshooting/etapaN3/`](../troubleshooting/etapaN3/README_troubleshooting_etapaN3.md).

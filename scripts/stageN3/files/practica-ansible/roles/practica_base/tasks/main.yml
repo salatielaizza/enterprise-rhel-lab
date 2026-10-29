@@ -1,0 +1,9 @@
+---
+- name: Desplegar el fichero del rol
+  ansible.builtin.template:
+    src: practica-role.j2
+    dest: "{{ practica_base_fichero }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Registrar cambio del rol

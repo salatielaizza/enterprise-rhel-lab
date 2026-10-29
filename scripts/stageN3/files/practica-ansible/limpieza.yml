@@ -1,0 +1,50 @@
+---
+- name: Deshacer los cambios de la práctica
+  hosts: all
+  become: true
+  tasks:
+    - name: Quitar la tarea programada del operador
+      ansible.builtin.cron:
+        name: "uptime del operador"
+        user: operador
+        state: absent
+      failed_when: false
+
+    - name: Borrar los usuarios de práctica (y su home)
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop: [practica1, practica2, operador]
+
+    - name: Borrar los ficheros de práctica
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/practica-ansible.conf
+        - /etc/practica-moderno.txt
+        - /etc/practica-role.txt
+        - /etc/practica-info.txt
+        - /etc/practica-final.txt
+        - /var/log/practica.log
+
+- name: Quitar el paquete at de P3 (no estaba instalado antes en ninguna app01)
+  hosts: app
+  become: true
+  tasks:
+    - name: Paquete at ausente
+      ansible.builtin.package:
+        name: at
+        state: absent
+
+- name: Cerrar el puerto de P9
+  hosts: modernos
+  become: true
+  tasks:
+    - name: Quitar 8080/tcp de firewalld
+      ansible.posix.firewalld:
+        port: 8080/tcp
+        permanent: true
+        immediate: true
+        state: disabled

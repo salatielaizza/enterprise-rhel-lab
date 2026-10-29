@@ -1,0 +1,12 @@
+---
+- name: P7 - un fichero distinto en cada host con Jinja2
+  hosts: all
+  become: true
+  tasks:
+    - name: Generar /etc/practica-info.txt desde la plantilla
+      ansible.builtin.template:
+        src: templates/practica-info.j2
+        dest: /etc/practica-info.txt
+        owner: root
+        group: root
+        mode: "0644"

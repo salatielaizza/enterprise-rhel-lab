@@ -1,0 +1,35 @@
+---
+- name: P3 - servicio atd gestionado por Ansible        # [play]
+  hosts: app                                             # [play]
+  become: true                                           # [play] sudo solo en este play
+  tasks:                                                 # [play]
+    - name: Instalar el paquete at                       # [task]
+      ansible.builtin.package:
+        name: at
+        state: present
+
+    - name: Servicio atd arrancado y habilitado
+      ansible.builtin.service:
+        name: atd
+        state: started
+        enabled: true
+      # En --check el paquete no se instala de verdad y atd.service no existe todavía
+      # (caso troubleshooting/etapaN3/02): el error solo se ignora en modo simulación
+      ignore_errors: "{{ ansible_check_mode }}"
+
+    - name: Fichero de configuración de práctica
+      ansible.builtin.copy:
+        dest: /etc/practica-ansible.conf
+        content: |
+          # Gestionado por Ansible (práctica P3)
+          entorno=laboratorio
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reiniciar atd                              # [task]
+
+  handlers:                                              # [play]
+    - name: Reiniciar atd
+      ansible.builtin.service:
+        name: atd
+        state: restarted

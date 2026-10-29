@@ -1,0 +1,7 @@
+---
+- name: Registrar cambio del rol
+  ansible.builtin.lineinfile:
+    path: /var/log/practica.log
+    create: true
+    mode: "0644"
+    line: "{{ ansible_facts['date_time']['iso8601'] }} rol practica_base aplicado en {{ inventory_hostname }}"

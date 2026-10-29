@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+Host:    {{ inventory_hostname }} ({{ ansible_facts['fqdn'] }})
+Sistema: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+{% if ansible_facts['distribution_major_version'] | int < 8 %}
+Paquetes: yum (legacy)
+{% else %}
+Paquetes: dnf
+{% endif %}
+Rol en el lab: {{ practica_rol | default('sin rol definido') | upper }}
+IPs:
+{% for ip in ansible_facts['all_ipv4_addresses'] | default([]) %}
+  - {{ ip }}
+{% endfor %}
+Usuarios de práctica: {{ practica_usuarios | map(attribute='nombre') | join(', ') }}

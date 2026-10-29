@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+{{ inventory_hostname }} - {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+Operador: {{ practica_final_usuario }} (cron cada {{ practica_final_cron_minutos }} min)
+Grupos: {{ group_names | join(', ') }}

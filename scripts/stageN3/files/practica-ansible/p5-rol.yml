@@ -1,0 +1,7 @@
+---
+- name: P5 - aplicar mi propio rol
+  hosts: all
+  become: true
+  roles:                                   # [play]
+    - role: practica_base                  # [role]
+      tags: [base]                         # [role] la heredan todas sus tareas
