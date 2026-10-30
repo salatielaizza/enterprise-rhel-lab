@@ -1,50 +1,66 @@
-# Etapa 8 — Kubernetes y OpenShift, con Prometheus/Grafana y Terraform: práctica manual paso a paso
+# Etapa 8 — Kubernetes y OpenShift, con Prometheus/Grafana y Terraform
 
-> **Estado: 🚧 En curso** (8.1 empezada el 2026-10-29). Todo **a mano**; la automatización (Ansible, Terraform, GitOps)
-> llega al final y solo para lo ya hecho a mano.
-> Primero los **enunciados** K1-K13 (secciones 0-5); las **soluciones**, al final (sección 6), con cada comando
-> explicado, la salida esperada y qué hacer si sale otra cosa. Intenta cada ejercicio antes de mirarlas.
+> **Estado: 🚧 En curso** (8.1 empezada el 2026-10-29).
+> **Tutorial práctico continuo:** cada tema empieza con el **concepto** (resumen de la documentación oficial, con su
+> enlace) e inmediatamente se **practica** en el lab, a mano y sin scripts, como si fuera un ticket de trabajo real.
+> Cada tema termina con un **error común en el mercado**: lo que se ve de verdad en empresas y cómo evitarlo.
 > Checklist: [`checklists/etapa8.md`](../checklists/etapa8.md) · Ficheros: [`scripts/stage8/`](../scripts/stage8/README_stage8.md) ·
-> Casos reales: [`troubleshooting/etapa8/`](../troubleshooting/etapa8/README_troubleshooting_etapa8.md) ·
-> Guías de la 8.8 y la 8.9: [Prometheus/Grafana](monitorizacion-prometheus-grafana.md) · [Terraform](terraform-iac.md)
+> Casos reales: [`troubleshooting/etapa8/`](../troubleshooting/etapa8/README_troubleshooting_etapa8.md)
 
----
+## Cómo leer este tutorial
 
-## 0. Reglas de la práctica
+Cada subetapa empieza con un **ticket**: la petición tal como llegaría a un equipo de sistemas o plataforma. Después,
+cada tema sigue siempre el mismo orden:
 
-- **Todo a mano**, sin `lab.sh stage8-*` (no existen). `lab.sh` solo para crear las VMs, pasarlas por las etapas 2-5,
-  tests y snapshots.
-- **Dónde se ejecuta cada cosa** (en las soluciones va en la primera línea de cada bloque):
+| Bloque | Qué contiene |
+|---|---|
+| 📘 **Concepto** | Lo más importante de la documentación oficial, resumido. Al final, la **Fuente** con el enlace: si algo de aquí contradice a la documentación de tu versión, manda la documentación |
+| 🛠️ **Práctica** | Los comandos completos, listos para pegar, con una tabla **Qué esperas · Si sale otra cosa** |
+| ⚠️ **Error común en el mercado** | El fallo que más se ve en ese tema, cómo se detecta y cómo se evita |
 
-  | Etiqueta | Significa |
-  |---|---|
-  | `# [host]` | Linux Mint, en la raíz del repo |
-  | `# [ansible01 · adminlab]` | `ssh adminlab@ansible01`; aquí se usan `kubectl`, `helm` y `terraform` |
-  | `# [k8s-cp01 · root]` | `ssh adminlab@k8s-cp01` y `sudo -i` |
-  | `# [nodos · root]` | Lo mismo en los tres nodos (`k8s-cp01`, `k8s-w01`, `k8s-w02`) |
-  | `# [workers · root]` | Solo en `k8s-w01` y `k8s-w02` |
+**Dónde se ejecuta cada comando:** va siempre en la primera línea del bloque.
 
-- **Antes de aplicar, simula:** `kubectl apply --dry-run=server`, `helm template`, `terraform plan`.
-- **Nombres completos** de imagen (`registro/ruta:etiqueta`), nunca nombres cortos ni `latest` (lo aprendiste en K1).
-- **Si algo no sale como dice la solución, para.** No encadenes comandos: pega la salida y conviértelo en un caso de
-  `troubleshooting/etapa8/`.
-- **Snapshots** con los nodos **apagados** (un clúster encendido no da un snapshot consistente):
-  `*-stage5-complete` antes de K2, `*-cluster-vacio` al acabar K2, `*-antes-8.6`, `*-antes-8.9` y `*-antes-8.12`.
-  Procedimiento en la solución de K2 (paso 8.2.7).
-- **Orden recomendado:** K1 → K2 → K3 → K4 → K5 → K6 → K7 → K8 → K9 → K11 → K12 → K13 → **K10 al final** (OpenShift
-  Local necesita el clúster apagado y toca el host).
-- **Ningún secreto** en el repo: contraseñas, `kubeconfig`, claves privadas y `tfstate` se quedan en las VMs.
+| Etiqueta | Significa |
+|---|---|
+| `# [host]` | Linux Mint, en la raíz del repo (`~/Proyectos/PROYECTO_ENTERPRISE_RHEL_INFRASTRUCTURE_LAB/enterprise-rhel-lab`) |
+| `# [ansible01 · adminlab]` | `ssh adminlab@ansible01`; aquí se usan `podman`, `kubectl`, `helm` y `terraform` |
+| `# [k8s-cp01 · root]` | `ssh adminlab@k8s-cp01` y después `sudo -i` |
+| `# [nodos · root]` | Lo mismo en **los tres** nodos (`k8s-cp01`, `k8s-w01`, `k8s-w02`), uno detrás de otro |
+| `# [workers · root]` | Solo en `k8s-w01` y `k8s-w02` |
 
----
+Si un comando no da lo que dice la tabla, **para**: no sigas encadenando comandos. Pega la salida y conviértelo en un
+caso de `troubleshooting/etapa8/NN-*.md`. Las salidas marcadas **✅ Resultado real** son de este lab; el resto son las
+**esperadas**.
 
-## 1. La arquitectura en una mirada
+## Objetivo y alcance
 
-```
- TU LINUX MINT (host)  ── repo git · lab.sh (VMs, snapshots) · OpenShift Local en K10
+Montar un clúster **Kubernetes** de 3 nodos sobre RHEL 9 con `kubeadm` y operarlo como en una empresa: red,
+almacenamiento, seguridad, Helm, copias de etcd y actualizaciones. Después, **monitorizarlo con Prometheus y Grafana**
+provocando averías reales, **gestionarlo como código con Terraform** y con **GitOps**, y conocer **OpenShift**.
+
+- **Entra:** las subetapas 8.1 a 8.13 y la automatización con Ansible de lo hecho a mano.
+- **No entra:** alta disponibilidad del plano de control (un solo `k8s-cp01`), almacenamiento de red (Etapa 15) y
+  comandos `lab.sh stage8-*`.
+
+## Prerrequisitos
+
+| Qué | Cómo comprobarlo | Por qué |
+|---|---|---|
+| Etapas 1-7 completas | `scripts/lab.sh status` y snapshots `*-stage7-complete` | Los nodos se crean con `lab.sh` y pasan por las etapas 2-5 |
+| `dns01` y `ansible01` encendidas | `scripts/lab.sh up dns01; scripts/lab.sh up ansible01` | DNS y hora de todo el lab; `ansible01` es la estación de control |
+| Repos de Red Hat | `sudo subscription-manager repos --list-enabled` en una VM | `dnf` en los nodos y en `ansible01` |
+| ~19 GiB de RAM libres en el host | `free -h` | Clúster (14 GiB) + `dns01` y `ansible01` (5 GiB) |
+| ≥ 60 GB libres en el host (100 GB cubren toda la etapa, OpenShift incluido) | `df -h` del pool `lab-images` (ver [Presupuesto de disco](#presupuesto-de-disco-del-host)) | Los discos son qcow2 *thin*: ocupan lo que se escribe, no su tamaño virtual |
+| Salida a Internet desde lab-net | `curl -sI https://registry.k8s.io` desde `ansible01` | Imágenes, charts y paquetes |
+
+## Arquitectura
+
+```text
+ TU LINUX MINT (host)  ── repo git · lab.sh (VMs, snapshots) · OpenShift Local (8.10)
         │
  red lab-net 10.10.10.0/24 · DNS dns01 (.20)
         │
- ansible01 (.30) · ESTACIÓN DE CONTROL ── podman (K1) · kubectl · helm · terraform · argocd · ansible
+ ansible01 (.30) · ESTACIÓN DE CONTROL ── podman · kubectl · helm · terraform · ansible
         │  API de Kubernetes https://k8s-api.lab.local:6443
         ▼
  k8s-cp01 (.100)              k8s-w01 (.101)             k8s-w02 (.102)
@@ -53,427 +69,260 @@
  scheduler · controller-mgr   kube-proxy · calico-node   kube-proxy · calico-node
         │
  Pods 10.244.0.0/16 (Calico) · Services 10.96.0.0/12 · LoadBalancer (MetalLB) .110-.119
-   ingress .110 · grafana .111 · prometheus .112 · alertmanager .113 · podinfo .114
-   gitea .115 · argocd .116 · tienda .117
 ```
 
-**Qué pasa en `kubectl apply -f app.yaml`:** `kubectl` envía el objeto a la **API** → la API lo valida (esquema, RBAC,
-Pod Security) y lo guarda en **etcd** → el **controlador** del Deployment crea un ReplicaSet y este, los Pods → el
-**scheduler** elige un nodo para cada Pod → el **kubelet** de ese nodo pide a **containerd** que descargue la imagen y
-arranque los contenedores → **Calico** le da una IP de pod → **kube-proxy** añade el pod al Service.
+| Nombre (lab.local) | IP | Qué es | Subetapa |
+|---|---|---|---|
+| `k8s-cp01` / `k8s-api` | .100 | Plano de control (API, etcd, scheduler, controller-manager) | 8.2 |
+| `k8s-w01`, `k8s-w02` | .101, .102 | Nodos de trabajo | 8.2 |
+| `ingress` | .110 | Controlador de entrada (Traefik) | 8.4 |
+| `grafana` / `prometheus` / `alertmanager` | .111 / .112 / .113 | kube-prometheus-stack | 8.8 |
+| `podinfo` | .114 | Aplicación de ejemplo | 8.3-8.4 |
+| `gitea` | .115 | Git dentro del clúster | 8.7 |
+| `argocd` | .116 | GitOps | 8.11 |
+| `tienda` | .117 | App creada con Terraform | 8.9 |
 
-| Herramienta | Responde a… |
+Los tres nodos están en `scripts/hosts.conf` como **opcionales** (`lab.sh ... all` no los incluye) y sus registros DNS
+ya están en la zona de la Etapa 4. Cada nodo tiene un disco de datos de 40 GB: la Etapa 2 usa 8 GB (`vg_data`) y la
+8.2 crea `lv_containerd` (16 GB), `lv_kubelet` (6 GB) y `lv_localpath` (8 GB).
+
+| Conjunto | RAM | Notas |
+|---|---|---|
+| `dns01` + `ansible01` | 5 GiB | Siempre encendidas en esta etapa |
+| Clúster (cp01 4 GiB + 2 × 5 GiB) | 14 GiB | Total ≈ 19 GiB |
+| OpenShift Local (8.10) | 10,5-11 GiB | **Con el clúster apagado** |
+
+### Versiones fijadas (octubre de 2026)
+
+| Componente | Versión | Dónde |
+|---|---|---|
+| Podman (ansible01) | 5.8.2-8.el9_8 (AppStream de RHEL 9.8) — **real** | 8.1 |
+| UBI 9 minimal | 9.8 — **real** | 8.1 |
+| Kubernetes | v1.36.5; upgrade a 1.37 en la 8.12 | `cluster/kubeadm-config.yaml` |
+| containerd | `containerd.io` del repositorio de Docker para RHEL | 8.2 |
+| Calico (operador Tigera) | v3.32.1 | `cluster/calico-custom-resources.yaml` |
+| MetalLB (chart) | 0.16.1 | 8.4 y `terraform/10-plataforma` |
+| local-path-provisioner | v0.0.37 | 8.5 |
+| kube-prometheus-stack (chart) | 88.6.2 | 8.8 y `terraform/10-plataforma` |
+| podinfo | 6.15.0 | `apps/podinfo.yaml` |
+| node_exporter (VMs) | v1.12.1 | 8.8 |
+| Terraform | 1.16.x; providers `kubernetes ~> 3.4`, `helm ~> 3.3` | 8.9 |
+| Argo CD | v3.5.2 | 8.11 |
+
+Antes de instalar cada pieza, **comprueba** en sus notas de versión que sigue siendo la recomendada y anota en el
+checklist la que uses de verdad. Nunca `latest`.
+
+## Presupuesto de disco del host
+
+📘 **Concepto.** `lab.sh vm-create` crea los discos como **qcow2 *thin***: un disco de 40 GB ocupa en el host solo los
+bloques que la VM ha escrito alguna vez. Dos matices importantes:
+
+- **Lo borrado dentro de la VM no se devuelve al host.** Las VMs del lab no tienen `discard` activado, así que un
+  bloque escrito una vez sigue ocupado en el qcow2 aunque la VM borre el fichero. El máximo que puede crecer cada disco
+  de datos está acotado por sus LVs (8 + 16 + 6 + 8 GB), pero en la práctica se queda muy por debajo.
+- **Los snapshots internos conservan los bloques antiguos.** Desde que haces un snapshot, cada bloque que cambia ocupa
+  dos veces (el viejo, para el snapshot, y el nuevo). Cuantos más snapshots y más cambios entre ellos, más crece.
+
+*Fuente:* [qemu-img — formato qcow2](https://www.qemu.org/docs/master/system/images.html) ·
+[libvirt — Domain XML, elemento `driver` (`discard`)](https://libvirt.org/formatdomain.html#hard-drives-floppy-disks-cdroms)
+
+**Estimación para esta etapa** (orientativa: compruébala con tus medidas):
+
+| Qué | Ocupación real aproximada en el host |
 |---|---|
-| `podman` | "Ejecuta un contenedor **aquí**, sin clúster" |
-| `kubeadm` | "**Crea** el clúster / une un nodo / actualízalo" |
-| `kubectl` | "¿**Qué hay** en el clúster? Cámbialo" |
-| `crictl` | "¿Qué contenedores hay en **este nodo**?" (sin pasar por la API) |
-| `helm` | "Instala un **paquete** (chart) con estos valores" |
-| `terraform` | "Deja la plataforma **como dice el código**, y enséñame antes el plan" |
-| Argo CD | "Deja el clúster **como dice Git**, siempre" |
-| `oc` | `kubectl` de OpenShift, con extras (`new-project`, `expose`, `new-app`) |
+| 3 discos de sistema (RHEL 9 mínimo + etapas 2-5 + paquetes de Kubernetes) | 9-12 GB |
+| Disco de datos de `k8s-cp01` (imágenes del plano de control, etcd) | 2-4 GB |
+| Discos de datos de los workers (imágenes de todas las subetapas, Prometheus, Gitea) | 8-15 GB entre los dos |
+| Snapshots (`stage5`, `cluster-vacio` y los `antes-*`) | 5-15 GB, según los cambios entre ellos |
+| **Clúster completo** | **≈ 25-45 GB** |
+| OpenShift Local (8.10, en tu home, `~/.crc`) | ≈ 35 GB, que se recuperan con `crc delete` |
 
----
+Con ~100 GB libres caben los dos, aunque con poco margen al final. Para no tener que borrar nada que ya existe:
 
-## 2. Conceptos que vas a usar en todos los ejercicios
+1. **Prometheus con retención reducida:** `kube-prometheus-stack-values.yaml` usa un PVC de 5 Gi y `retentionSize: 3GB`
+   (7 días o 3 GB, lo que llegue antes). Para un lab sobra.
+2. **Medir antes de cada subetapa** (abajo). **Umbral para parar: menos de 20 GB libres.**
+3. **Snapshots con cabeza:** `stage5` y `cluster-vacio` se conservan; de los `antes-*`, basta el último. Si llegas al
+   umbral, borra el `antes-*` anterior al crear el siguiente (`virsh snapshot-delete <nodo> <nodo>-antes-8.6`): son
+   snapshots de esta etapa, nada que ya existiera.
+4. **OpenShift Local al final** y solo si tras la 8.13 quedan ≥ 40 GB libres; después, `crc delete`.
 
-| Concepto | En una frase |
+🛠️ **Práctica: medir** (solo lectura, en el host, antes de la 8.2 y antes de cada subetapa):
+
+```bash
+# [host]
+POOL="$(virsh pool-dumpxml lab-images | sed -n 's:.*<path>\(.*\)</path>.*:\1:p')"; echo "$POOL"
+df -h "$POOL" ~
+virsh vol-list lab-images --details | grep -E 'Name|k8s'
+du -ch "$POOL"/k8s-* 2>/dev/null | tail -1
+```
+
+| Comando | Qué esperas |
 |---|---|
-| **Estado deseado** | Declaras qué quieres (`replicas: 2`) y los controladores trabajan sin parar para que la realidad coincida |
-| **Pod** | Uno o más contenedores que comparten red (misma IP, `localhost`) y volúmenes |
-| **Deployment → ReplicaSet → Pod** | El Deployment gestiona versiones; cada versión es un ReplicaSet; el ReplicaSet mantiene N pods |
-| **Service** | IP y nombre DNS estables delante de pods que cambian; los elige por **etiquetas** |
-| **Namespace** | Espacio de nombres: separa equipos, permisos (RBAC), cuotas y nivel de Pod Security |
-| **Pod estático** | Pod que el kubelet arranca leyendo un fichero (`/etc/kubernetes/manifests/`), sin API: así arranca la propia API |
-| **CNI** | El plugin de red de pods (Calico). Sin él, los nodos están `NotReady` |
-| **PV / PVC / StorageClass** | Volumen real / petición de volumen / quién lo crea y cómo |
-| **RBAC** | Quién (usuario, grupo, ServiceAccount) puede hacer qué verbo sobre qué recurso, y dónde |
-| **Chart / release** | Paquete de Helm / una instalación concreta con su historial |
-| **Estado de Terraform** | Lo que Terraform cree que existe; el `plan` compara código, estado y realidad |
-| **GitOps** | Un agente dentro del clúster lo mantiene igual que un repositorio Git |
+| `pool-dumpxml` | La ruta del pool (por ejemplo, `/var/lib/libvirt/images/lab`) |
+| `df -h "$POOL" ~` | Espacio libre del sistema de ficheros del pool y del de tu home (CRC usa `~/.crc`). Si son el mismo, salen iguales |
+| `vol-list --details` | `Capacity` = tamaño virtual (20 o 40 GiB); `Allocation` = lo que ocupa de verdad |
+| `du -ch` | El total real de los discos de `k8s-*` (vacío antes de crearlos) |
 
-Las preguntas de diagnóstico que sirven siempre: `kubectl get` (¿qué hay?), `kubectl describe` + **Events** (¿qué ha
-pasado?), `kubectl logs [--previous]` (¿qué dice la aplicación?) y, en el nodo, `journalctl -u kubelet -u containerd`
-y `crictl ps -a`.
+Anota en el checklist la ocupación tras la 8.2, la 8.8 y la 8.13: es un buen dato para dimensionar de verdad.
 
----
+⚠️ **Error común en el mercado: llenar el disco del hipervisor con discos *thin*.** Se crean VMs con discos *thin*
+"porque no ocupan" y se sobreasigna el almacenamiento (la suma de tamaños virtuales supera el disco real) sin vigilarlo:
+el día que las VMs escriben, el disco del hipervisor se llena y **todas** las VMs se pausan a la vez (`virsh list`
+muestra `paused`, error `I/O error`). **Cómo evitarlo:** medir la ocupación real, umbrales de alerta en el hipervisor y
+no confiar en el tamaño virtual.
 
-## 3. Ejercicios (enunciados)
+## Orden de trabajo y snapshots
 
-### K1 — Contenedores con Podman, sin clúster (ansible01)
+La numeración va de 8.1 a 8.13, pero **OpenShift Local (8.10) se hace al final**: exige el clúster apagado y
+`crc setup` toca el host.
 
-> ✅ Hecho hasta el punto 4 (2026-10-29/30). La solución 6.1 lleva tus resultados reales.
+| # | Subetapa | 📸 Snapshot (con los nodos **apagados**) |
+|---|---|---|
+| 1 | 8.1 Podman | — (vale `ansible01-stage7-complete`) |
+| 2 | 8.2 kubeadm | `*-stage5-complete` antes; `*-cluster-vacio` al terminar |
+| 3-5 | 8.3 Objetos · 8.4 Red · 8.5 Almacenamiento | |
+| 6 | 8.6 Seguridad | `*-antes-8.6` |
+| 7-8 | 8.7 Helm · 8.8 Prometheus/Grafana | `*-antes-8.9` al terminar la 8.8 |
+| 9 | 8.9 Terraform | |
+| 10 | 8.11 CI y GitOps | `*-antes-8.12` + copia de etcd |
+| 11-12 | 8.12 Operación · 8.13 Ansible | |
+| 13 | 8.10 OpenShift Local | |
 
-1. Instala Podman **de la forma soportada** en RHEL 9 y comprueba versión, modo rootless, backend de red, dónde
-   guarda las imágenes y tu rango de subuid/subgid.
-2. Arranca podinfo 6.15.0 publicando el puerto 9898 en el 8080. Comprueba que responde y demuestra, con dos comandos,
-   que el contenedor es **un proceso del host** y con qué UID corre dentro y fuera.
-3. Construye una imagen propia `localhost/lab/saludo:1.0` desde UBI 9 minimal (etiqueta fija, no `latest`) con un
-   script de bash al estilo de la Etapa 6 y `USER 1001`. Ejecútala y muestra sus capas, su usuario y su comando.
-4. Monta `~/datos` en un contenedor **sin** `:Z` y **con** `:Z`. Demuestra quién bloquea el primer intento y qué
-   cambia en el disco con el segundo.
-5. Crea un **pod** de Podman con dos contenedores (podinfo y un cliente que lo llame por `localhost` cada 10 s). Genera
-   su YAML de Kubernetes, bórralo y recréalo desde ese YAML.
-6. Haz que un contenedor de `saludo` arranque **solo** al reiniciar `ansible01`, sin Kubernetes (Quadlet).
-7. (Opcional) Compara entre RHEL 7/8/9/10 si Podman viene instalado y qué versión de cgroups usa cada uno.
+Un snapshot de un clúster encendido no es consistente (etcd escribiendo a mitad): el procedimiento está en el paso
+8.2.7. Si vas justo de tiempo, prioriza 8.2, 8.3, 8.4, 8.8 y 8.9: es lo que más aparece en las ofertas.
 
-**Comprueba:** `podman ps --pod` (¿cuántos contenedores y por qué?), `ls -laZ ~/datos`, `podman ps` tras el reboot.
+## Reglas de la etapa
 
-**Preguntas:** (a) ¿por qué `podman build` desde `~` es mala idea aunque funcione? (b) ¿qué pasa al ejecutar
-`podman run lab/saludo:1.0` si la imagen no existe en local? (c) ¿por qué el contenedor rootless no puede leer
-`~/datos` si `adminlab` es el dueño? (d) ¿qué UID tiene en el host un proceso que dentro es el 1001?
-
-### K2 — Un clúster de 3 nodos con kubeadm
-
-1. Crea `k8s-cp01`, `k8s-w01` y `k8s-w02` con `lab.sh`, regístralas y pásalas por las etapas 2-5. Comprueba que la base
-   del lab sigue en 0 FAIL y que `k8s-api.lab.local` resuelve. Snapshot `stage5`.
-2. Prepara **cada nodo** a mano:
-   - LVs de 16, 6 y 8 GiB en `vg_data` para `/var/lib/containerd`, `/var/lib/kubelet` y `/var/lib/local-path`
-     (validando `fstab` antes de montar);
-   - swap desactivada de forma persistente;
-   - módulos `overlay` y `br_netfilter` y los tres sysctl de la red de pods, persistentes;
-   - NetworkManager sin gestionar las interfaces de Calico;
-   - una zona `k8s` de firewalld para el lab y las redes del clúster, **sin perder el SSH**, con los puertos de cada
-     tipo de nodo;
-   - containerd desde el repositorio de Docker, con el plugin CRI activo y `SystemdCgroup = true`;
-   - kubeadm, kubelet y kubectl **1.36.5**, protegidos contra un `dnf update` rutinario.
-3. Inicializa el plano de control con `scripts/stage8/files/cluster/kubeadm-config.yaml` (léelo antes) y explica las
-   fases de la salida. Configura `kubectl` para `adminlab`.
-4. ¿Por qué el nodo sale `NotReady` y CoreDNS `Pending`? Arréglalo instalando Calico con su operador y
-   `calico-custom-resources.yaml`.
-5. Une los dos workers con un token **nuevo**.
-6. Administra el clúster desde `ansible01`: `kubectl` (con autocompletado), Helm 4 verificado con su suma y una copia del
-   repo.
-7. Comprueba la salud del clúster y de sus certificados, y haz el snapshot `*-cluster-vacio` con los nodos apagados.
-
-**Comprueba:** `kubectl get nodes -o wide` (3 Ready, v1.36.5, containerd), `kubectl get pods -A`,
-`kubectl get --raw='/readyz?verbose'`, `kubeadm certs check-expiration`, `lab.sh test all k8s-cp01`.
-
-**Preguntas:** (a) ¿qué hace cada componente del plano de control y de cada nodo? (b) ¿cómo arranca el kubelet la API
-si la API es un pod? (c) ¿por qué `NotReady` justo después del `init`? (d) ¿para qué sirve el `exclude=` del
-repositorio? (e) ¿por qué `SystemdCgroup = true`?
-
-### K3 — Objetos de Kubernetes (namespace `demo`)
-
-1. Despliega `apps/podinfo.yaml` y explica la cadena Deployment → ReplicaSet → Pod con la salida de un solo `get`.
-2. Borra un pod y observa qué pasa. Escala a 4 y vuelve a 2. ¿Por qué ninguno va a `k8s-cp01`?
-3. Haz un *rolling update* (cambia una variable de entorno), mira el historial y vuelve atrás.
-4. Pasa configuración con un ConfigMap y crea un Secret. Demuestra que el Secret **no** está cifrado.
-5. Quita a un pod la etiqueta del selector. ¿Qué hacen el ReplicaSet y el Service?
-6. Crea un Job con `kubectl create job` en `demo`. Lee por qué falla y corrígelo con un YAML.
-7. Encuentra los DaemonSets del clúster y explica por qué hay uno por nodo.
-8. Usa los eventos y `describe` para contar lo que acabas de hacer. Deja `demo` como estaba (sin restos de `set env`).
-
-**Preguntas:** (a) ¿por qué no se crean Pods sueltos? (b) ¿qué pasa al quitar a un pod la etiqueta del selector?
-(c) ¿un Secret está cifrado? (d) ¿por qué ningún pod de podinfo va a `k8s-cp01`?
-
-### K4 — Red: Services, DNS, MetalLB, Ingress/Gateway y NetworkPolicies
-
-1. Demuestra las tres capas de un Service: ClusterIP (por DNS interno), NodePort y LoadBalancer.
-2. Comprueba que un pod resuelve `podinfo.demo.svc.cluster.local` **y** `dns01.lab.local`, y explica por qué el segundo.
-3. Instala MetalLB (0.16.1) con Helm y su pool `.110-.119`. Haz que podinfo responda en `http://podinfo.lab.local` y
-   averigua **qué nodo** anuncia la IP. ¿Qué cambia `externalTrafficPolicy: Local`?
-4. Instala Traefik con Gateway API. Publica podinfo con un `Ingress` en `ingress.lab.local` y con un `HTTPRoute` con
-   otro nombre, en la **misma IP**.
-5. Aplica `apps/loadgen.yaml` y `apps/networkpolicies.yaml`. Demuestra qué entra y qué no (desde `loadgen`, desde otro
-   namespace y desde la red del lab). Algo que funcionaba en el punto 4 deja de funcionar: encuéntralo y arréglalo con
-   una política mínima.
-
-**Preguntas:** (a) ¿qué añade cada tipo de Service? (b) ¿por qué el pod bloqueado da timeout y no "connection
-refused"? (c) ¿por qué se rompió el Ingress? (d) ¿qué ventaja tiene Gateway API sobre Ingress?
-
-### K5 — Almacenamiento con local-path
-
-1. Instala local-path-provisioner v0.0.37, haz que use `/var/lib/local-path` (el LV de K2) y que sea la StorageClass
-   por defecto.
-2. Crea un PVC de 1 Gi **solo** y explica su estado. Después, un Deployment (que cumpla `restricted`) que escriba la
-   fecha cada 10 s en el volumen.
-3. Borra el pod: demuestra que los datos sobreviven y en qué nodo están.
-4. Encuentra el volumen en el disco del nodo y su contexto SELinux.
-5. Borra el PVC y comprueba qué pasa con los datos.
-
-**Preguntas:** (a) ¿por qué el PVC se queda en `Pending` sin pod? (b) ¿qué significa `ReadWriteOnce`? (c) ¿qué pasa
-con los datos al borrar el PVC?
-
-### K6 — Seguridad: RBAC, ServiceAccounts, Pod Security, Secrets y SELinux
-
-1. Crea el usuario `dev-tienda` (grupo `equipo-tienda`) con un certificado firmado por el clúster, válido 30 días, con
-   permiso de edición **solo** en el namespace `tienda`. Demuéstralo con `auth can-i` y con un `Forbidden` real.
-2. Crea una ServiceAccount en `demo` que solo pueda listar pods. Desde un pod que la use, llama a la API con su token:
-   listar (sí), borrar (no), secrets (no).
-3. Muestra los niveles de Pod Security de cada namespace. Averigua, **sin cambiar nada**, qué pasaría si
-   `metallb-system` fuera `restricted`.
-4. Demuestra que un Secret se lee en claro con permisos de `edit` y que en etcd está en claro.
-5. Activa SELinux en containerd en **un** worker. Compara el contexto de los procesos de los pods en los dos workers.
-   Busca qué se rompe con un volumen de local-path y arréglalo **sin** `setenforce 0`.
-
-**Preguntas:** (a) ¿dónde están los usuarios de Kubernetes? (b) `Role` + `RoleBinding` frente a `ClusterRole` +
-`RoleBinding`. (c) ¿por qué `metallb-system` no puede ser `restricted`? (d) ¿está cifrado un Secret? (e) ¿qué añade
-`enable_selinux = true`?
-
-### K7 — Helm (Gitea)
-
-1. Inspecciona las releases que ya tienes (MetalLB, Traefik): historial, valores tuyos frente a efectivos y qué
-   objetos crearía el chart, sin aplicarlo.
-2. Instala Gitea con `apps/gitea-values.yaml`: contraseña de administrador en un Secret, versión de chart fijada, y
-   comprobación previa de que tus claves de valores existen en el chart.
-3. Entra en http://gitea.lab.local y crea la organización `lab` y el repo público `k8s-apps` (lo usa K11).
-4. Haz un `upgrade` cambiando un valor, mira el historial, haz `rollback` a la revisión 1 y explica la revisión que
-   aparece.
-
-**Preguntas:** (a) ¿dónde guarda Helm el historial? (b) ¿qué pasa si escribes mal una clave de valores? (c) ¿un
-`rollback` borra la revisión mala?
-
-### K8 — Prometheus y Grafana
-
-Sigue la guía del repo `kubernetes/monitorizacion-prometheus-grafana.md`:
-
-1. Instala kube-prometheus-stack 88.6.2 con la contraseña de Grafana en un Secret. Comprueba *Targets* todo `UP`, solo
-   la alerta `Watchdog` y el dashboard "Lab · podinfo (RED)".
-2. Prueba las reglas sin clúster con `promtool test rules`.
-3. Haz los escenarios **E00-E12**. En cada uno, apunta: cuánto tarda la alerta, qué consulta PromQL lo demuestra y qué
-   comando de `kubectl` da la causa.
-4. Grafana: dashboard 1860, un panel nuevo **como código** que sobreviva a recargar, una variable `namespace` y un
-   usuario *Viewer*.
-
-**Antes de K9:** snapshot `*-antes-8.9`.
-
-### K9 — Terraform
-
-Sigue la guía del repo `kubernetes/terraform-iac.md`, escenarios **T1-T8**:
-
-1. `init` y `plan` **sin aplicar**: ¿qué quiere crear y por qué fallaría?
-2. Adopta con `import` lo hecho a mano (0 to destroy, innegociable) y llega a `No changes`.
-3. Crea `tienda-web` con el módulo, provoca *drift*, el bloqueo del estado, el error de CRD inexistente y prueba
-   `prevent_destroy` y `moved`.
-4. Escribe tu tabla de quién hace qué: Terraform, Ansible o Argo CD.
-
-### K10 — OpenShift Local (al final de la etapa, en el host)
-
-1. Revisa el host **en solo lectura** (CPU, RAM, disco, redes de libvirt, DNS del lab) y guarda el "antes".
-2. Apaga el clúster, descarga `crc` y el *pull secret*, y configura 11 GiB y 4 CPU. Averigua **qué cambiaría**
-   `crc setup` sin ejecutarlo y decide.
-3. (Si decides seguir) arranca OpenShift y comprueba que el DNS del lab sigue funcionando.
-4. Despliega podinfo en un proyecto `tienda`: ¿por qué falla con el mismo YAML que en Kubernetes y cómo se arregla?
-   Publícalo con una Route.
-5. Compara con lo que hiciste a mano: proyectos, SCC, Routes, S2I, monitorización integrada y operadores.
-6. Deja el host como estaba y compara con el "antes".
-
-### K11 — CI y GitOps (Gitea + Argo CD)
-
-1. Instala `yamllint`, `kubeconform` y `promtool` (con suma de verificación) y ejecuta
-   `scripts/stage8/files/ci/validar.sh` hasta `RESULTADO: OK`.
-2. En una **copia**, rompe una regla de alerta, un YAML y un manifiesto, y comprueba que el CI lo caza.
-3. Instala Argo CD v3.5.2 en `.116`.
-4. Sube a `lab/k8s-apps` (Gitea) un Deployment y un Service de podinfo y crea una `Application` con sincronización
-   automática, `prune` y `selfHeal` hacia el namespace `gitops`.
-5. Escala a mano y mira qué pasa. Cambia las réplicas con un commit. Vuelve atrás con `git revert`.
-
-**Preguntas:** (a) `kubectl apply` desde un pipeline frente a GitOps. (b) ¿cómo se vuelve atrás en GitOps? (c) ¿qué
-hace `selfHeal`?
-
-### K12 — Operación: mantenimiento, etcd y upgrade
-
-1. Saca un worker para "parchearlo" (drain, `dnf update`, reboot, uncordon) sin cortar podinfo.
-2. Con un PodDisruptionBudget `minAvailable: 1` y una sola réplica, intenta el mismo `drain`. Explica y arréglalo.
-3. Haz una copia de etcd, compruébala y llévala **fuera** del nodo.
-4. Crea un namespace `borrame`, haz una copia, bórralo y **restaura** etcd hasta que vuelva.
-5. Actualiza el clúster de 1.36 a 1.37 (plano de control primero, workers de uno en uno) con un bucle de `curl` contra
-   podinfo que demuestre que no hay corte. Actualiza también `kubectl` en `ansible01`.
-
-**Antes:** snapshot `*-antes-8.12`.
-
-### K13 — Automatizar con Ansible lo que hiciste a mano
-
-En un proyecto **separado** `ansible01:~/k8s-ansible` (nunca en `~/ansible-lab`):
-
-1. Inventario con `control_plane`, `workers` y el padre `k8s`; colecciones con versión fijada dentro del proyecto.
-2. Rol `k8s_node` con **todo** el punto 2 de K2. Criterio: `--check` válido y `changed=0` la segunda vez.
-3. Playbook `k8s-cluster.yml`: `init` solo si no hay clúster, Calico, y `join` de los workers con un token generado al
-   vuelo (`delegate_to`).
-4. **Prueba de fuego:** saca `k8s-w02` del clúster, devuélvelo al snapshot `stage5` y reconstrúyelo **solo con Ansible**
-   hasta `Ready`.
-5. (Ampliación) Rol `node_exporter` para las VMs del lab.
+1. Cada paso: hacer → comprobar → anotar en el checklist el resultado **obtenido**.
+2. **El host no se toca**, salvo en la 8.10 y con revisión previa de solo lectura.
+3. **Nombres completos** de imagen (`registro/ruta:etiqueta`), nunca nombres cortos ni `latest`.
+4. **Antes de aplicar, simula:** `kubectl apply --dry-run=server`, `helm template`, `terraform plan`.
+5. **Ningún secreto en el repo:** contraseñas, `kubeconfig`, claves privadas y `tfstate` se quedan en las VMs.
 
 ---
 
-## 4. Ideas para seguir practicando
+## 8.1 Contenedores con Podman
 
-- Repite K3 escribiendo tú el YAML de podinfo desde cero, con `kubectl create deployment --dry-run=client -o yaml`
-  como punto de partida y `kubectl explain` como documentación.
-- Añade un `HorizontalPodAutoscaler` a podinfo (necesita `metrics-server`) y provócalo con el `loadgen`.
-- Cifrado en reposo de los Secrets (`EncryptionConfiguration`) y comprobación con `etcdctl` (ampliación de K6).
-- Un *runner* de Gitea Actions que ejecute `validar.sh` en cada `push` (ampliación de K11).
-- Velero con MinIO para copias de objetos y volúmenes (ampliación de K12).
-- Preguntas tipo CKA: "un nodo `NotReady`", "un pod en `Pending`", "un Service sin endpoints". Diagnostica cada una
-  solo con `get`, `describe`, `logs` y `journalctl`.
+> 🎫 **Ticket PLAT-801.** "Antes de pedir un clúster, el equipo de desarrollo quiere ver su aplicación en un contenedor
+> en un servidor RHEL: que corra sin root, que lea datos del disco con SELinux activo y que arranque sola si el
+> servidor se reinicia."
 
----
-
-## 5. Limpieza
-
-- **Por ejercicio:** cada solución termina con su limpieza (los `delete -f`, los `set env VAR-`, `helm uninstall`).
-- **El clúster entero:** vuelve al snapshot `*-cluster-vacio` (apaga los tres nodos y `virsh snapshot-revert <nodo>
-  <nodo>-cluster-vacio`) o, para quitar Kubernetes, a `*-stage5-complete` (`scripts/lab.sh snapshot revert k8s-cp01 5`,
-  ídem workers).
-- **ansible01:** el contenedor `saludo` y el *linger* de K1 (reversión en la solución 6.1, paso 8.1.5); los binarios
-  de `~/.local/bin` y `/usr/local/bin` (helm, kubeconform, promtool) se pueden quedar.
-- **Host:** `crc cleanup` deshace `crc setup` (K10).
-
----
-
-## 6. Soluciones
-
-> Los resultados marcados **✅ Resultado real** son de tu lab. El resto son la salida **esperada**: compárala con la
-> tuya y, si difiere, es un caso de troubleshooting. Los números de paso (8.1.2, 8.2.2 f…) corresponden a las subetapas 8.1-8.13. Los manifiestos de `apps/`, `cluster/` y `monitoring/` están en `scripts/stage8/files/`.
-
-### 6.1 Solución K1 — Contenedores con Podman (en ansible01)
-
-**Objetivo:** entender los contenedores **sin orquestador** antes de montar Kubernetes: imagen frente a contenedor,
-capas, rootless y subuid, SELinux con `:Z`, pods y systemd. Todo lo de esta subetapa reaparece en la 8.2 con containerd.
-
-**Dónde:** `ansible01`, como `adminlab`. `dns01` encendida (es su DNS). El host no se toca.
-
-**Vuelta atrás:** nada de esta subetapa es destructivo. La reversión está al final de cada ejercicio y, si todo falla,
+**Dónde:** `ansible01`, como `adminlab`. **Vuelta atrás:** cada tema tiene la suya; si todo falla,
 `scripts/lab.sh snapshot revert ansible01 7`.
 
-| Paso | Qué | Estado |
-|---|---|---|
-| 8.1.0 | Instalar y comprobar Podman | ✅ 2026-10-29 |
-| 8.1.1 | Primer contenedor: proceso dentro y fuera | ✅ 2026-10-29 |
-| 8.1.2 | Imagen propia con un `Containerfile` | ✅ 2026-10-29 (caso 01) |
-| 8.1.3 | Volúmenes y SELinux (`:Z`) | ✅ 2026-10-30 |
-| 8.1.4 | Pod de Podman y YAML de Kubernetes | ⏳ |
-| 8.1.5 | Servicio systemd con Quadlet | ⏳ |
-| 8.1.6 | Comparación entre versiones de RHEL (opcional) | ⏳ |
+| Tema | Estado |
+|---|---|
+| 8.1.1 Instalar Podman | ✅ 2026-10-29 |
+| 8.1.2 Contenedor = proceso aislado | ✅ 2026-10-29 |
+| 8.1.3 Imágenes y capas | ✅ 2026-10-30 |
+| 8.1.4 Volúmenes y SELinux | ✅ 2026-10-30 |
+| 8.1.5 Pods y YAML de Kubernetes | ⏳ |
+| 8.1.6 Servicio systemd con Quadlet | ⏳ |
 
-#### 8.1.0 Instalar y comprobar Podman
+### 8.1.1 Instalar Podman en RHEL 9
 
-El kickstart del lab instala un sistema **mínimo**: Podman está en AppStream, pero **no viene instalado**. Sale
-`podman: command not found` hasta que lo instalas.
+📘 **Concepto.** Un **contenedor** es un proceso (o un grupo de procesos) que el kernel aísla con *namespaces* (qué ve:
+PIDs, red, montajes, usuarios) y limita con *cgroups* (cuánto usa: CPU, memoria). La **imagen** es el sistema de ficheros
+y la configuración de arranque de ese proceso, empaquetados por capas. Podman es el motor de contenedores de RHEL:
+**sin demonio** (cada `podman run` es un proceso hijo tuyo, no de un servicio central como `dockerd`) y **rootless**
+(un usuario normal ejecuta contenedores sin `sudo`). En RHEL 9 se instala con el metapaquete `container-tools`
+(podman, buildah, skopeo) desde AppStream; en RHEL 8 era un módulo.
 
-**1. ¿Responden los repos?**
+*Fuente:* [Red Hat — Building, running, and managing containers (RHEL 9)](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/building_running_and_managing_containers/index) ·
+[Podman — documentación](https://docs.podman.io/en/latest/)
+
+🛠️ **Práctica.** El kickstart del lab es mínimo: Podman no viene instalado (`podman: command not found`).
 
 ```bash
 # [ansible01 · adminlab]
 sudo subscription-manager repos --list-enabled | grep 'Repo ID'
 dnf info podman container-tools 2>&1 | grep -E '^(Name|Version|Release|Repository)|Error|error'
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `repos --list-enabled` | Lista los repos **configurados** | `rhel-9-for-x86_64-baseos-rpms` y `...-appstream-rpms` | Vacío o error → la suscripción no da repos. Para y revísala (`subscription-manager status`) |
-| `dnf info ...` | **Descarga** los metadatos y busca los paquetes: prueba que el certificado sigue siendo válido | Dos bloques, `container-tools` y `podman`, con `Repository : rhel-9-for-x86_64-appstream-rpms` | `Failed to download metadata` o `403` → certificado caducado. `No matching packages` → AppStream no está habilitado |
-
-> ✅ **Resultado real (2026-10-29):** los dos repos habilitados; `container-tools-1-15.el9` y `podman-5.8.2-8.el9_8`
-> en AppStream. El sufijo `el9_8` es la build de RHEL 9.8, la misma versión menor que `ansible01`.
-
-**2. Instalar.** No elijas una versión a mano: se instala **la de AppStream de tu versión menor**, que Red Hat prueba
-junto con `container-selinux`, `crun`, `netavark` y el kernel de esa versión.
-
-```bash
-# [ansible01 · adminlab]
 sudo dnf install -y container-tools
-```
-
-- **Qué hace:** instala el metapaquete `container-tools`: `podman`, `buildah` (lo que hay debajo de `podman build`),
-  `skopeo` (inspeccionar y copiar imágenes sin descargarlas) y sus dependencias (`container-selinux`, `crun`, `conmon`,
-  `netavark`, `passt`).
-- **Qué esperas:** `Complete!` al final.
-- **Diferencia con RHEL 8:** allí es un **módulo** (`dnf module install container-tools:rhel8`). En RHEL 9 los
-  módulos de contenedores desaparecen y es un paquete normal.
-
-**3. Comprobar.** Como `adminlab`, sin `sudo`:
-
-```bash
-# [ansible01 · adminlab]
 podman --version
 podman info --format '{{.Host.Security.Rootless}} {{.Host.NetworkBackend}} {{.Store.GraphRoot}}'
 grep adminlab /etc/subuid /etc/subgid
-getenforce; free -h | head -2; df -h ~ | tail -1
+getenforce
 ```
 
-| Comando | Qué esperas | Qué significa | Si sale otra cosa |
-|---|---|---|---|
-| `podman --version` | `podman version 5.8.2` | La de AppStream 9.8 | — |
-| `podman info --format` | `true netavark /home/adminlab/.local/share/containers/storage` | Rootless (sin root); backend de red actual (CNI está retirado en Podman 5); las imágenes cuentan en `/home`, no en `/var` | `false` → estás como root |
-| `grep /etc/subuid /etc/subgid` | `adminlab:100000:65536` en los dos | El UID 0 del contenedor es `adminlab`; del 1 en adelante, los UIDs 100000-165535 del host | Sin línea → rootless falla con `cannot find mappings` |
-| `getenforce` / `free` / `df` | `Enforcing`, ≥ 1 GiB libre, ≥ 2 GB libres en `/home` | Sin `Enforcing`, el ejercicio de `:Z` no tiene sentido | — |
+| Comando | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `repos --list-enabled` | `rhel-9-for-x86_64-baseos-rpms` y `...-appstream-rpms` | Vacío → la suscripción no da repos |
+| `dnf info` (descarga metadatos: prueba que el certificado es válido) | `podman` y `container-tools` en `rhel-9-for-x86_64-appstream-rpms` | `Failed to download metadata` / `403` → certificado caducado |
+| `dnf install -y container-tools` | `Complete!` | — |
+| `podman info --format` | `true netavark /home/adminlab/.local/share/containers/storage`: rootless, backend de red actual, imágenes en tu home | `false` → estás como root |
+| `grep /etc/subuid /etc/subgid` | `adminlab:100000:65536` en los dos | Sin línea → rootless falla con `cannot find mappings` |
+| `getenforce` | `Enforcing` | Otra cosa → el tema 8.1.4 no tiene sentido |
 
-> ✅ **Resultado real (2026-10-29):** `podman version 5.8.2`; `true netavark /home/adminlab/.local/share/containers/storage`;
-> `adminlab:100000:65536` en `/etc/subuid` y `/etc/subgid`.
+> ✅ **Resultado real (2026-10-29):** `container-tools-1-15.el9`, `podman-5.8.2-8.el9_8` (build de RHEL 9.8, la misma
+> versión menor que `ansible01`); `true netavark /home/adminlab/.local/share/containers/storage`;
+> `adminlab:100000:65536`.
 
-**Anota en el checklist (fila 1):** versión de Podman y de dónde sale.
+⚠️ **Error común en el mercado: instalar "la última versión" desde fuera de la distribución.** Se descarga un binario
+estático de GitHub o se añade un repositorio de terceros para tener la última Podman o Docker. El resultado es una
+versión que Red Hat no ha probado con ese kernel, ese `container-selinux` y ese `crun`, sin soporte y que el siguiente
+`dnf update` puede romper. **Cómo evitarlo:** la versión de AppStream de tu versión menor; si necesitas algo más nuevo,
+se sube la versión menor de RHEL.
 
-#### 8.1.1 Primer contenedor: un proceso aislado, no una máquina
+### 8.1.2 Un contenedor es un proceso aislado, no una máquina
+
+📘 **Concepto.** `podman run` descarga la imagen si no la tiene, crea el contenedor y ejecuta su proceso principal. Ese
+proceso tiene **PID 1 dentro** de su espacio de PIDs, pero en el host es un proceso más. En modo rootless, el usuario 0
+del contenedor es **tu propio usuario** en el host, y el resto de UIDs se mapean al rango subordinado de
+`/etc/subuid` (*user namespaces*): aunque el proceso "sea root" dentro, fuera no tiene privilegios. `-p host:contenedor`
+publica un puerto.
+
+*Fuente:* [podman-run(1)](https://docs.podman.io/en/latest/markdown/podman-run.1.html) ·
+[podman-top(1)](https://docs.podman.io/en/latest/markdown/podman-top.1.html) ·
+[Rootless (tutorial oficial)](https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 timeout 30 skopeo inspect docker://ghcr.io/stefanprodan/podinfo:6.15.0 | grep -E '"(Digest|Created)"'
 podman run -d --name web -p 8080:9898 ghcr.io/stefanprodan/podinfo:6.15.0
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `skopeo inspect` | Lee los metadatos de la imagen en el registro **sin descargarla** | Un `"Digest": "sha256:..."` | `manifest unknown` → esa versión no existe. Timeout → DNS o NAT |
-| `podman run -d --name web -p 8080:9898` | Descarga la imagen y arranca un contenedor en segundo plano (`-d`). Publica el 9898 del contenedor en el 8080 de `ansible01` | Líneas `Copying blob ...` y al final un ID largo | `address already in use` → algo usa el 8080 (`ss -tlnp \| grep 8080`) |
-
-```bash
-# [ansible01 · adminlab]
 curl -s localhost:8080 | head -5
 podman ps
-podman logs web | tail -3
-```
-
-Deberías ver un JSON con `"hostname"` y `"version": "6.15.0"`, la línea de `web` con `0.0.0.0:8080->9898/tcp` y la
-línea de arranque del servidor en los logs.
-
-**Lo que más importa de la 8.1:** un contenedor es un **proceso del host aislado con namespaces**, no una VM.
-
-```bash
-# [ansible01 · adminlab]
 podman exec web ps
 ps -ef | grep [p]odinfo
 podman top web user huser pid hpid
+podman rm -f web
 ```
 
 | Comando | Qué esperas | Qué demuestra |
 |---|---|---|
-| `podman exec web ps` | Uno o dos procesos: podinfo con PID 1 y el propio `ps` | El contenedor tiene su propio espacio de PIDs |
-| `ps -ef \| grep [p]odinfo` | `podinfo` como un proceso más del host, con un UID numérico grande (100000 y algo). Los corchetes evitan que `grep` se encuentre a sí mismo | Desde fuera es un proceso normal |
-| `podman top ... user huser pid hpid` | `user` = el usuario dentro de la imagen; `huser` = ese mismo usuario visto desde el host; `pid` frente a `hpid` | El mapeo de `/etc/subuid` y los dos espacios de PIDs |
+| `skopeo inspect` | Un `"Digest": "sha256:..."` (lee el registro **sin descargar**) | Que la versión fijada existe. `manifest unknown` → no existe |
+| `podman run -d -p 8080:9898` | Capas descargándose y un ID | `address already in use` → algo usa el 8080 |
+| `curl localhost:8080` | JSON con `"version": "6.15.0"` | — |
+| `podman exec web ps` | podinfo con PID 1 | Espacio de PIDs propio |
+| `ps -ef \| grep [p]odinfo` | `podinfo` como proceso del host, con un UID grande (100000+) | Desde fuera es un proceso normal |
+| `podman top ... user huser pid hpid` | Usuario dentro y su UID en el host; PID dentro y fuera | El mapeo de `/etc/subuid` |
 
-```bash
-# [ansible01 · adminlab]
-podman rm -f web
-```
+⚠️ **Error común en el mercado: tratar el contenedor como una VM.** Se entra con `exec` a "arreglar" cosas (instalar
+paquetes, editar ficheros) en un contenedor en marcha. Al recrearlo, todo se pierde, y nadie sabe qué cambió. **Cómo
+evitarlo:** el contenedor es desechable; cualquier cambio va a la imagen (`Containerfile`) o a la configuración
+(variables, volúmenes), y se recrea.
 
-**Anota en el checklist (fila 1):** la salida de `podman top`.
+### 8.1.3 Imágenes propias y capas
 
-#### 8.1.2 Imagen propia con un `Containerfile`
+📘 **Concepto.** Un `Containerfile` (mismo formato que un `Dockerfile`) describe cómo construir una imagen. `FROM` fija
+la base; `COPY` y `RUN` crean **capas**; `USER`, `CMD`, `LABEL` y `ENV` solo son **metadatos**. Las capas son
+**copy-on-write**: una capa que solo cambia los permisos de un fichero guarda el fichero entero otra vez. El último
+argumento de `podman build` es el **contexto**: el directorio cuyo contenido se envía al build y del que salen los
+`COPY`. Las imágenes construidas en local se llaman `localhost/<nombre>`; un nombre **corto** (sin registro) se busca
+en los `unqualified-search-registries` de `/etc/containers/registries.conf`.
 
-**Regla:** cada imagen en **su propio directorio** (el *contexto* del build) y con **nombre completo**
-(`localhost/...`). Las dos cosas fallaron la primera vez: caso
-etapa8/01 (pendiente de documentar).
+*Fuente:* [podman-build(1)](https://docs.podman.io/en/latest/markdown/podman-build.1.html) ·
+[Containerfile(5)](https://github.com/containers/common/blob/main/docs/Containerfile.5.md) ·
+[containers-registries.conf(5)](https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md)
 
-**1. La etiqueta de la imagen base.** Nunca `latest`:
+🛠️ **Práctica.** Cada imagen en su propio directorio (el contexto) y con nombre completo.
 
 ```bash
 # [ansible01 · adminlab]
 skopeo list-tags docker://registry.access.redhat.com/ubi9/ubi-minimal | grep -E '"9\.[0-9]+"' | tail -3
-```
-
-Lo esperado es una lista como `"9.6"`, `"9.7"`, `"9.8"`. Usa la más alta en el `FROM`.
-
-> ✅ **Resultado real:** `9.8`.
-
-**2. El directorio y el script.** Estilo de la Etapa 6: `set -euo pipefail`, una función y un argumento. Tiene dos
-modos: una sola vez, o `--bucle` para el servicio de la 8.1.5.
-
-```bash
-# [ansible01 · adminlab]
 mkdir -p ~/podman-lab/saludo && cd ~/podman-lab/saludo && pwd
-
 cat > saludo.sh <<'EOF'
 #!/bin/bash
 # saludo.sh - Etapa 8.1: script de prueba para la imagen lab/saludo
@@ -485,20 +334,11 @@ saludar() {
 }
 
 if [[ "${1:-}" == "--bucle" ]]; then
-  while true; do saludar; sleep 30; done   # modo servicio (8.1.5)
+  while true; do saludar; sleep 30; done   # modo servicio (8.1.6)
 else
   saludar                                  # modo una sola vez
 fi
 EOF
-```
-
-`pwd` **tiene** que decir `/home/adminlab/podman-lab/saludo` antes de seguir. El `cat > ... <<'EOF'` crea el fichero en
-el directorio **actual**: si el `cd` no se hizo, el fichero acaba en otro sitio (eso pasó en el caso 01).
-
-**3. El `Containerfile`.**
-
-```bash
-# [ansible01 · adminlab]  (en ~/podman-lab/saludo)
 cat > Containerfile <<'EOF'
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8
 LABEL description="Etapa 8.1 - imagen de prueba" maintainer="adminlab"
@@ -508,141 +348,101 @@ USER 1001
 CMD ["/usr/local/bin/saludo.sh"]
 EOF
 ls -la
-```
-
-| Instrucción | Qué hace | ¿Crea capa? |
-|---|---|---|
-| `FROM` | Imagen base | Usa las de la base |
-| `LABEL` | Metadatos (autor, descripción) | No |
-| `COPY` | Copia un fichero del **contexto** a la imagen | Sí |
-| `RUN` | Ejecuta un comando durante el build | Sí |
-| `USER 1001` | El contenedor no corre como root dentro | No |
-| `CMD` | Qué se ejecuta al arrancar | No |
-
-`ls -la` debe mostrar `Containerfile` y `saludo.sh`, los dos con más de 0 bytes.
-
-**4. Construir y ejecutar.**
-
-```bash
-# [ansible01 · adminlab]  (en ~/podman-lab/saludo)
 podman build -t localhost/lab/saludo:1.0 .
-podman images
 podman run --rm localhost/lab/saludo:1.0
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `podman build -t ... .` | Construye la imagen. El `.` es el **contexto**: el directorio donde busca el `Containerfile` y los ficheros del `COPY` | `STEP 1/6` ... `STEP 6/6` y `Successfully tagged localhost/lab/saludo:1.0` | `no Containerfile or Dockerfile` → no estás en el directorio. Se para en `COPY` → el fichero no está en el contexto |
-| `podman images` | Lista las imágenes locales | `localhost/lab/saludo  1.0` | Una imagen `<none> <none>` → un build que se quedó a medias |
-| `podman run --rm` | Ejecuta y borra el contenedor al terminar | `2026-10-29 23:58:01  Hola desde a1b2c3d4e5f6 (uid=1001)`. El "hostname" es el ID corto del contenedor | `Trying to pull registry.access.redhat.com/lab/saludo...` → nombre corto y la imagen local no existe (caso 01) |
-
-**5. Capas y metadatos.**
-
-```bash
-# [ansible01 · adminlab]
-podman image inspect localhost/lab/saludo:1.0 --format 'User={{.Config.User}}  Cmd={{.Config.Cmd}}'
+podman image inspect localhost/lab/saludo:1.0 --format 'User={{.Config.User}}  Cmd={{.Config.Cmd}}  Capas={{len .RootFS.Layers}}'
 podman history localhost/lab/saludo:1.0 | head -6
-podman image inspect localhost/lab/saludo:1.0 --format 'Capas={{len .RootFS.Layers}}'
 podman images localhost/lab/saludo
 ```
 
-> ✅ **Resultado real (2026-10-30):**
+| Comando | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `skopeo list-tags` | Etiquetas `"9.6"`, `"9.7"`, `"9.8"`: usa la más alta en el `FROM` | — |
+| `pwd` | `/home/adminlab/podman-lab/saludo` **antes** de los `cat >` | Otro directorio → los ficheros acaban en otro sitio |
+| `ls -la` | `Containerfile` y `saludo.sh`, con más de 0 bytes | — |
+| `podman build ... .` | `STEP 1/6`...`STEP 6/6`, `Successfully tagged localhost/lab/saludo:1.0` | Se para en `COPY` → el fichero no está en el contexto |
+| `podman run --rm` | `... Hola desde <id> (uid=1001)` | `Trying to pull registry.access.redhat.com/lab/saludo` → la imagen no existe en local |
+
+> ✅ **Resultado real (2026-10-30):** `User=1001  Cmd=[/usr/local/bin/saludo.sh]`, `Capas=3`; en `history`, `COPY` y
+> `RUN chmod` con `3.58kB` cada uno, y `USER`, `CMD` y `LABEL` con `0B`; `localhost/lab/saludo 1.0 38202e4c3e82 109 MB`.
 >
-> ```text
-> User=1001  Cmd=[/usr/local/bin/saludo.sh]
-> ID            CREATED         CREATED BY                                     SIZE
-> cab93738abae  4 minutes ago   /bin/sh -c #(nop) CMD ["/usr/local/bin/sal...  0B
-> <missing>     4 minutes ago   /bin/sh -c #(nop) USER 1001                    0B
-> <missing>     4 minutes ago   /bin/sh -c chmod 0755 /usr/local/bin/salud...  3.58kB
-> 0e799578a795  4 minutes ago   /bin/sh -c #(nop) COPY file:42e140c19583a4...  3.58kB
-> e15848b7a7e3  17 minutes ago  /bin/sh -c #(nop) LABEL description="Etapa...  0B
-> Capas=3
-> localhost/lab/saludo  1.0  38202e4c3e82  5 minutes ago  109 MB
-> ```
+> **Primer intento fallido** (caso etapa8/01, pendiente de documentar): el `Containerfile` se creó en `~` y el script
+> en `~/podman-lab/saludo`. El build desde `~` se paró en el `COPY` y dejó una imagen intermedia `<none>` con
+> `User=` vacío y `Cmd=[/bin/bash]`; después, `podman run lab/saludo:1.0` intentó descargarla de
+> `registry.access.redhat.com`, `registry.redhat.io` y `docker.io`.
 
-Cómo se lee:
+Cómo leer las capas: `Capas=3` = UBI (sus capas vienen aplanadas en una) + `COPY` + `RUN`. El `RUN chmod` ocupa lo
+mismo que el `COPY` porque, con copy-on-write, cambiar los permisos guarda el fichero entero otra vez. La forma
+correcta es `COPY --chmod=0755 saludo.sh /usr/local/bin/`. Los 109 MB son la imagen completa, pero en disco solo
+añade unos 7 kB: la capa de UBI se **comparte**.
 
-| Dato | Qué significa |
-|---|---|
-| `Capas=3` | 1 de UBI (sus capas vienen aplanadas en una de 109 MB) + 1 del `COPY` + 1 del `RUN chmod` |
-| `USER`, `CMD`, `LABEL` con `0B` | Son metadatos de la configuración, no capas |
-| `RUN chmod` ocupa lo mismo que el `COPY` | Las capas son **copy-on-write**: cambiar solo los permisos guarda **el fichero entero** otra vez. Con 406 bytes da igual; con un binario de 200 MB serían 400 MB. Por eso, en un `Containerfile` real se escribe `COPY --chmod=0755 saludo.sh /usr/local/bin/` |
-| `SIZE 109 MB` | La imagen completa. En disco solo añade unos 7 kB: la capa de UBI se **comparte** con `ubi9/ubi-minimal:9.8` |
+⚠️ **Error común en el mercado: secretos dentro de la imagen.** Se construye desde un directorio con todo
+(`podman build .` en el home o en la raíz de un repo) o se hace `COPY . .`, y en la imagen acaban claves SSH, `.env`
+con contraseñas o el `.git`. Además, un `RUN rm secreto` en una capa posterior **no** lo borra: sigue en la capa
+anterior y cualquiera que descargue la imagen lo extrae. **Cómo evitarlo:** un directorio por imagen, un
+`.containerignore`, `COPY` de ficheros concretos, y los secretos en tiempo de ejecución (variables, Secrets de
+Kubernetes), nunca en el build.
 
-**Anota en el checklist (fila 2):** etiqueta de UBI, `User`/`Cmd`, número de capas y tamaño.
+### 8.1.4 Volúmenes y SELinux
 
-#### 8.1.3 Volúmenes y SELinux
+📘 **Concepto.** Con SELinux en *enforcing*, los procesos de los contenedores corren con el tipo **`container_t`** y
+solo pueden acceder a ficheros con tipos permitidos (`container_file_t`). Un directorio del home es `user_home_t`: el
+contenedor no lo puede leer **aunque los permisos Unix lo permitan**. Las opciones de volumen `:z` y `:Z` piden a
+Podman que **reetiquete** el contenido: `:z` con una etiqueta compartida por todos los contenedores; `:Z` con una
+etiqueta **privada** de ese contenedor, con categorías MCS únicas (`s0:c87,c584`), de forma que otro contenedor no
+pueda leerlo.
 
-Un contenedor rootless corre como `adminlab` en el host, así que los **permisos Unix** de tu home le dejan leer. Lo que
-lo bloquea es **SELinux**: el proceso corre con el tipo `container_t` y no puede leer ficheros `user_home_t`.
+*Fuente:* [podman-run(1), opción `--volume` (apartado "Labeling Volume Mounts")](https://docs.podman.io/en/latest/markdown/podman-run.1.html) ·
+[Red Hat — Using SELinux (RHEL 9)](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/using_selinux/index)
 
-**1. Datos de prueba.**
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
-mkdir -p ~/datos
-echo "hola desde el host" > ~/datos/hola.txt
+mkdir -p ~/datos && echo "hola desde el host" > ~/datos/hola.txt
 ls -laZ ~/datos
-```
-
-Lo esperado: propietario `adminlab` y contexto `unconfined_u:object_r:user_home_t:s0`.
-
-**2. Sin `:Z`: falla.**
-
-```bash
-# [ansible01 · adminlab]
 podman run --rm -v ~/datos:/datos registry.access.redhat.com/ubi9/ubi-minimal:9.8 cat /datos/hola.txt
 sudo timeout 20 ausearch -m avc -ts recent | grep denied | tail -2
-```
-
-| Comando | Qué esperas | Qué demuestra |
-|---|---|---|
-| `podman run -v ~/datos:/datos` | `cat: /datos/hola.txt: Permission denied` | Los permisos Unix están bien (eres el dueño), pero algo bloquea |
-| `ausearch -m avc -ts recent` | `avc: denied { read } ... scontext=...container_t... tcontext=...user_home_t` | Quien bloquea es SELinux. `timeout` por la lección del caso [etapa2/06](../troubleshooting/etapa2/06-ausearch-colgado-timeout.md) |
-
-**3. Con `:Z`: funciona.**
-
-```bash
-# [ansible01 · adminlab]
 podman run --rm -v ~/datos:/datos:Z registry.access.redhat.com/ubi9/ubi-minimal:9.8 cat /datos/hola.txt
 ls -laZ ~/datos
 ```
 
-> ✅ **Resultado real (2026-10-30):**
->
-> ```text
-> hola desde el host
-> drwxr-xr-x.  2 adminlab adminlab system_u:object_r:container_file_t:s0:c87,c584   22 Oct 30 00:19 .
-> drwx------. 11 adminlab adminlab unconfined_u:object_r:user_home_dir_t:s0       4096 Oct 30 00:19 ..
-> -rw-r--r--.  1 adminlab adminlab system_u:object_r:container_file_t:s0:c87,c584   19 Oct 30 00:19 hola.txt
-> ```
+| Paso | Qué esperas | Qué demuestra |
+|---|---|---|
+| `ls -laZ` (antes) | `adminlab`, `unconfined_u:object_r:user_home_t:s0` | — |
+| Sin `:Z` | `cat: /datos/hola.txt: Permission denied` | Los permisos Unix están bien; algo más bloquea |
+| `ausearch -m avc` | `avc: denied { read } ... scontext=...container_t... tcontext=...user_home_t` | Es SELinux. `timeout` por el caso [etapa2/06](../troubleshooting/etapa2/06-ausearch-colgado-timeout.md) |
+| Con `:Z` | `hola desde el host` | — |
+| `ls -laZ` (después) | `system_u:object_r:container_file_t:s0:cX,cY` | Podman reetiquetó el directorio |
 
-Qué demuestra la salida:
+> ✅ **Resultado real (2026-10-30):** `hola desde el host`; `~/datos` y `hola.txt` en
+> `system_u:object_r:container_file_t:s0:c87,c584`; el home (`..`) sigue en `user_home_dir_t`. Los permisos Unix
+> (`adminlab`, 644) no cambiaron.
 
-- **`:Z` solo reetiqueta lo que se monta.** `~/datos` y `hola.txt` pasaron a `container_file_t`; `..` (tu home) sigue
-  en `user_home_dir_t`.
-- **`s0:c87,c584` son las categorías MCS** que Podman asignó a **ese** contenedor. `:Z` (mayúscula) es una etiqueta
-  privada: otro contenedor con `:Z` sobre el mismo directorio lo reetiquetaría y el primero perdería el acceso. `:z`
-  (minúscula) es una etiqueta compartida entre contenedores.
-- **Los permisos Unix no cambiaron** (`adminlab`, 644). Solo cambió la etiqueta SELinux.
+Un segundo `Permission denied` distinto, por permisos Unix: la imagen `saludo` corre como UID 1001, que en el host es
+100000 + 1000 = **101000**, y ese UID no es dueño de `~/datos`. `podman unshare chown 1001:1001 ~/datos` lo arregla
+(dentro de `unshare` los UIDs son los del contenedor); `ls -ln ~/datos` muestra `101000`. Se deshace con
+`podman unshare chown 0:0 ~/datos`.
 
-> ⚠️ **Nunca** `:Z` sobre `~` entero, `/home`, `/etc` o `/var`: reetiqueta todo lo que monta y te puedes quedar sin login.
-> Solo directorios dedicados como `~/datos`. Para volver a la etiqueta original: `restorecon -Rv ~/datos`.
+⚠️ **Error común en el mercado: `setenforce 0` "para que funcione".** Ante el primer `Permission denied` de un
+contenedor, se desactiva SELinux en el servidor (o se pone `SELINUX=disabled`) y se deja así para siempre: todo el
+servidor pierde una capa de seguridad por un volumen mal etiquetado. El error "contrario" es igual de grave: `:Z` sobre
+`/home`, `/etc` o `/var`, que reetiqueta todo y puede dejar el servidor sin login. **Cómo evitarlo:** leer el AVC
+(`ausearch`), usar `:Z` solo en directorios dedicados y, para rutas fijas, una regla persistente con
+`semanage fcontext` + `restorecon`.
 
-**Opcional (rootless y subuid):** `podman run --rm -v ~/datos:/datos:Z localhost/lab/saludo:1.0 touch /datos/prueba`
-falla, ahora por **permisos Unix**: la imagen corre como UID 1001, que en el host es 100000 + 1000 = **101000**, y
-ese UID no es dueño de `~/datos`. `podman unshare chown 1001:1001 ~/datos` lo arregla (dentro de `unshare`, los UIDs
-son los del contenedor) y `ls -ln ~/datos` muestra `101000`. Se deshace con `podman unshare chown 0:0 ~/datos`.
+### 8.1.5 Pods: contenedores que comparten red
 
-**Anota en el checklist (fila 3):** la línea del AVC y el `ls -laZ` de antes y de después.
+📘 **Concepto.** Un **pod** es un grupo de contenedores que comparten espacios de nombres, sobre todo la **red**: misma
+IP, mismos puertos, y se hablan por `localhost`. Un contenedor especial, el **infra** (en Kubernetes, *pause*), mantiene
+vivos esos espacios aunque los demás se reinicien. Es la unidad mínima de Kubernetes, y Podman la reproduce en local:
+`podman kube generate` escribe el **YAML de Kubernetes** de un pod de Podman y `podman kube play` hace lo contrario.
 
-#### 8.1.4 Pod de Podman y YAML de Kubernetes
+*Fuente:* [podman-pod-create(1)](https://docs.podman.io/en/latest/markdown/podman-pod-create.1.html) ·
+[podman-kube-generate(1)](https://docs.podman.io/en/latest/markdown/podman-kube-generate.1.html) ·
+[Kubernetes — Pods](https://kubernetes.io/docs/concepts/workloads/pods/)
 
-En Kubernetes no se ejecutan contenedores sueltos, sino **Pods**: grupos de uno o más contenedores que **comparten la
-red** (misma IP; se hablan por `localhost`). Podman también crea Pods, así que se puede ver aquí antes de tener el
-clúster. Y Podman sabe escribir el YAML de Kubernetes de ese Pod: es el puente a la 8.3.
-
-**1. El pod y sus dos contenedores.**
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
@@ -650,62 +450,45 @@ podman pod create --name saludo-pod -p 8081:9898
 podman run -d --pod saludo-pod --name web ghcr.io/stefanprodan/podinfo:6.15.0
 podman run -d --pod saludo-pod --name cliente registry.access.redhat.com/ubi9/ubi-minimal:9.8 \
   bash -c 'while true; do curl -s localhost:9898/version; echo; sleep 10; done'
-```
-
-| Comando | Qué hace | Si sale otra cosa |
-|---|---|---|
-| `podman pod create -p 8081:9898` | Crea el pod. El puerto se publica en el **pod**, no en cada contenedor | `address already in use` → otro proceso en el 8081 |
-| `podman run --pod saludo-pod --name web` | Mete podinfo en el pod | `name "web" is already in use` → no borraste el de la 8.1.1: `podman rm -f web` |
-| `podman run --pod ... --name cliente` | Un segundo contenedor que llama a `localhost:9898` cada 10 s | `curl: command not found` → la imagen no trae `curl` (UBI minimal sí lo trae) |
-
-**2. ¿Comparten la red?**
-
-```bash
-# [ansible01 · adminlab]
-podman pod ps
 podman ps --pod
 podman logs cliente | tail -2
 curl -s localhost:8081/version
-```
-
-| Comando | Qué esperas | Qué demuestra |
-|---|---|---|
-| `podman pod ps` | `saludo-pod` en `Running`, con `# OF CONTAINERS` = 3 | — |
-| `podman ps --pod` | **Tres** contenedores: `web`, `cliente` y `xxxxxxxx-infra` | El `-infra` mantiene vivos los namespaces compartidos. En Kubernetes es el contenedor *pause* |
-| `podman logs cliente` | El JSON de la versión, con `"version": "6.15.0"` | `cliente` llega a podinfo por **`localhost`**, aunque son contenedores distintos |
-| `curl localhost:8081/version` | El mismo JSON | El puerto del pod llega a `web` |
-
-**3. El YAML de Kubernetes, y la ida y vuelta.**
-
-```bash
-# [ansible01 · adminlab]
 podman kube generate saludo-pod > ~/podman-lab/saludo-pod.yaml
-grep -E 'apiVersion|kind|^  name|- name|image:' ~/podman-lab/saludo-pod.yaml
+grep -E 'apiVersion|kind|- name|image:' ~/podman-lab/saludo-pod.yaml
 podman pod rm -f saludo-pod
 podman kube play ~/podman-lab/saludo-pod.yaml
 podman pod ps
 podman kube down ~/podman-lab/saludo-pod.yaml
 ```
 
-| Comando | Qué hace | Qué esperas |
+| Paso | Qué esperas | Qué demuestra |
 |---|---|---|
-| `podman kube generate` | Escribe el manifiesto de Kubernetes del pod | — |
-| `grep` | Muestra las líneas clave | `apiVersion: v1`, `kind: Pod`, los contenedores `web` y `cliente` con sus imágenes |
-| `podman pod rm -f` | Borra el pod y sus contenedores | El nombre del pod |
-| `podman kube play` | **Recrea** el pod a partir del YAML | `Pod: <id>` y los dos contenedores |
-| `podman kube down` | Borra lo que creó `kube play` | — |
+| `pod create -p 8081:9898` | El ID del pod | El puerto se publica en el **pod**, no en cada contenedor |
+| `podman ps --pod` | **Tres** contenedores: `web`, `cliente` y `xxxx-infra` | El infra mantiene los espacios compartidos |
+| `logs cliente` | JSON con `"version": "6.15.0"` | `cliente` llega a `web` por `localhost` |
+| `kube generate` + `grep` | `apiVersion: v1`, `kind: Pod`, `web` y `cliente` con sus imágenes | El mismo objeto que usa Kubernetes |
+| `kube play` / `pod ps` | El pod recreado, `Running` | Del YAML a contenedores |
 
-Guarda `~/podman-lab/saludo-pod.yaml`: en la 8.3 lo miras al lado de `apps/podinfo.yaml` y ves qué añade un
-Deployment.
+Si `podman run --name web` dice `name "web" is already in use`, queda el del 8.1.2: `podman rm -f web`. Guarda
+`saludo-pod.yaml`: en la 8.3 lo comparas con un Deployment.
 
-**Anota en el checklist (fila 4):** la salida de `podman ps --pod` y del `grep`.
+⚠️ **Error común en el mercado: meter varias aplicaciones en un mismo pod.** Se ponen la aplicación y su base de datos
+(o dos servicios) en el mismo pod "porque se hablan". Ya no se pueden escalar, actualizar ni reiniciar por separado, y
+si uno falla se lleva al otro. **Cómo evitarlo:** un pod = una aplicación; solo comparten pod los contenedores
+*auxiliares* de esa aplicación (un *sidecar* de logs o un proxy).
 
-#### 8.1.5 Servicio systemd con Quadlet
+### 8.1.6 Que el contenedor arranque con el servidor: Quadlet
 
-Sin Kubernetes, ¿quién arranca un contenedor cuando la VM se reinicia? **systemd**. Quadlet convierte un fichero
-`.container` en una unidad systemd normal; no escribes el `.service`: lo genera Podman.
+📘 **Concepto.** Sin orquestador, quien arranca un contenedor al iniciar el servidor es **systemd**. **Quadlet** es un
+generador de systemd que viene con Podman: lee ficheros declarativos `.container` (en `~/.config/containers/systemd/`
+para usuarios) y genera las unidades `.service` en cada `daemon-reload`. Las unidades generadas no se habilitan con
+`systemctl enable`: las activa la sección `[Install]`. Para que los servicios de usuario arranquen sin que el usuario
+inicie sesión, hace falta **linger** (`loginctl enable-linger`).
 
-**1. El fichero Quadlet.**
+*Fuente:* [podman-systemd.unit(5) — Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html) ·
+[loginctl(1)](https://www.freedesktop.org/software/systemd/man/latest/loginctl.html)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
@@ -725,231 +508,135 @@ Restart=always
 [Install]
 WantedBy=default.target
 EOF
-```
-
-`Image=` usa el **nombre completo**: con el nombre corto, systemd intentaría descargarlo de un registro remoto (caso 01).
-
-**2. Revisar la unidad que generará.**
-
-```bash
-# [ansible01 · adminlab]
 /usr/libexec/podman/quadlet -dryrun -user
-```
-
-Muestra el `.service` generado, con su `ExecStart=/usr/bin/podman run ... --name saludo ... localhost/lab/saludo:1.0
-/usr/local/bin/saludo.sh --bucle`. Si hay un error de sintaxis en el `.container`, sale aquí y no se genera nada.
-
-**3. Arrancar.**
-
-```bash
-# [ansible01 · adminlab]
 systemctl --user daemon-reload
 systemctl --user start saludo
 systemctl --user status saludo --no-pager
 journalctl --user -u saludo -n 5 --no-pager
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `daemon-reload` | Ejecuta el generador de Quadlet y recarga las unidades | Nada | — |
-| `start saludo` | Arranca la unidad generada `saludo.service` | Nada | `Unit saludo.service not found` → el generador no la creó: vuelve al paso 2 |
-| `status` | Estado | `active (running)` | `failed` → `journalctl --user -u saludo` |
-| `journalctl --user -u saludo` | Log de la unidad | Una línea de saludo cada 30 s | — |
-
-Las unidades de Quadlet **no** se activan con `systemctl enable` (son generadas): lo que las hace arrancar en el boot
-es el `[Install]` del fichero.
-
-**4. Que sobreviva al reinicio.**
-
-```bash
-# [ansible01 · adminlab]
 loginctl show-user adminlab -p Linger
 sudo loginctl enable-linger adminlab
 loginctl show-user adminlab -p Linger
+sudo reboot
 ```
 
-Primero anota el estado previo (para poder revertir). Después debe salir `Linger=yes`. Sin *linger*, los servicios
-`--user` solo existen mientras `adminlab` tiene una sesión abierta; con *linger*, systemd arranca tu "usuario" al
-iniciar la VM.
-
-**5. Prueba de reinicio.**
-
 ```bash
-# [ansible01 · adminlab]
-sudo reboot
-# [host]  (espera ~30 s y vuelve a entrar)
+# [host]  (espera ~30 s)
 ssh adminlab@ansible01
 # [ansible01 · adminlab]
 podman ps
 journalctl --user -u saludo -n 3 --no-pager
 ```
 
-Lo esperado: `saludo` en estado `Up` sin que hayas hecho nada.
-
-**6. Reversión (si quieres dejarlo limpio).**
-
-```bash
-# [ansible01 · adminlab]
-systemctl --user stop saludo
-rm ~/.config/containers/systemd/saludo.container
-systemctl --user daemon-reload
-sudo loginctl disable-linger adminlab        # solo si antes estaba en Linger=no
-```
-
-**Anota en el checklist (fila 4):** `Linger=yes` y `podman ps` tras el reboot.
-
-#### 8.1.6 Comparación entre versiones de RHEL (opcional)
-
-La regla del proyecto pide comparar lo que cambia entre versiones. Dos datos que importan para la etapa: si Podman
-viene instalado y qué versión de **cgroups** usa cada sistema. Kubernetes moderno necesita cgroup v2. Se hace desde el
-proyecto de la Etapa 7, sin tocar nada:
-
-```bash
-# [ansible01 · adminlab]
-cd ~/ansible-lab
-ansible app -m command -a 'rpm -q podman' -o
-ansible app -m command -a 'stat -fc %T /sys/fs/cgroup' -o
-```
-
-| Comando | Qué esperas | Cómo se lee |
+| Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
-| `rpm -q podman` | `package podman is not installed` (`FAILED`, `rc=1`) en las que no lo tengan | `rc=1` de `rpm -q` es la respuesta "no instalado", no un fallo |
-| `stat -fc %T /sys/fs/cgroup` | `cgroup2fs` = cgroup v2; `tmpfs` = cgroup v1 | Anota lo que salga en cada versión |
+| `quadlet -dryrun -user` | El `.service` generado, con `ExecStart=/usr/bin/podman run ... localhost/lab/saludo:1.0 /usr/local/bin/saludo.sh --bucle` | Un error de sintaxis sale aquí y no se genera nada |
+| `start saludo` + `status` | `active (running)` | `Unit saludo.service not found` → el generador no la creó |
+| `journalctl` | Una línea de saludo cada 30 s | — |
+| `Linger` | Primero el valor previo (anótalo); después `Linger=yes` | — |
+| Tras el reboot, `podman ps` | `saludo` en `Up` sin hacer nada | Sin linger, no arranca hasta que entras |
 
-Anota los resultados en "Diferencias RHEL 7/8/9/10" (al final de la guía) y en
-`migration/rhel7-rhel8-rhel9-rhel10.md`, solo con lo medido.
+**Vuelta atrás:** `systemctl --user stop saludo`, `rm ~/.config/containers/systemd/saludo.container`,
+`systemctl --user daemon-reload` y, si antes era `no`, `sudo loginctl disable-linger adminlab`.
 
-### Qué documentar de la 8.1
+**Comparación entre versiones (opcional, sin tocar nada):** desde el proyecto de la Etapa 7,
+`cd ~/ansible-lab && ansible app -m command -a 'rpm -q podman' -o` (un `rc=1` es "no instalado") y
+`ansible app -m command -a 'stat -fc %T /sys/fs/cgroup' -o` (`cgroup2fs` = cgroup v2, `tmpfs` = v1). Kubernetes
+reciente exige cgroup v2. Anota lo medido en la sección "Diferencias RHEL 7/8/9/10".
 
-- Imagen frente a contenedor; capas y copy-on-write; caché de capas.
-- Rootless y subuid (`/etc/subuid`, `podman top ... huser`, `podman unshare`).
-- Por qué `:Z`, qué es MCS, y la diferencia entre `:Z` y `:z`.
-- Pod = contenedores que comparten red; el contenedor infra/*pause*.
-- **Qué aporta Kubernetes que Podman + systemd no tiene:** varios nodos, reprogramación si un nodo cae, Services con
-  balanceo, escalado declarativo (`replicas: 3`) y *rolling updates*.
+⚠️ **Error común en el mercado: contenedores "de producción" lanzados a mano.** Un `podman run -d` (o `docker run`)
+desde una sesión SSH, sin unidad de systemd ni política de reinicio: funciona hasta el primer reinicio del servidor
+por parches, y entonces el servicio no vuelve y nadie sabe con qué parámetros se lanzó. **Cómo evitarlo:** Quadlet (o
+un orquestador) con la configuración en un fichero versionado.
 
-**Respuestas a las preguntas de K1:**
+**Lo que aporta Kubernetes que Podman + systemd no tiene:** varios nodos, reprogramación automática si un nodo cae,
+Services con balanceo, escalado declarativo (`replicas: 3`) y actualizaciones progresivas. Es la 8.2.
 
-1. **¿Por qué `podman build` desde `~` es mala idea aunque funcione?** Porque `~` pasa a ser el contexto: Podman
-   empaqueta todo tu home (incluidos `.ssh/` y `.vault_pass.txt`) para el build. Un directorio por imagen, o un
-   `.containerignore`.
-2. **¿Qué pasa al ejecutar `podman run lab/saludo:1.0` si la imagen local se llama `localhost/lab/saludo:1.0`?** Si
-   existe en local, Podman la encuentra igualmente. Si **no** existe, la busca en los
-   `unqualified-search-registries` de `/etc/containers/registries.conf` (`registry.access.redhat.com`,
-   `registry.redhat.io`, `docker.io`). Con un nombre corto podrías ejecutar la imagen de otra persona que se llame igual.
-3. **¿Por qué el contenedor rootless no pudo leer `~/datos` si `adminlab` es el dueño?** Por SELinux: `container_t` no
-   puede leer `user_home_t`. `:Z` lo reetiqueta a `container_file_t` con las categorías MCS de ese contenedor.
-4. **¿Qué UID tiene en el host un proceso que dentro del contenedor rootless es el 1001?** 101000: el 0 es `adminlab` y
-   del 1 en adelante se usa el rango de `/etc/subuid` (100000 + 1001 − 1).
-
+**Checklist:** filas 1-4.
 
 ---
 
-### 6.2 Solución K2 — Clúster con kubeadm
+## 8.2 Clúster con kubeadm
 
-**Objetivo:** un clúster de 3 nodos (1 plano de control + 2 workers) montado a mano, entendiendo cada pieza: el
-almacenamiento propio, por qué fuera la swap, la red de pods, firewalld, el runtime (containerd), los paquetes
-fijados y qué hace `kubeadm init` por dentro.
+> 🎫 **Ticket PLAT-802.** "Necesitamos un clúster Kubernetes *on-premise* sobre RHEL 9 para los equipos de desarrollo:
+> un nodo de control y dos workers, con SELinux y firewall activos (lo exige Seguridad), versiones fijadas y que se
+> pueda administrar desde la estación de control, no desde los nodos."
 
-**Dónde:** el host (crear las VMs), los tres nodos como root y `ansible01` (administración).
+**Dónde:** el host (VMs), los tres nodos como root y `ansible01`. **Vuelta atrás:** snapshot `*-stage5-complete`
+(8.2.1) y `*-cluster-vacio` (8.2.7); en un nodo concreto, `kubeadm reset -f`.
 
-**Vuelta atrás:** snapshot `*-stage5-complete` antes de empezar (paso 8.2.1) y `*-cluster-vacio` al terminar
-(paso 8.2.7). Si un nodo queda mal a mitad de la 8.2: `kubeadm reset -f` en ese nodo o volver a `stage5`.
+### 8.2.0 Cómo está hecho un clúster
 
-| Paso | Qué | Dónde |
+📘 **Concepto.** Un clúster tiene un **plano de control** y **nodos**:
+
+| Componente | Dónde | Qué hace |
 |---|---|---|
-| 8.2.1 | Crear las VMs y pasarlas por las etapas 2-5 | host |
-| 8.2.2 | Preparar cada nodo: LVs, swap, módulos, NetworkManager, firewalld, containerd, paquetes | nodos |
-| 8.2.3 | `kubeadm init` y red de pods (Calico) | `k8s-cp01` |
-| 8.2.4 | Unir los workers | workers + `k8s-cp01` |
-| 8.2.5 | Administrar desde `ansible01`: kubectl, Helm y copia del repo | `ansible01` |
-| 8.2.6 | Comprobación de salud | `ansible01` + `k8s-cp01` |
-| 8.2.7 | Snapshot del clúster vacío | host |
+| `kube-apiserver` | Plano de control | La única puerta: todo (kubectl, kubelets, controladores) pasa por la API, que valida, autoriza y guarda |
+| `etcd` | Plano de control | Base de datos clave-valor con **todo** el estado del clúster |
+| `kube-scheduler` | Plano de control | Decide en qué nodo va cada pod nuevo, según recursos, afinidades y *taints* |
+| `kube-controller-manager` | Plano de control | Los bucles de control: comparan estado deseado y real y corrigen (ReplicaSets, nodos, endpoints...) |
+| `kubelet` | Cada nodo | Arranca y vigila los pods asignados a su nodo, a través del runtime |
+| Runtime (containerd) | Cada nodo | Descarga imágenes y ejecuta contenedores (interfaz CRI) |
+| `kube-proxy` | Cada nodo | Programa las reglas que hacen funcionar los Services |
+| CNI (Calico) | Cada nodo | Da IP a los pods y los conecta entre nodos |
 
-#### 8.2.1 Las VMs (desde el host, con lab.sh)
+`kubeadm` es la herramienta oficial para **arrancar** un clúster con buenas prácticas (`init`, `join`, `upgrade`); no
+instala la red de pods ni nada más.
 
-**1. Antes de crear nada: ¿cabe?** (solo lectura)
+*Fuente:* [Kubernetes Components](https://kubernetes.io/docs/concepts/overview/components/) ·
+[Installing kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)
+
+### 8.2.1 Las VMs, con la base del lab
+
+📘 **Concepto.** kubeadm pide, en cada máquina: un Linux compatible, 2 GB de RAM y 2 CPU, conectividad completa entre
+nodos, **hostname, MAC y `product_uuid` únicos**, ciertos puertos abiertos y swap desactivada (o configurada). Además,
+los certificados del clúster exigen **hora sincronizada**. Los nodos del lab salen de `lab.sh` (kickstart con IP fija,
+`hostname` y UUID propios) y pasan por las etapas 2-5: usuarios y LVM, red con DNS de `dns01`, chrony, y SELinux.
+
+*Fuente:* [Installing kubeadm — Before you begin](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#before-you-begin)
+
+🛠️ **Práctica.**
 
 ```bash
 # [host]
-free -h
-df -h /var/lib/libvirt
+free -h; df -h "$(virsh pool-dumpxml lab-images | sed -n 's:.*<path>\(.*\)</path>.*:\1:p')"
 grep '^k8s' scripts/hosts.conf
-virsh list --all | grep k8s
-```
-
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `free -h` | `available` ≥ 19 GiB con `dns01` y `ansible01` encendidas | Apaga las `app01` que no necesites (`scripts/lab.sh down rhel7-app01`, etc.) |
-| `df -h /var/lib/libvirt` | ≥ 130 GB libres | Libera espacio antes (por ejemplo, ISOs duplicadas) |
-| `grep '^k8s' hosts.conf` | 3 líneas: RHEL 9, `.100/.101/.102`, RAM 4096/5120, discos 20 y 40, `opcional` | — |
-| `virsh list --all \| grep k8s` | Nada: las VMs aún no existen | Si ya existen, no las recrees: sigue en el punto 3 |
-
-**2. Crear las VMs.**
-
-```bash
-# [host]
 scripts/lab.sh vm-create k8s-cp01
 scripts/lab.sh vm-create k8s-w01
 scripts/lab.sh vm-create k8s-w02
 scripts/lab.sh status
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `vm-create <nodo>` | Instala RHEL 9 con el kickstart del lab, en lab-net, con IP fija. Pide la contraseña de `adminlab` una vez | Termina con la VM encendida y SSH respondiendo | Revisa la consola: `virsh console k8s-cp01` (salir con `Ctrl+]`) |
-| `status` | Estado de todas las VMs y del SSH | Las tres `k8s-*` con `SSH OK` | `--` en SSH → la VM aún arranca, o la IP no es la de `hosts.conf` |
-
-**3. Registrar y aplicar las etapas base.**
-
-```bash
-# [host]
 for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh register "$h" TU_USUARIO_DE_RED_HAT; done
 scripts/lab.sh stage4-dns
 for h in k8s-cp01 k8s-w01 k8s-w02; do
   scripts/lab.sh stage2 "$h" && scripts/lab.sh stage3 "$h" --lab-dns && \
   scripts/lab.sh stage4-clients "$h" && scripts/lab.sh stage5 "$h"
 done
-```
-
-| Comando | Qué hace | Por qué |
-|---|---|---|
-| `register <nodo> <usuario>` | `subscription-manager register` en la VM (la contraseña se pide allí). Cambia `TU_USUARIO_DE_RED_HAT` por tu usuario | Sin repos no hay `dnf` |
-| `stage4-dns` | Recarga la zona de `dns01` | La zona ya trae `k8s-*`, `k8s-api`, `ingress`, `grafana`... |
-| `stage2` | Usuarios, `vg_data` en el disco de 40 GB, sudo, servicio de ejemplo | La 8.2.2 crea sus LVs en `vg_data` |
-| `stage3 --lab-dns` | Red con `nmcli`, DNS = `dns01` | kubeadm necesita resolver `k8s-api.lab.local` |
-| `stage4-clients` | chrony y endurecimiento de SSH | **Hora sincronizada**: los certificados del clúster fallan con relojes desfasados |
-| `stage5` | SELinux *enforcing*, auditd, hardening | Kubernetes se monta sin desactivar SELinux |
-
-**4. Comprobar la base y el DNS.**
-
-```bash
-# [host]
 for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh test all "$h"; done
 dig +short k8s-api.lab.local @10.10.10.20
-dig +short -x 10.10.10.101 @10.10.10.20
-```
-
-Lo esperado: 0 FAIL en los tres nodos; `10.10.10.100`; `k8s-w01.lab.local.`. Si un test falla aquí, arréglalo
-**antes** de montar Kubernetes: después es imposible saber de dónde viene.
-
-**5. Snapshot de partida.**
-
-```bash
-# [host]
 for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh snapshot create "$h" 5; done
-scripts/lab.sh snapshot list k8s-cp01
 ```
 
-Apaga cada nodo, crea `<nodo>-stage5-complete` y lo vuelve a encender. Si la 8.2 sale mal:
-`scripts/lab.sh snapshot revert k8s-cp01 5` (ídem workers).
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `free` / `df` | ≥ 19 GiB disponibles; ≥ 60 GB libres en el pool `lab-images` | RAM: apaga las `app01` que no uses. Disco: ver [Presupuesto de disco](#presupuesto-de-disco-del-host) |
+| `grep '^k8s'` | 3 líneas: RHEL 9, `.100/.101/.102`, 4096/5120 MB, discos 20 y 40, `opcional` | — |
+| `vm-create` | La VM instalada y encendida (pide la contraseña de `adminlab` una vez) | `virsh console k8s-cp01` para ver la instalación (`Ctrl+]` para salir) |
+| `status` | Las tres con `SSH OK` | — |
+| `register` | Cambia `TU_USUARIO_DE_RED_HAT` por tu usuario; la contraseña se pide en la VM | — |
+| `stage2`...`stage5` | Cada etapa termina sin errores | Arréglalo **ahora**: después no sabrás de dónde viene |
+| `test all` | 0 FAIL en los tres | — |
+| `dig` | `10.10.10.100` | — |
+| `snapshot create ... 5` | `<nodo>-stage5-complete` en los tres | — |
 
-**Anota en el checklist (fila 5):** resultado de `test all` y los tres snapshots.
+⚠️ **Error común en el mercado: relojes desincronizados.** Nodos sin NTP (o con NTP bloqueado por el firewall) que se
+desfasan unos minutos: aparecen errores `x509: certificate has expired or is not yet valid` al unir un nodo, tokens
+rechazados y etcd inestable, y se pierde mucho tiempo buscando en la red o en los certificados. **Cómo evitarlo:**
+chrony en todos los nodos contra la misma fuente (aquí `dns01`, Etapa 4) y comprobarlo con `chronyc tracking` antes de
+instalar nada.
 
-#### 8.2.2 Preparar cada nodo (los tres, como root)
+### 8.2.2 Preparar cada nodo
 
-Haz **todo este paso completo en `k8s-cp01`** primero, entendiendo cada bloque, y después repítelo en `k8s-w01` y
-`k8s-w02` (ahí ya puedes pegar los bloques seguidos). Hay dos diferencias entre nodos, marcadas en el apartado e.
+Hazlo **completo en `k8s-cp01`** primero, entendiendo cada bloque, y después repítelo en los workers. Diferencias entre
+nodos: solo los puertos de firewalld (apartado e).
 
 ```bash
 # [host]
@@ -958,19 +645,21 @@ ssh adminlab@k8s-cp01
 sudo -i
 ```
 
-##### a. Almacenamiento propio para contenedores, kubelet y volúmenes
+#### a. Almacenamiento propio
+
+📘 **Concepto.** Lo que más crece en un nodo es `/var/lib/containerd` (imágenes y capas), `/var/lib/kubelet` (volúmenes
+`emptyDir`, datos de los pods) y los volúmenes persistentes locales. El kubelet vigila el espacio de dos sistemas de
+ficheros, **nodefs** (el de `/var/lib/kubelet`) e **imagefs** (el del runtime), y cuando bajan de un umbral
+(*eviction thresholds*) marca `DiskPressure` y **desaloja pods**. Separarlos en LVs propios evita que una imagen grande
+llene `/var` y tumbe el sistema operativo.
+
+*Fuente:* [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
 vgs vg_data
-lvs vg_data
-```
-
-Lo esperado: `vg_data` de ~40 GiB con unos 32 GiB en `VFree`, y los LVs de la Etapa 2 (`lv_application`, `lv_logs`,
-`lv_backup`). Si `VFree` es menor de 30 GiB, **para**: los tres LVs de abajo no caben.
-
-```bash
-# [nodos · root]
 lvcreate -y -n lv_containerd -L 16G vg_data
 lvcreate -y -n lv_kubelet    -L 6G  vg_data
 lvcreate -y -n lv_localpath  -L 8G  vg_data
@@ -987,23 +676,29 @@ systemctl daemon-reload && mount -a
 df -h /var/lib/containerd /var/lib/kubelet /var/lib/local-path
 ```
 
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `lvcreate -L 16G` | Crea el LV (en GiB) | `Logical volume "lv_containerd" created.` | `Insufficient free space` → `VFree` no alcanza |
-| `mkfs.xfs -q` | Formatea en XFS, sin salida | Nada | — |
-| `cp -a /etc/fstab ...` | **Copia de seguridad** antes de tocar `fstab` | — | — |
-| `findmnt --verify` | Valida `fstab` **antes** de montar o reiniciar | `Success, no errors or warnings detected` (o solo avisos) | Un error aquí es el modo emergencia en el próximo arranque (caso [etapa2/02](../troubleshooting/etapa2/02-bad-fstab.md)). Restaura la copia |
-| `mount -a` + `df -h` | Monta los tres LVs | 16G, 6G y 8G montados en sus rutas | `mount point does not exist` → falta un `mkdir` |
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `vgs vg_data` | ~40 GiB con ≥ 30 GiB en `VFree` | Menos → los tres LVs no caben: **para** |
+| `lvcreate` | `Logical volume "lv_..." created.` | `Insufficient free space` |
+| `cp -a /etc/fstab ...` | Copia de seguridad antes de tocarlo | — |
+| `findmnt --verify` | `Success, no errors or warnings detected` | Un error aquí es el modo emergencia en el próximo arranque (caso [etapa2/02](../troubleshooting/etapa2/02-bad-fstab.md)): restaura la copia |
+| `df -h` | 16G, 6G y 8G montados | `mount point does not exist` → falta un `mkdir` |
 
-¿Por qué separar? Las imágenes (`/var/lib/containerd`), los volúmenes `emptyDir` y los logs del kubelet
-(`/var/lib/kubelet`) y los volúmenes persistentes (`/var/lib/local-path`) crecen sin control. Sin LVs propios
-llenarían `/var` (4 GB) y el nodo entero se caería (caso [etapa2/11](../troubleshooting/etapa2/README_troubleshooting_etapa2.md)).
-El kubelet, además, mide por separado `nodefs` y `imagefs` para decidir cuándo desaloja pods (E10 de la 8.8).
+⚠️ **Error común en el mercado: nodos con todo en `/` o en `/var`.** Las imágenes que nadie limpia y los logs de los
+pods llenan el disco del sistema; el kubelet empieza a desalojar pods en cascada y, si `/var` llega al 100 %, el nodo
+deja de responder (journald, rpm y el propio kubelet fallan). **Cómo evitarlo:** sistemas de ficheros separados para
+el runtime y el kubelet, límites de logs (`containerLogMaxSize`) y alertas de disco (E10 de la 8.8).
 
-El contexto SELinux de estos directorios se restaura en el apartado f, cuando ya esté instalada la política de
-`container-selinux`.
+#### b. Swap
 
-##### b. Swap fuera
+📘 **Concepto.** Por defecto, el kubelet **no arranca** si hay swap activa (`failSwapOn: true`). El scheduler reparte
+pods según la memoria que piden; con swap, un nodo sobrecargado seguiría aceptando trabajo degradándose en silencio.
+Las versiones recientes admiten swap de forma controlada (`NodeSwap`, `memorySwap.swapBehavior`), pero hay que
+configurarlo a propósito.
+
+*Fuente:* [Swap memory management](https://kubernetes.io/docs/concepts/cluster-administration/swap-memory-management/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
@@ -1012,23 +707,25 @@ swapoff -a
 sed -i.antes-swap '/lv_swap/ s/^/#/' /etc/fstab
 grep -n lv_swap /etc/fstab
 systemctl daemon-reload && swapon --show
-free -h | grep -i swap
 ```
 
-| Comando | Qué hace | Qué esperas |
-|---|---|---|
-| `swapon --show` | Muestra la swap activa | `/dev/dm-N partition 2G` (el `lv_swap` del kickstart) |
-| `swapoff -a` | La desactiva **ahora** | Nada |
-| `sed -i.antes-swap '/lv_swap/ s/^/#/'` | Comenta la línea de swap de `fstab` (para que no vuelva en el arranque) y guarda copia en `fstab.antes-swap` | — |
-| `grep -n lv_swap` | Comprueba el cambio | La línea empieza por `#` |
-| `swapon --show` / `free` | Comprobación final | Vacío; `Swap: 0B` |
+Lo esperado: primero el `lv_swap` de 2G; después, la línea de `fstab` empieza por `#` y `swapon --show` sale vacío.
 
-**Por qué:** el kubelet, por defecto, no arranca con swap activa (`failSwapOn: true`). El *scheduler* reparte pods
-según la memoria que piden; con swap, un nodo "lleno" seguiría aceptando trabajo y degradándose en silencio. Las
-versiones recientes admiten swap de forma controlada (`NodeSwap`), pero hay que configurarlo a propósito: en el lab,
-fuera.
+⚠️ **Error común en el mercado: `swapoff -a` sin tocar `fstab`.** El clúster funciona... hasta el primer reinicio del
+nodo: la swap vuelve, el kubelet no arranca y el nodo queda `NotReady` en mitad de una ventana de parches. **Cómo
+evitarlo:** cambiar siempre el estado actual **y** el persistente, y comprobarlo reiniciando un nodo antes de dar el
+trabajo por terminado.
 
-##### c. Módulos del kernel y sysctl
+#### c. Módulos del kernel y sysctl
+
+📘 **Concepto.** `overlay` es el sistema de ficheros de las capas de las imágenes. `br_netfilter` hace que el tráfico
+que cruza un *bridge* pase por iptables/nftables, que es donde kube-proxy y el CNI ponen sus reglas. `ip_forward = 1`
+convierte el nodo en un **router** entre la red del lab y la de pods. Todo debe persistir tras un reinicio
+(`/etc/modules-load.d/`, `/etc/sysctl.d/`).
+
+*Fuente:* [Container Runtimes — Network configuration](https://kubernetes.io/docs/setup/production-environment/container-runtimes/#prerequisite-ipv4-forwarding-optional)
+
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
@@ -1037,7 +734,6 @@ overlay
 br_netfilter
 EOF
 modprobe overlay && modprobe br_netfilter
-lsmod | grep -E '^(overlay|br_netfilter)'
 cat > /etc/sysctl.d/90-k8s.conf <<'EOF'
 net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
@@ -1046,17 +742,22 @@ EOF
 sysctl --system | grep -E 'bridge-nf-call-iptables|ip_forward'
 ```
 
-| Pieza | Para qué |
-|---|---|
-| `overlay` | Sistema de ficheros de las capas de las imágenes (el copy-on-write de la 8.1) |
-| `br_netfilter` | Que el tráfico que pasa por un *bridge* atraviese las reglas de iptables/nftables (kube-proxy depende de ello) |
-| `ip_forward = 1` | El nodo **reenvía** paquetes entre la red del lab y la de pods: hace de router |
-| `/etc/modules-load.d/`, `/etc/sysctl.d/` | Que se mantenga tras un reinicio |
+Lo esperado: las tres claves con `= 1`. `cannot stat /proc/sys/net/bridge/...` → falta cargar `br_netfilter`.
 
-Lo esperado: las dos líneas de `lsmod` y las tres claves con `= 1`. Si `sysctl` dice `cannot stat
-/proc/sys/net/bridge/...`, falta cargar `br_netfilter`.
+⚠️ **Error común en el mercado: `ip_forward` desactivado por un endurecimiento posterior.** Un perfil de seguridad
+(CIS, un playbook de hardening) pone `net.ipv4.ip_forward = 0` en todos los servidores, incluidos los nodos: los pods
+dejan de verse entre nodos y los Services de fuera dejan de responder, sin que nadie relacione el cambio con la
+avería. **Cómo evitarlo:** los nodos de Kubernetes con su propio perfil de hardening, y comprobar `sysctl
+net.ipv4.ip_forward` en el diagnóstico de red.
 
-##### d. NetworkManager no debe gestionar las interfaces de Calico
+#### d. NetworkManager y las interfaces de Calico
+
+📘 **Concepto.** Calico crea una interfaz `cali*` por pod y otras de túnel (`vxlan.calico`, `tunl0`). Si NetworkManager
+intenta gestionarlas, puede cambiarlas o borrar sus rutas. La documentación de Calico pide declararlas `unmanaged`.
+
+*Fuente:* [Calico — Troubleshooting: Configure NetworkManager](https://docs.tigera.io/calico/latest/operations/troubleshoot/troubleshooting#configure-networkmanager)
+
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
@@ -1068,44 +769,37 @@ systemctl reload NetworkManager
 nmcli general status
 ```
 
-Calico crea una interfaz `cali...` por cada pod y otra `vxlan.calico`. Si NetworkManager intenta gestionarlas, puede
-reconfigurarlas o borrar sus rutas, y los pods pierden la red de forma intermitente. Lo esperado tras el `reload`:
-`nmcli general status` con `connected`; tu sesión SSH no se corta.
+Lo esperado: `connected`, y tu sesión SSH no se corta.
 
-##### e. firewalld: una zona `k8s` en lugar de apagarlo
+⚠️ **Error común en el mercado: pods que pierden la red "a ratos".** Sin esta configuración, los fallos son
+intermitentes (al crear o borrar pods, al reiniciar NetworkManager) y casi imposibles de reproducir; se acaba
+culpando a la aplicación. **Cómo evitarlo:** aplicar los requisitos del CNI **antes** de instalarlo, no cuando
+aparecen los síntomas.
 
-Muchas guías desactivan firewalld. Aquí no: se crea una zona `k8s` para la red del lab y las redes del clúster. Si el
-**origen** de un paquete es de esas redes, firewalld usa la zona `k8s`; el resto sigue en `public`.
+#### e. firewalld: una zona `k8s`
 
-> ⚠️ **Riesgo de quedarte sin SSH.** Al poner `10.10.10.0/24` como origen de la zona `k8s`, el SSH que viene del host
-> (10.10.10.1) deja de pasar por `public`. Si la zona nueva no permite `ssh`, la sesión se corta al hacer `--reload`.
-> Mantén **dos** sesiones abiertas y aplica en este orden.
+📘 **Concepto.** firewalld asigna cada paquete a una **zona** por su interfaz o por su **origen**; los orígenes tienen
+prioridad. Una zona `k8s` con los orígenes del lab (`10.10.10.0/24`), de los pods (`10.244.0.0/16`) y de los
+Services (`10.96.0.0/12`) permite abrir los puertos de Kubernetes solo a esas redes, sin apagar el firewall. La
+documentación de Kubernetes lista los puertos de cada tipo de nodo.
 
-**1. Qué hay ahora en `public`** (para copiarlo a la zona nueva):
+*Fuente:* [Ports and Protocols](https://kubernetes.io/docs/reference/networking/ports-and-protocols/) ·
+[firewalld — Zones](https://firewalld.org/documentation/zone/) ·
+[Calico — Network requirements](https://docs.tigera.io/calico/latest/getting-started/kubernetes/requirements#network-requirements)
+
+> ⚠️ Al poner `10.10.10.0/24` como origen de la zona `k8s`, el SSH que llega del host deja de pasar por `public`. Si
+> `k8s` no permite `ssh`, la sesión se corta en el `--reload`. Mantén **dos** sesiones abiertas.
+
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
-firewall-cmd --get-default-zone
 firewall-cmd --zone=public --list-services
-firewall-cmd --zone=public --list-ports
-```
-
-Lo normal es `cockpit dhcpv6-client ssh` (más lo que añadieran las Etapas 4-5). Anótalo.
-
-**2. La zona `k8s`, común a los tres nodos:**
-
-```bash
-# [nodos · root]
 firewall-cmd --permanent --new-zone=k8s
 for src in 10.10.10.0/24 10.244.0.0/16 10.96.0.0/12; do firewall-cmd --permanent --zone=k8s --add-source=$src; done
 firewall-cmd --permanent --zone=k8s --add-service=ssh
 firewall-cmd --permanent --zone=k8s --add-port={10250/tcp,10249/tcp,9100/tcp,4789/udp,5473/tcp,7946/tcp,7946/udp,9091/tcp}
 ```
-
-Si en el punto 1 había otros servicios en `public` además de `ssh`, `cockpit` y `dhcpv6-client`, añádelos también a
-`k8s` (`--add-service=<nombre>`).
-
-**3. Lo específico de cada nodo:**
 
 ```bash
 # [k8s-cp01 · root]  API, etcd y métricas del plano de control
@@ -1117,8 +811,6 @@ firewall-cmd --permanent --zone=k8s --add-port={6443/tcp,2379-2380/tcp,2381/tcp,
 firewall-cmd --permanent --zone=k8s --add-port=30000-32767/tcp
 ```
 
-**4. Aplicar y comprobar (con la segunda sesión abierta):**
-
 ```bash
 # [nodos · root]
 firewall-cmd --reload
@@ -1127,15 +819,15 @@ firewall-cmd --zone=k8s --list-all
 ```
 
 ```bash
-# [host]  en una TERCERA terminal, antes de cerrar nada
+# [host]  en otra terminal, antes de cerrar nada
 ssh adminlab@k8s-cp01 hostname
 ```
 
-| Comando | Qué esperas | Si sale otra cosa |
+| Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
-| `--get-active-zones` | `k8s` con `sources: 10.10.10.0/24 10.244.0.0/16 10.96.0.0/12`, y `public` con la interfaz | Sin `k8s` → no se aplicó el `--permanent`: repite y `--reload` |
-| `--zone=k8s --list-all` | `services: ssh` y los puertos de arriba | — |
-| `ssh ... hostname` desde el host | El nombre del nodo | Falla → en la sesión que sigue abierta: `firewall-cmd --zone=k8s --add-service=ssh` (en caliente) y revisa |
+| `--zone=public --list-services` | `cockpit dhcpv6-client ssh` (más lo de las Etapas 4-5) | Lo que salga distinto de esos tres, añádelo también a `k8s` |
+| `--get-active-zones` | `k8s` con los tres orígenes y `public` con la interfaz | Sin `k8s` → repite con `--permanent` y `--reload` |
+| `ssh ... hostname` | El nombre del nodo | Falla → en la sesión abierta: `firewall-cmd --zone=k8s --add-service=ssh` |
 
 | Puerto | Para qué |
 |---|---|
@@ -1144,91 +836,73 @@ ssh adminlab@k8s-cp01 hostname
 | 10250 | API del kubelet (logs, exec, métricas) |
 | 10257 / 10259 / 10249 | Métricas de controller-manager / scheduler / kube-proxy |
 | 4789/udp, 5473 | VXLAN de Calico, Typha |
-| 7946 tcp+udp | memberlist de MetalLB (elige qué nodo anuncia cada IP) |
-| 9100, 9091 | node-exporter, métricas de Calico (felix) |
+| 7946 tcp+udp | memberlist de MetalLB |
+| 9100, 9091 | node-exporter, métricas de Calico |
 | 30000-32767 | NodePort (workers) |
 
-> Si después algo de la red de pods falla (CoreDNS no llega a la API, pods que no se ven entre nodos), **firewalld es el
-> primer sospechoso**: `firewall-cmd --get-active-zones`, `journalctl -k --since -10min | grep -i -E 'reject|drop'` y un
-> caso de troubleshooting. Para confirmar la sospecha **un momento**: `systemctl stop firewalld`, prueba, y
-> `systemctl start firewalld` enseguida. Nunca se deja apagado.
+⚠️ **Error común en el mercado: `systemctl disable --now firewalld` en todos los nodos.** Es lo que hacen muchas guías
+de Internet "para que funcione": el clúster queda expuesto (la API del kubelet en 10250, NodePorts y métricas abiertos
+a toda la red) y la auditoría de seguridad lo marca como crítico. **Cómo evitarlo:** abrir los puertos documentados,
+solo para los orígenes necesarios. Si la red de pods falla, firewalld es el primer sospechoso: `journalctl -k
+--since -10min | grep -i -E 'reject|drop'`; para confirmarlo, parar firewalld **un momento** y volver a arrancarlo.
 
-##### f. containerd (el runtime)
+#### f. containerd
 
-RHEL no trae containerd: el paquete `containerd.io` viene del repositorio de Docker para RHEL. Solo se instala
-containerd, **no** Docker.
+📘 **Concepto.** El kubelet habla con el runtime por **CRI**. containerd es el runtime más usado; en RHEL no viene, y
+el paquete `containerd.io` sale del repositorio de Docker (solo containerd, no Docker). Ese paquete trae el plugin
+**CRI desactivado** (`disabled_plugins = ["cri"]`), así que se genera la configuración por defecto. El kubelet y el
+runtime deben usar el **mismo driver de cgroups**: con systemd como init, `systemd` (`SystemdCgroup = true` en
+containerd y `cgroupDriver: systemd` en el kubelet). La imagen *sandbox* (`pause`) de containerd debería coincidir con
+la que espera kubeadm.
 
-**1. Repositorio e instalación:**
+*Fuente:* [Container Runtimes — containerd](https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd) ·
+[Configuring a cgroup driver](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/configure-cgroup-driver/) ·
+[containerd — CRI config](https://github.com/containerd/containerd/blob/main/docs/cri/config.md)
+
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
 dnf install -y dnf-plugins-core
 dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
 dnf install -y containerd.io
-rpm -q containerd.io container-selinux
-containerd --version
-```
-
-Lo esperado: los dos paquetes instalados y la versión de containerd (anótala en el checklist). `container-selinux`
-viene como dependencia y trae la política SELinux de los contenedores.
-
-**2. Contexto SELinux de los LVs** (ahora que existe la política):
-
-```bash
-# [nodos · root]
+rpm -q containerd.io container-selinux; containerd --version
 restorecon -Rv /var/lib/containerd /var/lib/kubelet /var/lib/local-path
-ls -dZ /var/lib/containerd /var/lib/kubelet /var/lib/local-path
-```
-
-Lo esperado: `container_var_lib_t` en `/var/lib/containerd` y `container_var_lib_t` o `var_lib_t` en los otros. Un
-directorio recién montado sale con `unlabeled_t` o con la etiqueta del punto de montaje; `restorecon` aplica la que
-dice la política (lección de la Etapa 5).
-
-**3. Configuración:**
-
-```bash
-# [nodos · root]
 cp -a /etc/containerd/config.toml /etc/containerd/config.toml.paquete
 grep -n disabled_plugins /etc/containerd/config.toml.paquete
 containerd config default > /etc/containerd/config.toml
-grep -n 'SystemdCgroup' /etc/containerd/config.toml
 sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 grep -n 'SystemdCgroup\|enable_selinux\|sandbox' /etc/containerd/config.toml
+systemctl enable --now containerd && systemctl is-active containerd
 ```
 
-| Comando | Qué hace | Qué esperas |
+| Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
-| `grep disabled_plugins ...paquete` | Mira el fichero que trae el paquete | `disabled_plugins = ["cri"]`: el plugin que usa Kubernetes viene **apagado** (el paquete está pensado para Docker) |
-| `containerd config default >` | Genera la configuración completa por defecto, con el plugin CRI activo | Nada |
-| `grep SystemdCgroup` (antes) | Busca el driver de cgroups de runc | Una línea `SystemdCgroup = false` |
-| `sed ... = true` | Lo cambia a `true` | — |
-| `grep ...` (después) | Comprobación | `SystemdCgroup = true`, `enable_selinux = false` y la imagen *sandbox* (`pause`) |
+| `rpm -q` / `--version` | Los dos paquetes y la versión de containerd (anótala: 1.7 o 2.x) | — |
+| `restorecon -Rv` | Cambia los contextos (ahora existe la política de `container-selinux`): `container_var_lib_t` en `/var/lib/containerd` | — |
+| `grep disabled_plugins` | `disabled_plugins = ["cri"]` en el fichero del paquete | — |
+| `grep SystemdCgroup...` | `SystemdCgroup = true`, `enable_selinux = false` y la imagen `pause` | `SystemdCgroup` sigue en `false` → la línea tenía otro formato: edítala con `vim` |
+| `is-active` | `active` | `failed` → `journalctl -u containerd -n 30` (casi siempre, sintaxis de `config.toml`) |
 
-**Por qué `SystemdCgroup = true`:** el kubelet usa el driver `systemd` (en `kubeadm-config.yaml`, `cgroupDriver:
-systemd`). Si containerd usara otro (`cgroupfs`), habría dos gestores de cgroups para los mismos procesos y el nodo se
-volvería inestable bajo carga.
+En containerd 2.x las secciones cambian de nombre (`[plugins.'io.containerd.cri.v1.runtime'...]`), pero la línea
+`SystemdCgroup` existe en las dos versiones. `enable_selinux = false` es el valor por defecto: el sistema sigue en
+*enforcing*, pero los contenedores no se aíslan entre sí; en la 8.6.5 lo activas en un worker.
 
-**containerd 1.7 frente a 2.x:** las secciones del fichero cambian de nombre (en 2.x,
-`[plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runc.options]`), pero la línea `SystemdCgroup` existe en
-las dos y el `sed` funciona igual. Anota en el checklist qué versión tienes.
+⚠️ **Error común en el mercado: drivers de cgroups distintos.** El kubelet con `systemd` y containerd con `cgroupfs`
+(o al revés): el nodo parece funcionar, pero bajo carga aparecen pods que se reinician sin motivo, métricas de memoria
+incoherentes y nodos `NotReady`. **Cómo evitarlo:** configurarlo de forma explícita en los dos lados y comprobarlo
+(`grep SystemdCgroup` y `cgroupDriver` en la configuración del kubelet).
 
-**4. Arrancar y comprobar:**
+#### g. kubeadm, kubelet y kubectl
 
-```bash
-# [nodos · root]
-systemctl enable --now containerd
-systemctl is-active containerd
-ctr version | head -8
-```
+📘 **Concepto.** Los paquetes oficiales están en `pkgs.k8s.io`, con **un repositorio por versión menor** (v1.36 solo
+tiene 1.36.z). La documentación recomienda `exclude=` en el `.repo` para que un `dnf update` rutinario no actualice
+Kubernetes: las actualizaciones del clúster tienen un orden (8.12). El kubelet queda reiniciándose en bucle hasta el
+`init` o el `join`: aún no tiene configuración.
 
-Lo esperado: `active` y la versión de cliente y servidor. Si sale `failed`: `journalctl -u containerd -n 30` (lo
-habitual es un error de sintaxis en `config.toml`; vuelve a generarlo).
+*Fuente:* [Installing kubeadm, kubelet and kubectl](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl)
 
-> `enable_selinux = false` (por defecto) hace que los contenedores corran con el contexto del propio containerd.
-> SELinux sigue en *enforcing* en el sistema (la Etapa 5 no se rompe), pero no aísla los contenedores entre sí. En la
-> 8.6 lo activas en un worker y ves qué se rompe: es un ejercicio, no un descuido.
-
-##### g. kubeadm, kubelet y kubectl v1.36
+🛠️ **Práctica.**
 
 ```bash
 # [nodos · root]
@@ -1245,49 +919,49 @@ dnf list --showduplicates kubeadm --disableexcludes=kubernetes | tail -5
 dnf install -y kubelet-1.36.5 kubeadm-1.36.5 kubectl-1.36.5 --disableexcludes=kubernetes
 systemctl enable kubelet
 kubeadm version -o short
+crictl --runtime-endpoint unix:///run/containerd/containerd.sock info | grep -A3 RuntimeReady
 ```
 
-| Línea o comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `baseurl=.../v1.36/rpm/` | Un repositorio **por versión menor**: este solo tiene 1.36.x | — | — |
-| `exclude=kubelet kubeadm ...` | Un `dnf update` rutinario **no** toca Kubernetes. Las actualizaciones del clúster se hacen a propósito (8.12) | — | — |
-| `dnf list --showduplicates` | Versiones disponibles | Varias `1.36.z`, entre ellas `1.36.5` | Si `1.36.5` ya no está, usa la última 1.36 y cámbiala también en `kubeadm-config.yaml` |
-| `--disableexcludes=kubernetes` | Salta el `exclude` **solo** en este comando | `Complete!` | — |
-| `systemctl enable kubelet` | Que arranque en el boot | Nada | — |
-| `kubeadm version -o short` | Versión instalada | `v1.36.5` | — |
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `dnf list --showduplicates` | Varias `1.36.z`, entre ellas `1.36.5` | Si ya no está, usa la última 1.36 y cámbiala también en `kubeadm-config.yaml` |
+| `dnf install` | `Complete!` | — |
+| `kubeadm version` | `v1.36.5` | — |
+| `crictl info` | `"type": "RuntimeReady", "status": true` | `connect: no such file` → containerd parado |
 
-El kubelet se queda **reiniciándose en bucle** (`systemctl status kubelet` → `activating (auto-restart)`) hasta el
-`init` o el `join`: todavía no tiene configuración. Es normal; no lo "arregles".
+**Comprobación del nodo, antes de pasar al siguiente:**
 
 ```bash
 # [nodos · root]
-crictl --runtime-endpoint unix:///run/containerd/containerd.sock info | head -20
+swapon --show | wc -l                                         # 0
+sysctl -n net.ipv4.ip_forward                                 # 1
+firewall-cmd --get-active-zones | grep -c k8s                 # 1
+systemctl is-active containerd                                # active
+grep -c 'SystemdCgroup = true' /etc/containerd/config.toml    # 1
+rpm -q kubelet kubeadm kubectl                                # 1.36.5
 ```
 
-`crictl` (paquete `cri-tools`) habla con containerd igual que lo hará el kubelet. Lo esperado: un JSON con
-`"RuntimeReady"` y `"status": true`. `NetworkReady` saldrá `false` hasta que haya Calico.
+⚠️ **Error común en el mercado: Kubernetes actualizado por un `dnf update` de parches.** Sin `exclude=`, la ventana
+mensual de parches del sistema sube el kubelet de un nodo a la versión siguiente sin actualizar el plano de control:
+el kubelet queda por delante de la API (fuera de la política de versiones) y el nodo falla. **Cómo evitarlo:**
+`exclude=` (o `dnf versionlock`) y actualizaciones de Kubernetes como cambio propio.
 
-##### h. Comprobación del nodo
+### 8.2.3 `kubeadm init` y la red de pods
 
-Antes de pasar al siguiente nodo, todo en verde:
+📘 **Concepto.** `kubeadm init` ejecuta **fases**: `preflight` (comprobaciones), `certs` (CA y certificados en
+`/etc/kubernetes/pki/`), `kubeconfig`, `kubelet-start`, `control-plane` y `etcd` (escribe los manifiestos de **pods
+estáticos** en `/etc/kubernetes/manifests/`, que el kubelet arranca sin API), `upload-config`, `mark-control-plane`
+(etiqueta y *taint*), `bootstrap-token` y `addons` (CoreDNS y kube-proxy). Se configura con un fichero
+(`ClusterConfiguration`, `InitConfiguration`, `KubeletConfiguration`, `KubeProxyConfiguration`). Hasta que hay un
+**CNI**, el nodo está `NotReady` y CoreDNS en `Pending`. Calico se instala con su **operador** (Tigera), que recibe un
+objeto `Installation` con el pool de IPs de los pods.
 
-```bash
-# [nodos · root]
-swapon --show | wc -l                                   # 0
-lsmod | grep -c -E '^(overlay|br_netfilter)'            # 2
-sysctl -n net.ipv4.ip_forward                           # 1
-firewall-cmd --get-active-zones | grep -c k8s           # 1
-systemctl is-active containerd                          # active
-grep -c 'SystemdCgroup = true' /etc/containerd/config.toml   # 1
-rpm -q kubelet kubeadm kubectl                          # las tres 1.36.5
-df -h --output=target,size /var/lib/containerd /var/lib/kubelet /var/lib/local-path
-```
+*Fuente:* [Creating a cluster with kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/) ·
+[kubeadm init phases](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init-phase/) ·
+[Static Pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/) ·
+[Calico — Install on on-premises deployments](https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises)
 
-**Anota en el checklist (filas 6-9):** los LVs, swap, sysctl, zona `k8s`, versión de containerd y `SystemdCgroup`.
-
-#### 8.2.3 Inicializar el plano de control (k8s-cp01)
-
-**1. Subir la configuración y leerla.**
+🛠️ **Práctica.**
 
 ```bash
 # [host]
@@ -1298,127 +972,76 @@ scp scripts/stage8/files/cluster/kubeadm-config.yaml scripts/stage8/files/cluste
 ```bash
 # [k8s-cp01 · root]
 less ~adminlab/kubeadm-config.yaml
-```
-
-Cada decisión está comentada en el fichero. Las importantes:
-
-| Clave | Valor | Por qué |
-|---|---|---|
-| `controlPlaneEndpoint` | `k8s-api.lab.local:6443` | Un nombre DNS, no una IP: un segundo nodo de control más adelante solo cambia el registro DNS, no los certificados |
-| `podSubnet` / `serviceSubnet` | `10.244.0.0/16` / `10.96.0.0/12` | No chocan con `10.10.10.0/24` (lab), `192.168.122.0/24` (libvirt) ni con la red de casa |
-| `bind-address: 0.0.0.0` (controller-manager, scheduler), `listen-metrics-urls` (etcd), `metricsBindAddress` (kube-proxy) | Métricas fuera de `127.0.0.1` | Si no, Prometheus los da por caídos (E00 de la 8.8). firewalld solo deja llegar desde el lab |
-| `cgroupDriver: systemd` | El mismo que containerd | Apartado 8.2.2 f |
-| `containerLogMaxSize: 10Mi`, `containerLogMaxFiles: 3` | Logs de pods acotados | `/var` tiene 4 GB |
-
-**2. Validar y preparar.**
-
-```bash
-# [k8s-cp01 · root]
 kubeadm config validate --config ~adminlab/kubeadm-config.yaml
 kubeadm config images list --config ~adminlab/kubeadm-config.yaml
 kubeadm config images pull --config ~adminlab/kubeadm-config.yaml
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `config validate` | Comprueba la sintaxis y las claves del fichero | `ok` | `unknown field` → una clave mal escrita o de otra versión de la API |
-| `config images list` | Qué imágenes usará: apiserver, controller-manager, scheduler, proxy, coredns, **pause**, etcd | 7 líneas de `registry.k8s.io/...:v1.36.5` y otras | — |
-| `config images pull` | Las descarga antes del `init` (el `init` va más rápido y los fallos de red salen aquí) | `[config/images] Pulled ...` × 7 | Timeout → DNS o NAT del lab |
-
-Compara la versión de `pause` de `images list` con la de `sandbox` en `/etc/containerd/config.toml`. Si son distintas,
-el `init` avisará (`detected that the sandbox image ... is inconsistent`). No es grave, pero arréglalo para que el
-kubelet y containerd usen la misma: cambia la versión en `config.toml` y `systemctl restart containerd`.
-
-**3. `kubeadm init`.**
-
-```bash
-# [k8s-cp01 · root]
 kubeadm init --config ~adminlab/kubeadm-config.yaml --upload-certs | tee /root/kubeadm-init.log
-```
-
-Tarda 1-3 minutos. Lee la salida: son **fases**, y cada una es un subcomando que podrías lanzar por separado
-(`kubeadm init phase ...`):
-
-| Fase | Qué hace |
-|---|---|
-| `preflight` | Comprueba el nodo: swap, puertos, módulos, runtime. Aquí fallan los olvidos de la 8.2.2 |
-| `certs` | Crea la CA del clúster y todos los certificados en `/etc/kubernetes/pki/` |
-| `kubeconfig` | Ficheros de acceso para admin, kubelet, controller-manager y scheduler |
-| `kubelet-start` | Escribe la configuración del kubelet y lo arranca |
-| `control-plane`, `etcd` | Escribe los manifiestos de los **pods estáticos** en `/etc/kubernetes/manifests/` |
-| `upload-config`, `upload-certs` | Guarda la configuración en el clúster (ConfigMap `kubeadm-config`) y los certificados cifrados (para unir más nodos de control) |
-| `mark-control-plane` | Etiqueta y *taint* del nodo: los pods normales no se ejecutan en el plano de control |
-| `bootstrap-token` | Token para que los workers se unan |
-| `addons` | CoreDNS y kube-proxy |
-
-Al final: `Your Kubernetes control-plane has initialized successfully!` y **dos** comandos `kubeadm join` (uno para
-otro nodo de control, con `--control-plane`, y otro para workers). Están en `/root/kubeadm-init.log`.
-
-Si falla en `preflight`, el mensaje dice qué falta (`[ERROR Swap]`, `[ERROR FileContent--proc-sys-net-ipv4-ip_forward]`...):
-arréglalo y repite. Si falla más adelante, `kubeadm reset -f` deja el nodo como antes del `init` (no deshace la 8.2.2).
-
-**4. kubectl para `adminlab` en `k8s-cp01`.**
-
-```bash
-# [k8s-cp01 · root]
-mkdir -p ~adminlab/.kube
-cp /etc/kubernetes/admin.conf ~adminlab/.kube/config
+mkdir -p ~adminlab/.kube && cp /etc/kubernetes/admin.conf ~adminlab/.kube/config
 chown -R adminlab: ~adminlab/.kube && chmod 600 ~adminlab/.kube/config
-exit
-# [k8s-cp01 · adminlab]
-kubectl get nodes
-kubectl -n kube-system get pods -o wide
 ls /etc/kubernetes/manifests/
 ```
 
-| Comando | Qué esperas | Por qué |
+Las decisiones del fichero (cada una comentada en él):
+
+| Clave | Valor | Por qué |
 |---|---|---|
-| `kubectl get nodes` | `k8s-cp01   NotReady   control-plane` | Falta la red de pods (CNI) |
-| `get pods -n kube-system` | `etcd-`, `kube-apiserver-`, `kube-controller-manager-`, `kube-scheduler-` y `kube-proxy-` en `Running`; `coredns-` en **`Pending`** | CoreDNS es un pod normal: necesita red de pods |
-| `ls /etc/kubernetes/manifests/` | `etcd.yaml`, `kube-apiserver.yaml`, `kube-controller-manager.yaml`, `kube-scheduler.yaml` | Pods **estáticos**: el kubelet los arranca leyendo estos ficheros, **sin** API (la API es uno de ellos) |
+| `controlPlaneEndpoint` | `k8s-api.lab.local:6443` | Un nombre DNS: un segundo nodo de control solo cambiaría el registro |
+| `podSubnet` / `serviceSubnet` | `10.244.0.0/16` / `10.96.0.0/12` | No chocan con el lab, con libvirt ni con la red de casa |
+| `bind-address: 0.0.0.0`, `listen-metrics-urls`, `metricsBindAddress` | Métricas fuera de `127.0.0.1` | Si no, Prometheus los da por caídos (E00 de la 8.8) |
+| `cgroupDriver: systemd` | Igual que containerd | Apartado f |
+| `containerLogMaxSize: 10Mi`, `containerLogMaxFiles: 3` | Logs acotados | `/var` tiene 4 GB |
 
-> `admin.conf` es **cluster-admin** con un certificado que dura un año: trátalo como la contraseña de root. En la 8.6
-> creas un usuario con permisos limitados.
-
-**5. Red de pods: Calico con su operador.**
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `config validate` | `ok` | `unknown field` → una clave mal escrita |
+| `images list` / `pull` | 7 imágenes de `registry.k8s.io` | Compara la versión de `pause` con la de `sandbox` en `config.toml`: si difieren, el `init` avisará; iguálalas y `systemctl restart containerd` |
+| `kubeadm init` | `Your Kubernetes control-plane has initialized successfully!` y dos comandos `kubeadm join` | `[ERROR ...]` en `preflight` → dice qué falta; arréglalo y repite. Fallo posterior → `kubeadm reset -f` |
+| `ls manifests/` | `etcd.yaml`, `kube-apiserver.yaml`, `kube-controller-manager.yaml`, `kube-scheduler.yaml` | — |
 
 ```bash
 # [k8s-cp01 · adminlab]
+kubectl get nodes
+kubectl -n kube-system get pods
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/tigera-operator.yaml
 kubectl -n tigera-operator rollout status deploy/tigera-operator --timeout=3m
 kubectl create -f ~/calico-custom-resources.yaml
 watch kubectl get tigerastatus
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `create -f tigera-operator.yaml` | Instala el **operador** de Calico y sus CRDs. Se usa `create` y no `apply` porque los CRDs son tan grandes que no caben en la anotación que guarda `apply` | Una lista de `created` | `already exists` → ya estaba instalado |
-| `rollout status` | Espera a que el operador esté listo | `successfully rolled out` | — |
-| `create -f calico-custom-resources.yaml` | Le dice al operador **qué** instalar: un `Installation` con el pool `10.244.0.0/16` (el `podSubnet` de kubeadm) y VXLAN | `installation.operator.tigera.io/default created` | — |
-| `watch kubectl get tigerastatus` | Estado de cada componente. Sal con `Ctrl+C` | Al cabo de 2-4 min, `apiserver`, `calico` (y los que traiga tu versión) con `AVAILABLE True` | Atascado en `PROGRESSING` → `kubectl -n calico-system get pods` y `describe` del que no arranque |
-
-```bash
-# [k8s-cp01 · adminlab]
 kubectl get nodes
-kubectl -n calico-system get pods -o wide
 kubectl -n kube-system get pods -l k8s-app=kube-dns
 ```
 
-Lo esperado: `k8s-cp01 Ready`, pods de `calico-system` en `Running` y los dos `coredns` en `Running`. Así se ve que
-"el nodo no está Ready" era "no hay CNI".
+| Paso | Qué esperas | Por qué |
+|---|---|---|
+| `get nodes` (antes de Calico) | `k8s-cp01 NotReady control-plane` | No hay CNI |
+| `get pods -n kube-system` | Componentes en `Running`, `coredns` en `Pending` | CoreDNS es un pod normal: necesita red de pods |
+| `create -f tigera-operator.yaml` | Muchos `created` (con `create`, no `apply`: los CRDs no caben en la anotación de `apply`) | — |
+| `create -f calico-custom-resources.yaml` | `installation.operator.tigera.io/default created` | — |
+| `watch get tigerastatus` | En 2-4 min, todo `AVAILABLE True` (`Ctrl+C` para salir) | Atascado → `kubectl -n calico-system get pods` y `describe` |
+| `get nodes` / CoreDNS | `Ready`; `coredns` en `Running` | — |
 
-**Anota en el checklist (filas 10-11):** las fases del `init`, el aviso de `sandbox` si salió y `tigerastatus`.
+> `admin.conf` es **cluster-admin** con un certificado de un año: trátalo como la contraseña de root.
 
-#### 8.2.4 Unir los workers
+⚠️ **Error común en el mercado: la red de pods solapada con la de la empresa.** Se deja el `podSubnet` de un ejemplo
+de Internet (`192.168.0.0/16` es típico de los ejemplos de Calico) y resulta ser la red de oficinas o de la VPN: los
+pods no llegan a esos servidores, o los usuarios de la VPN no llegan al clúster, y cambiarlo después obliga a
+**reconstruir el clúster**. **Cómo evitarlo:** pedir a Redes los rangos libres antes del `init` y documentarlos, como
+hace la tabla de direccionamiento del lab.
+
+### 8.2.4 Unir los workers
+
+📘 **Concepto.** `kubeadm join` usa un **token de arranque** (caduca a las 24 h por defecto) y el **hash de la CA**
+(`--discovery-token-ca-cert-hash`): el nodo comprueba que habla con el clúster correcto antes de enviarle nada.
+`kubeadm token create --print-join-command` genera un token nuevo y el comando completo.
+
+*Fuente:* [kubeadm join](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-join/) ·
+[kubeadm token](https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-token/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [k8s-cp01 · root]
-kubeadm token list
 kubeadm token create --print-join-command
 ```
-
-El token del `init` caduca a las 24 h; `token create --print-join-command` genera uno nuevo y escribe el comando
-completo. Cópialo tal cual.
 
 ```bash
 # [workers · root]  (pega el comando que imprimió k8s-cp01; tiene esta forma)
@@ -1426,33 +1049,32 @@ kubeadm join k8s-api.lab.local:6443 --token abcdef.0123456789abcdef \
   --discovery-token-ca-cert-hash sha256:0123...cdef
 ```
 
-| Parte | Qué es |
-|---|---|
-| `k8s-api.lab.local:6443` | La API (por el nombre DNS de `controlPlaneEndpoint`) |
-| `--token` | Credencial temporal para que el nodo se presente |
-| `--discovery-token-ca-cert-hash` | El hash de la CA del clúster: el worker comprueba que habla con **tu** clúster y no con un impostor |
-
-Lo esperado: `This node has joined the cluster`. Si sale `connection refused` o un timeout, comprueba desde el worker
-`curl -k https://k8s-api.lab.local:6443/livez` (debe responder `ok`) y el puerto 6443 en la zona `k8s` de `k8s-cp01`.
-
 ```bash
 # [k8s-cp01 · adminlab]
 kubectl get nodes -o wide
 kubectl label node k8s-w01 k8s-w02 node-role.kubernetes.io/worker=
-kubectl get nodes
 ```
 
-Lo esperado: 3 nodos `Ready`, `VERSION v1.36.5`, `CONTAINER-RUNTIME containerd://...`, IPs `.100`, `.101`, `.102`.
-La etiqueta `node-role.kubernetes.io/worker=` solo sirve para que la columna `ROLES` diga `worker`.
+Lo esperado: `This node has joined the cluster`; después, 3 nodos `Ready`, `v1.36.5`, `containerd://...`. Si el join da
+timeout: desde el worker, `curl -k https://k8s-api.lab.local:6443/livez` (debe decir `ok`) y el 6443 en la zona `k8s`
+de `k8s-cp01`.
 
-**Anota en el checklist (fila 12).**
+⚠️ **Error común en el mercado: `--discovery-unsafe-skip-ca-verification`.** Cuando el hash "da problemas", se une el
+nodo saltándose la verificación de la CA. El nodo confía en quien responda en esa dirección: un atacante en la red
+podría hacerse pasar por el plano de control. **Cómo evitarlo:** generar el comando con `--print-join-command`, que
+incluye el hash correcto.
 
-#### 8.2.5 Administrar desde ansible01
+### 8.2.5 Administrar desde `ansible01`
 
-`ansible01` es la estación de control del lab: desde aquí se opera el clúster (como en una empresa, nadie trabaja
-conectado al plano de control).
+📘 **Concepto.** `kubectl` lee el **kubeconfig** (`~/.kube/config`): clústeres (URL y CA), usuarios (credenciales) y
+**contextos** (combinación de clúster, usuario y namespace). La política de versiones permite que `kubectl` esté **una
+versión menor** por encima o por debajo de la API. Helm se instala desde el binario oficial verificando su suma.
 
-**1. kubectl** (mismo repositorio de la 8.2.2 g):
+*Fuente:* [Organizing access using kubeconfig files](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) ·
+[Version Skew Policy](https://kubernetes.io/releases/version-skew-policy/) ·
+[Installing Helm](https://helm.sh/docs/intro/install/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
@@ -1467,61 +1089,38 @@ exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF
 sudo dnf install -y kubectl-1.36.5 --disableexcludes=kubernetes
 mkdir -p ~/.kube && scp adminlab@k8s-cp01.lab.local:.kube/config ~/.kube/config && chmod 600 ~/.kube/config
-kubectl get nodes
-kubectl config get-contexts
-```
-
-Lo esperado: los 3 nodos y un contexto `kubernetes-admin@lab-k8s` marcado con `*`. Si el `scp` pide contraseña, la
-clave de `ansible01` no está en `k8s-cp01`: cópiala desde el host
-(`ssh adminlab@ansible01 cat .ssh/id_ed25519.pub | ssh adminlab@k8s-cp01 'cat >> .ssh/authorized_keys'`) y repite.
-
-**2. Autocompletado:**
-
-```bash
-# [ansible01 · adminlab]
+kubectl get nodes; kubectl config get-contexts
 rpm -q bash-completion || sudo dnf install -y bash-completion
 echo 'source <(kubectl completion bash)' >> ~/.bashrc
 echo 'alias k=kubectl; complete -o default -F __start_kubectl k' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-Con el tabulador, `kubectl get po<TAB>` completa tipos, nombres y *namespaces*. En entrevistas prácticas
-(CKA/CKAD) es lo primero que se configura.
-
-**3. Helm** (lo usan la 8.4, la 8.7 y la 8.8). Binario oficial con suma de verificación:
-
 ```bash
-# [ansible01 · adminlab]
+# [ansible01 · adminlab]  Helm 4
 HELM_VERSION=v4.0.0       # cámbialo por la última 4.x estable de https://github.com/helm/helm/releases
 curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
 curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" | sha256sum -c
 tar xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz" && sudo install -m 0755 linux-amd64/helm /usr/local/bin/helm
 rm -rf linux-amd64 "helm-${HELM_VERSION}-linux-amd64.tar.gz"
 helm version
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `curl -fsSLO` | Descarga el tarball (`-f`: falla si el servidor devuelve un error) | Nada | `404` → esa versión no existe: revisa `HELM_VERSION` |
-| `... sha256sum -c` | Compara la suma publicada con la del fichero descargado | `helm-v4...tar.gz: OK` | `FAILED` → **no** lo instales: descarga corrupta o manipulada |
-| `install -m 0755` | Copia el binario con los permisos correctos | — | — |
-| `helm version` | Versión instalada | `version.BuildInfo{Version:"v4...` | — |
-
-**4. Copia del repositorio** (los manifiestos de `scripts/stage8/files/` se aplican desde aquí):
-
-```bash
-# [ansible01 · adminlab]
 rpm -q git || sudo dnf install -y git
 git clone https://github.com/salatielaizza/enterprise-rhel-lab.git ~/enterprise-rhel-lab
-ls ~/enterprise-rhel-lab/scripts/stage8/files
 ```
 
-Para traer cambios más adelante: `git -C ~/enterprise-rhel-lab pull`. Es una copia de **lectura**: los cambios se
-hacen en el repo del host y se suben a GitHub.
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `kubectl get nodes` | Los 3 nodos | `scp` pide contraseña → copia la clave de `ansible01` desde el host: `ssh adminlab@ansible01 cat .ssh/id_ed25519.pub \| ssh adminlab@k8s-cp01 'cat >> .ssh/authorized_keys'` |
+| `get-contexts` | `* kubernetes-admin@lab-k8s` | — |
+| `sha256sum -c` | `helm-v4...tar.gz: OK` | `FAILED` → **no** lo instales |
+| `git clone` | `~/enterprise-rhel-lab` con `scripts/stage8/files` | Para actualizarlo: `git -C ~/enterprise-rhel-lab pull` |
 
-**Anota en el checklist (fila 13):** versiones de kubectl y Helm.
+⚠️ **Error común en el mercado: el `admin.conf` repartido por el equipo.** Todos usan el mismo kubeconfig de
+cluster-admin (copiado por correo o a un repositorio), sin forma de saber quién hizo qué, y cuando caduca al año, el
+clúster "deja de funcionar" para todos a la vez. **Cómo evitarlo:** un acceso por persona con permisos limitados
+(8.6) y el `admin.conf` guardado como credencial de emergencia.
 
-#### 8.2.6 Comprobación de salud
+### 8.2.6 Comprobación de salud
 
 ```bash
 # [ansible01 · adminlab]
@@ -1541,29 +1140,18 @@ kubeadm certs check-expiration
 for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh test all "$h"; done
 ```
 
-| Comando | Qué esperas |
-|---|---|
-| `get nodes` | 3 `Ready` |
-| `get pods -A \| grep -v ...` | Solo la línea de cabecera: nada fuera de `Running` |
-| `/readyz?verbose` | Una lista de `[+]... ok` y al final `readyz check passed` |
-| `get cm kubeadm-config` | Tu configuración, guardada en el clúster |
-| `certs check-expiration` | Todos los certificados con ~364 días restantes; la CA, 10 años |
-| `lab.sh test all <nodo>` | Sigue en 0 FAIL: montar Kubernetes no rompe la base del lab |
+Lo esperado: 3 `Ready`; nada fuera de `Running`; `readyz check passed`; tu configuración guardada en el clúster;
+certificados con ~364 días y la CA con 10 años; y la base del lab sigue en 0 FAIL.
 
-**Anota en el checklist (fila 14).**
+### 8.2.7 Snapshot del clúster vacío (desde el host)
 
-#### 8.2.7 Snapshot del clúster vacío (desde el host)
-
-Es el punto de vuelta más valioso de toda la etapa: si algo de la 8.3-8.8 deja el clúster inservible, vuelves aquí en
-dos minutos en lugar de repetir la 8.2.
-
-Un snapshot de un clúster **encendido** no es consistente (etcd escribiendo a mitad), así que se apaga primero. El
-orden importa: workers primero, plano de control al final; al encender, al revés.
+Es el punto de vuelta más valioso de la etapa. Se apaga primero (workers antes que el plano de control) y se enciende
+en orden inverso.
 
 ```bash
 # [host]
 scripts/lab.sh down k8s-w02; scripts/lab.sh down k8s-w01; scripts/lab.sh down k8s-cp01
-watch 'virsh list --all | grep k8s'          # espera a que los tres digan "apagado"/"shut off"; Ctrl+C
+watch 'virsh list --all | grep k8s'            # los tres en "apagado"/"shut off"; Ctrl+C
 for h in k8s-cp01 k8s-w01 k8s-w02; do
   virsh snapshot-create-as "$h" --name "$h-cluster-vacio" --description "Etapa 8.2: clúster recién creado, sin apps"
 done
@@ -1571,163 +1159,109 @@ virsh snapshot-list k8s-cp01
 scripts/lab.sh up k8s-cp01; sleep 60; scripts/lab.sh up k8s-w01; scripts/lab.sh up k8s-w02
 ```
 
-| Comando | Qué hace | Qué esperas |
-|---|---|---|
-| `lab.sh down` | Apagado ACPI ordenado | `apagado ACPI solicitado` |
-| `watch virsh list --all` | Espera al apagado real | `shut off` en los tres |
-| `virsh snapshot-create-as` | Snapshot interno del qcow2 (los dos discos) con nombre y descripción | `Domain snapshot k8s-cp01-cluster-vacio created` |
-| `lab.sh up` | Enciende; `k8s-cp01` primero para que la API esté lista cuando lleguen los workers | Al cabo de ~2 min, `kubectl get nodes` con 3 `Ready` |
+Para volver aquí: apaga los tres y `virsh snapshot-revert <nodo> <nodo>-cluster-vacio`. El mismo procedimiento, con
+otro nombre, sirve para `*-antes-8.6`, `*-antes-8.9` y `*-antes-8.12`.
 
-Para volver aquí: apaga los tres y `virsh snapshot-revert <nodo> <nodo>-cluster-vacio` en cada uno. El mismo
-procedimiento, con otro nombre, sirve para `*-antes-8.6`, `*-antes-8.9` y `*-antes-8.12`.
-
-**Respuestas a las preguntas de K2:**
-
-1. **¿Qué componentes tiene el plano de control y qué hace cada uno?** `kube-apiserver` (la única puerta: todo pasa
-   por la API), `etcd` (la base de datos con todo el estado), `kube-scheduler` (decide en qué nodo va cada pod) y
-   `kube-controller-manager` (los bucles que llevan el estado real al deseado: ReplicaSets, nodos, endpoints...). En
-   cada nodo: `kubelet` (arranca los pods del nodo), el runtime (containerd) y `kube-proxy` (reglas de los Services).
-2. **¿Cómo arranca el kubelet la API si la API es un pod?** Con **pods estáticos**: lee los manifiestos de
-   `/etc/kubernetes/manifests/` y los arranca sin preguntar a nadie.
-3. **¿Por qué el nodo sale `NotReady` justo después del `init`?** Porque no hay CNI: el kubelet informa
-   `NetworkReady=false` hasta que Calico configura la red de pods.
-4. **¿Para qué sirve el `exclude=` del repositorio de Kubernetes?** Para que un `dnf update` de parches no actualice
-   Kubernetes sin querer. El orden del upgrade (plano de control primero, una versión menor cada vez) se hace a mano
-   (8.12).
-5. **¿Por qué `SystemdCgroup = true`?** El kubelet y containerd tienen que usar el mismo gestor de cgroups (`systemd`).
-
+**Checklist:** filas 5-14.
 
 ---
 
-### 6.3 Solución K3 — Objetos de Kubernetes
+## 8.3 Objetos de Kubernetes
 
-**Objetivo:** el vocabulario de cualquier entrevista de plataforma, visto en vivo: Pod, ReplicaSet, Deployment,
-Service, ConfigMap, Secret, Job, DaemonSet, namespace y etiquetas. La idea central es el **estado deseado**: tú
-declaras qué quieres y los controladores trabajan sin parar para que la realidad coincida.
+> 🎫 **Ticket APP-803.** "El equipo de producto quiere desplegar `podinfo` en el namespace `demo`: dos réplicas, sin
+> cortes al actualizar, posibilidad de volver atrás en segundos, la configuración fuera de la imagen y un proceso por
+> lotes que solo se ejecute una vez."
 
-**Dónde:** `ansible01`, como `adminlab`, desde la copia del repo.
+**Dónde:** `ansible01`, desde `~/enterprise-rhel-lab/scripts/stage8/files`. **Vuelta atrás:**
+`kubectl delete -f apps/podinfo.yaml` (borra el namespace `demo` entero).
 
-**Vuelta atrás:** `kubectl delete -f apps/podinfo.yaml` borra el namespace `demo` entero.
+### 8.3.1 Objetos, estado deseado y Deployments
 
-#### 8.3.1 Desplegar podinfo y leer lo que se ha creado
+📘 **Concepto.** Un objeto de Kubernetes es un **registro de intención**: tú escribes el `spec` (estado deseado) y el
+sistema escribe el `status` (estado real). Los **controladores** comparan ambos sin parar y corrigen. Un
+**Deployment** describe una aplicación y gestiona **ReplicaSets**; cada ReplicaSet mantiene N **Pods** idénticos. Al
+cambiar la plantilla del pod (`spec.template`), el Deployment crea un ReplicaSet nuevo y va pasando pods del viejo al
+nuevo (*rolling update*, controlado por `maxSurge` y `maxUnavailable`); el viejo se guarda para poder volver atrás
+(`rollout undo`). `kubectl explain` es la documentación de la API de **tu** versión, dentro del clúster.
+
+*Fuente:* [Objects In Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/) ·
+[Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) ·
+[ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 cd ~/enterprise-rhel-lab/scripts/stage8/files
 less apps/podinfo.yaml
+kubectl apply -f apps/podinfo.yaml --dry-run=server
 kubectl apply -f apps/podinfo.yaml
 kubectl -n demo get deploy,rs,pods,svc -o wide --show-labels
+kubectl explain deployment.spec.strategy.rollingUpdate
 ```
 
-| Objeto en `apps/podinfo.yaml` | Qué es |
-|---|---|
-| `Namespace demo` con `pod-security.kubernetes.io/enforce: restricted` | Un espacio de nombres donde **solo** entran pods que cumplen buenas prácticas de seguridad (sin root, sin privilegios, con seccomp) |
-| `Deployment podinfo` (2 réplicas) | Describe la aplicación: imagen, puertos, *probes*, recursos y seguridad |
-| `Service podinfo` (LoadBalancer) | Una IP y un nombre estables delante de los pods, que cambian |
-
-Lo esperado tras el `apply`: `namespace/demo created`, `deployment.apps/podinfo created`, `service/podinfo created`.
-En el `get`:
-
-| Línea | Qué esperas | Cómo se relaciona |
+| Línea del `get` | Qué esperas | Cómo se relaciona |
 |---|---|---|
-| `deployment.apps/podinfo` | `READY 2/2` | El Deployment crea un ReplicaSet... |
-| `replicaset.apps/podinfo-<hash>` | `DESIRED 2 CURRENT 2 READY 2` | ...el ReplicaSet crea los pods... |
-| `pod/podinfo-<hash>-<id>` × 2 | `Running`, uno en cada worker (columna `NODE`) | ...y los pods llevan la etiqueta `pod-template-hash` de su ReplicaSet |
-| `service/podinfo` | `TYPE LoadBalancer`, `EXTERNAL-IP <pending>` | Sin MetalLB aún (8.4) |
+| `deployment.apps/podinfo` | `READY 2/2` | Crea un ReplicaSet... |
+| `replicaset.apps/podinfo-<hash>` | `DESIRED 2 CURRENT 2 READY 2` | ...que crea los pods... |
+| `pod/podinfo-<hash>-<id>` × 2 | `Running`, uno en cada worker | ...con la etiqueta `pod-template-hash` de su ReplicaSet |
+| `service/podinfo` | `LoadBalancer`, `EXTERNAL-IP <pending>` | Sin MetalLB aún (8.4) |
 
-Compáralo con el `saludo-pod.yaml` de la 8.1.4: un Pod suelto frente a un Deployment que **mantiene** N copias, las
-actualiza y vuelve atrás.
-
-```bash
-# [ansible01 · adminlab]
-kubectl explain deployment.spec.strategy
-kubectl explain pod.spec.containers.readinessProbe --recursive | head -20
-```
-
-`kubectl explain` es la documentación de la API **del propio clúster** (de tu versión exacta). Sirve sin Internet y en
-los exámenes.
-
-#### 8.3.2 Ejercicios
-
-Haz cada uno, observa y anota lo que veas.
-
-**1. Estado deseado: borrar un pod.**
+**Estado deseado en acción:**
 
 ```bash
 # [ansible01 · adminlab]
-kubectl -n demo get pods -o name
 kubectl -n demo delete pod "$(kubectl -n demo get pods -o name | head -1 | cut -d/ -f2)"
-kubectl -n demo get pods -w
-```
-
-Lo esperado: el pod borrado pasa a `Terminating` y **a la vez** aparece uno nuevo en `ContainerCreating` → `Running`.
-El ReplicaSet ve 1 de 2 y crea otro. Sal del `-w` (*watch*) con `Ctrl+C`.
-
-**2. Escalar.**
-
-```bash
-# [ansible01 · adminlab]
+kubectl -n demo get pods -w                         # Ctrl+C cuando haya 2 Running
 kubectl -n demo scale deploy/podinfo --replicas=4
 kubectl -n demo get pods -o wide
 kubectl -n demo scale deploy/podinfo --replicas=2
 ```
 
-Lo esperado: 4 pods repartidos entre `k8s-w01` y `k8s-w02` (el scheduler los reparte), y después vuelta a 2.
-Ninguno va a `k8s-cp01`: tiene el *taint* `node-role.kubernetes.io/control-plane:NoSchedule`
-(`kubectl describe node k8s-cp01 | grep Taints`).
+Lo esperado: el pod borrado pasa a `Terminating` y **a la vez** aparece uno nuevo; al escalar, 4 pods repartidos entre
+`k8s-w01` y `k8s-w02`.
 
-**3. Actualización progresiva (*rolling update*).**
+**Rolling update y vuelta atrás:**
 
 ```bash
 # [ansible01 · adminlab]
 kubectl -n demo set env deploy/podinfo PODINFO_UI_MESSAGE="version 2"
+kubectl -n demo annotate deploy/podinfo kubernetes.io/change-cause="mensaje version 2" --overwrite
 kubectl -n demo rollout status deploy/podinfo
 kubectl -n demo get rs
 kubectl -n demo rollout history deploy/podinfo
-```
-
-| Comando | Qué esperas | Qué demuestra |
-|---|---|---|
-| `set env` | `deployment.apps/podinfo env updated` | Cambiar la plantilla del pod = una **revisión** nueva |
-| `rollout status` | `Waiting for ... 1 of 2 updated replicas...` y `successfully rolled out` | Los pods se sustituyen de uno en uno: nunca se queda sin servicio |
-| `get rs` | **Dos** ReplicaSets: el nuevo con `2/2` y el viejo con `0/0` | El viejo se guarda para poder volver atrás |
-| `rollout history` | Revisiones 1 y 2, con `CHANGE-CAUSE <none>` | Para que diga algo: `kubectl -n demo annotate deploy/podinfo kubernetes.io/change-cause="mensaje version 2"` |
-
-**4. Vuelta atrás.**
-
-```bash
-# [ansible01 · adminlab]
 kubectl -n demo rollout undo deploy/podinfo
 kubectl -n demo rollout status deploy/podinfo
 kubectl -n demo get rs
-kubectl -n demo exec deploy/podinfo -- env | grep PODINFO_UI_MESSAGE || echo "sin PODINFO_UI_MESSAGE: vuelta a la revisión 1"
 ```
 
-Lo esperado: el ReplicaSet viejo vuelve a `2/2` y el nuevo baja a `0/0`; la variable ya no está.
-
-**5. ConfigMap y Secret.**
-
-```bash
-# [ansible01 · adminlab]
-kubectl -n demo create configmap podinfo-cfg --from-literal=PODINFO_UI_COLOR=#34577c
-kubectl -n demo set env deploy/podinfo --from=configmap/podinfo-cfg
-kubectl -n demo exec deploy/podinfo -- env | grep PODINFO_UI_COLOR
-kubectl -n demo create secret generic podinfo-token --from-literal=token=NoEsSecreto123
-kubectl -n demo get secret podinfo-token -o yaml | grep -A1 '^data'
-kubectl -n demo get secret podinfo-token -o jsonpath='{.data.token}' | base64 -d; echo
-```
-
-| Comando | Qué esperas | Qué demuestra |
+| Paso | Qué esperas | Qué demuestra |
 |---|---|---|
-| `set env --from=configmap/...` | Un *rollout* nuevo; la variable dentro del pod | La configuración vive fuera de la imagen |
-| `get secret -o yaml` | `token: Tm9Fc1NlY3JldG8xMjM=` | Los Secrets van en **base64** |
-| `... \| base64 -d` | `NoEsSecreto123` | **base64 no es cifrado**: cualquiera con permiso `get secrets` lo lee. En la 8.6 se ve cómo protegerlos |
+| `set env` | `env updated` | Cambiar la plantilla = revisión nueva |
+| `rollout status` | `Waiting for ... 1 of 2 updated replicas` y `successfully rolled out` | Pods sustituidos de uno en uno, sin corte |
+| `get rs` | Dos ReplicaSets: el nuevo `2/2`, el viejo `0/0` | El viejo se guarda |
+| `rollout history` | Revisiones con su `CHANGE-CAUSE` | Sin la anotación, `<none>`: nadie sabría qué cambió |
+| `rollout undo` + `get rs` | El viejo vuelve a `2/2` | Vuelta atrás en segundos |
 
-**6. Etiquetas y selectores.**
+⚠️ **Error común en el mercado: pods sin `requests` ni `limits` y sin *probes*.** Es lo que sale de
+`kubectl create deployment` o de un YAML copiado: el scheduler no sabe cuánto ocupa cada pod y llena nodos hasta
+quedarse sin memoria; y sin *readinessProbe*, el Service manda tráfico a pods que aún están arrancando, con errores en
+cada despliegue. **Cómo evitarlo:** todo Deployment con `resources.requests`, `limits.memory`, `readinessProbe` y
+`livenessProbe`, como `apps/podinfo.yaml`.
+
+### 8.3.2 Etiquetas y selectores
+
+📘 **Concepto.** Las **etiquetas** son pares clave-valor en los objetos; los **selectores** las usan para agrupar.
+Todo se une por etiquetas: un ReplicaSet "posee" los pods que coinciden con su selector, y un Service envía tráfico a
+los pods que coinciden con el suyo. Si un pod pierde la etiqueta, sale de los dos.
+
+*Fuente:* [Labels and Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) ·
+[Recommended Labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
-kubectl -n demo get pods -l 'app.kubernetes.io/name in (podinfo)' --show-labels
 POD=$(kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o name | head -1)
 kubectl -n demo label "$POD" app.kubernetes.io/name-
 kubectl -n demo get pods --show-labels
@@ -1735,23 +1269,73 @@ kubectl -n demo get endpointslices -l kubernetes.io/service-name=podinfo -o wide
 kubectl -n demo delete "$POD"
 ```
 
-| Paso | Qué esperas | Qué demuestra |
-|---|---|---|
-| `label ... app.kubernetes.io/name-` (el `-` final **quita** la etiqueta) | `pod/... unlabeled` | — |
-| `get pods --show-labels` | **Tres** pods: el que perdió la etiqueta sigue `Running`, y hay uno nuevo | El ReplicaSet solo cuenta los pods que **coinciden con su selector**: vio 1 de 2 y creó otro |
-| `get endpointslices` | Solo dos IPs: la del pod huérfano ya no está | El Service también selecciona por etiquetas: el huérfano no recibe tráfico |
-| `delete "$POD"` | Borra el huérfano | Nadie lo gestiona: hay que borrarlo a mano |
+Lo esperado: **tres** pods (el huérfano sigue `Running` y el ReplicaSet creó otro), y en los EndpointSlices solo dos IPs:
+el huérfano ya no recibe tráfico. Nadie lo gestiona: hay que borrarlo a mano.
 
-**7. Job: rechazado por Pod Security, y corregido.**
+⚠️ **Error común en el mercado: un Service sin endpoints.** El selector del Service dice `app: web` y los pods llevan
+`app.kubernetes.io/name: web` (o hay una errata): el Service existe, tiene IP y DNS, pero toda petición falla con
+`connection refused` o timeout. **Cómo detectarlo:** `kubectl get endpointslices -l kubernetes.io/service-name=<svc>`
+vacío. Es la primera comprobación ante "el Service no responde".
+
+### 8.3.3 ConfigMaps y Secrets
+
+📘 **Concepto.** Un **ConfigMap** guarda configuración no confidencial; un **Secret**, datos sensibles. Los dos se
+inyectan como variables de entorno o como ficheros. Los Secrets van en **base64**, que es una codificación, **no** un
+cifrado: cualquiera con permiso `get` sobre ellos los lee, y en etcd se guardan en claro salvo que se configure cifrado
+en reposo (8.6.4).
+
+*Fuente:* [ConfigMaps](https://kubernetes.io/docs/concepts/configuration/configmap/) ·
+[Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) ·
+[Good practices for Kubernetes Secrets](https://kubernetes.io/docs/concepts/security/secrets-good-practices/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
+kubectl -n demo create configmap podinfo-cfg --from-literal=PODINFO_UI_COLOR=#34577c
+kubectl -n demo set env deploy/podinfo --from=configmap/podinfo-cfg
+kubectl -n demo exec deploy/podinfo -- env | grep PODINFO_UI_COLOR
+kubectl -n demo create secret generic podinfo-token --from-literal=token=NoEsSecreto123
+kubectl -n demo get secret podinfo-token -o jsonpath='{.data.token}'; echo
+kubectl -n demo get secret podinfo-token -o jsonpath='{.data.token}' | base64 -d; echo
+kubectl -n demo set env deploy/podinfo PODINFO_UI_COLOR-
+kubectl -n demo delete configmap podinfo-cfg
+kubectl -n demo delete secret podinfo-token
+```
+
+Lo esperado: la variable dentro del pod; `Tm9Fc1NlY3JldG8xMjM=` y, decodificado, `NoEsSecreto123`. El `PODINFO_UI_COLOR-`
+(con `-` final) quita la variable: `kubectl apply -f apps/podinfo.yaml` **no** la quitaría, porque `apply` solo borra
+lo que él mismo puso (lo guarda en la anotación `last-applied-configuration`).
+
+⚠️ **Error común en el mercado: Secrets en Git "porque están en base64".** Se suben al repositorio los YAML de los
+Secrets con sus valores en base64, como si estuvieran protegidos: cualquiera con acceso al repo (o a su historial, para
+siempre) tiene las contraseñas. **Cómo evitarlo:** los Secrets se crean fuera de Git (como en este lab), o se cifran
+antes de subirlos (Sealed Secrets, SOPS) o se leen de un gestor externo (Vault, External Secrets).
+
+### 8.3.4 Jobs, DaemonSets y taints
+
+📘 **Concepto.** Un **Job** ejecuta pods **hasta que terminan bien** (no los reinicia para siempre como un Deployment);
+un **CronJob** crea Jobs con un horario. Un **DaemonSet** pone **un pod por nodo** (agentes de red, logs, métricas). Un
+**taint** en un nodo repele los pods que no tengan la *toleration* correspondiente: el plano de control lleva
+`node-role.kubernetes.io/control-plane:NoSchedule`, y por eso las aplicaciones no van ahí. El namespace `demo` aplica
+**Pod Security `restricted`** (8.6.3): los pods tienen que declarar un `securityContext` seguro.
+
+*Fuente:* [Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/) ·
+[DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) ·
+[Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]
+kubectl describe node k8s-cp01 | grep Taints
+kubectl get ds -A
 kubectl -n demo create job pi --image=busybox:1.37 -- sh -c 'echo hola'
 ```
 
-Lo esperado: **error**, con un mensaje como `violates PodSecurity "restricted:latest": allowPrivilegeEscalation != false
-..., unrestricted capabilities ..., runAsNonRoot != true ..., seccompProfile ...`. Lee el mensaje entero: dice
-exactamente qué falta. Corrección con un YAML que cumpla `restricted`:
+Lo esperado: el *taint* `NoSchedule`; `kube-proxy` y `calico-node` con `DESIRED 3` (uno por nodo, incluido
+`k8s-cp01`); y el Job **rechazado**: `violates PodSecurity "restricted:latest": allowPrivilegeEscalation != false ...,
+runAsNonRoot != true ..., seccompProfile ...`. El mensaje es la receta del arreglo:
 
 ```bash
 # [ansible01 · adminlab]
@@ -1763,13 +1347,13 @@ metadata:
   namespace: demo
 spec:
   backoffLimit: 2
-  ttlSecondsAfterFinished: 600          # se borra solo 10 min después de terminar
+  ttlSecondsAfterFinished: 600
   template:
     spec:
       restartPolicy: Never
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65534                # nobody
+        runAsUser: 65534
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: hola
@@ -1783,82 +1367,40 @@ spec:
             limits: {cpu: 100m, memory: 32Mi}
 EOF
 kubectl apply -f ~/job-hola.yaml
-kubectl -n demo get job hola -w            # COMPLETIONS 1/1; Ctrl+C
+kubectl -n demo get job hola -w                     # COMPLETIONS 1/1; Ctrl+C
 kubectl -n demo logs job/hola
+kubectl -n demo get events --sort-by=.lastTimestamp | tail -10
 ```
 
-Lo esperado: `COMPLETIONS 1/1` y en los logs `hola desde un Job` y la fecha. Un Job ejecuta algo **hasta que termina**
-(no lo reinicia como un Deployment); un CronJob crea Jobs según un horario (`kubectl create cronjob --help`).
+Lo esperado: `1/1`, el mensaje y la fecha; los eventos cuentan la historia (`Scheduled`, `Pulled`, `Created`,
+`Started`, `Completed`). `ttlSecondsAfterFinished` lo borra solo a los 10 minutos.
 
-**8. DaemonSet: uno por nodo.**
+⚠️ **Error común en el mercado: imágenes con `:latest`.** El mismo YAML despliega cosas distintas cada día, dos nodos
+pueden ejecutar versiones diferentes de la "misma" imagen, y `rollout undo` no vuelve a nada (la etiqueta apunta ya a
+la versión nueva). **Cómo evitarlo:** etiquetas de versión fijas (o el *digest* `@sha256:`), como todo el lab.
 
-```bash
-# [ansible01 · adminlab]
-kubectl get ds -A
-kubectl -n calico-system get pods -l k8s-app=calico-node -o wide
-```
-
-Lo esperado: `kube-proxy` (en `kube-system`) y `calico-node` (en `calico-system`) con `DESIRED 3`: un pod por nodo,
-**incluido** `k8s-cp01`. Un DaemonSet es para agentes de nodo (red, logs, métricas): en la 8.8 aparece otro,
-`node-exporter`.
-
-**9. Eventos y `describe`: la primera fuente de diagnóstico.**
-
-```bash
-# [ansible01 · adminlab]
-kubectl -n demo get events --sort-by=.lastTimestamp | tail -15
-kubectl -n demo describe deploy/podinfo | tail -15
-kubectl -n demo describe pod "$(kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o name | head -1 | cut -d/ -f2)" | sed -n '/Events/,$p'
-```
-
-Los eventos cuentan la historia de lo que acabas de hacer: `Scheduled`, `Pulled`, `Created`, `Started`, `Killing`,
-`ScalingReplicaSet`... Ante cualquier problema de un pod, `describe` + `Events` es **siempre** lo primero.
-
-**Limpieza:**
-
-```bash
-# [ansible01 · adminlab]
-kubectl -n demo delete job hola --ignore-not-found
-kubectl -n demo set env deploy/podinfo PODINFO_UI_COLOR-     # el "-" final quita la variable
-kubectl -n demo delete configmap podinfo-cfg
-kubectl -n demo delete secret podinfo-token
-kubectl -n demo get deploy podinfo -o jsonpath='{.spec.template.spec.containers[0].env}'; echo   # vacío
-```
-
-¿Por qué no basta con `kubectl apply -f apps/podinfo.yaml`? `apply` solo quita lo que **él** puso antes (lo guarda en
-la anotación `last-applied-configuration`). Lo añadido con `set env` no está ahí y sobreviviría. Es una fuente típica
-de *drift* (la 8.9 y la 8.11 vuelven sobre ello).
-
-**Anota en el checklist (filas 15-16).**
-
-**Qué documentar:** la tabla con lo observado y, en una frase, cada objeto: Pod, ReplicaSet, Deployment, Service,
-ConfigMap, Secret, Job, CronJob, DaemonSet, namespace, etiqueta y selector.
-
-**Respuestas a las preguntas de K3:**
-
-1. **¿Por qué no se crean Pods sueltos?** Un Pod suelto no se recrea si muere ni se reprograma si cae el nodo. Un
-   Deployment (vía ReplicaSet) mantiene N réplicas, hace *rolling updates* y vuelve atrás.
-2. **¿Qué pasa al quitar a un pod la etiqueta del selector?** Sale del ReplicaSet (que crea otro para mantener N) y
-   del Service (deja de recibir tráfico). Sigue vivo y huérfano.
-3. **¿Un Secret está cifrado?** No: va en base64. Se protege con RBAC, cifrado en reposo de etcd o gestores externos
-   (8.6).
-4. **¿Por qué ningún pod de podinfo va a `k8s-cp01`?** Por su *taint* `NoSchedule`. Los DaemonSets de red sí van,
-   porque llevan la *toleration*.
-
+**Checklist:** filas 15-16.
 
 ---
 
-### 6.4 Solución K4 — Red: Services, DNS, MetalLB, Ingress y NetworkPolicies
+## 8.4 Red: Services, DNS, MetalLB, Ingress y NetworkPolicies
 
-**Objetivo:** cómo llega el tráfico a un pod, desde dentro y desde fuera del clúster: ClusterIP, NodePort y
-LoadBalancer; el DNS interno; MetalLB para tener IPs reales en un lab sin nube; Ingress/Gateway API para muchos
-servicios detrás de una IP; y NetworkPolicies para cortar el tráfico que no toca.
+> 🎫 **Ticket NET-804.** "`podinfo` tiene que ser accesible desde la red de la oficina con un nombre fijo, más
+> aplicaciones van a compartir la misma IP de entrada, y Seguridad exige que, dentro del clúster, solo hablen entre sí
+> los componentes que lo necesitan."
 
-**Dónde:** `ansible01` y, para mirar ARP, el host (solo lectura).
+### 8.4.1 Services y DNS interno
 
-**Vuelta atrás:** `helm uninstall` de MetalLB y Traefik, `kubectl delete -f` de las políticas.
+📘 **Concepto.** Un **Service** da una IP virtual estable (**ClusterIP**) y un nombre DNS
+(`<servicio>.<namespace>.svc.cluster.local`) a un conjunto de pods; kube-proxy reparte el tráfico entre ellos. Tipos:
+**ClusterIP** (solo dentro), **NodePort** (además, un puerto 30000-32767 en todos los nodos) y **LoadBalancer**
+(además, una IP externa que asigna un proveedor). Las IPs reales detrás del Service están en los **EndpointSlices**.
+**CoreDNS** resuelve los nombres del clúster y **reenvía** el resto al DNS del nodo (`forward . /etc/resolv.conf`).
 
-#### 8.4.1 Services y DNS interno
+*Fuente:* [Service](https://kubernetes.io/docs/concepts/services-networking/service/) ·
+[DNS for Services and Pods](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
@@ -1866,151 +1408,104 @@ kubectl -n demo get svc podinfo -o wide
 kubectl -n demo get endpointslices -l kubernetes.io/service-name=podinfo -o wide
 kubectl run dnstest -it --rm --image=busybox:1.37 --restart=Never -- nslookup podinfo.demo.svc.cluster.local
 kubectl run dnstest -it --rm --image=busybox:1.37 --restart=Never -- nslookup dns01.lab.local
-kubectl -n kube-system get cm coredns -o yaml | grep -A2 forward
-```
-
-| Comando | Qué esperas | Qué demuestra |
-|---|---|---|
-| `get svc` | `CLUSTER-IP 10.96.x.x`, `PORT(S) 80:3xxxx/TCP` | Un Service tiene IP virtual **y** un NodePort (el `3xxxx`) |
-| `get endpointslices` | Las IPs `10.244.x.x` de los dos pods, puerto 9898 | Lo que hay de verdad detrás de la IP virtual |
-| `nslookup podinfo.demo.svc.cluster.local` | `Address: 10.96.x.x` (la del Service) | Nombre = `<servicio>.<namespace>.svc.cluster.local` |
-| `nslookup dns01.lab.local` | `10.10.10.20` | CoreDNS **reenvía** lo que no es del clúster al DNS del nodo, que es `dns01` |
-| `get cm coredns` | `forward . /etc/resolv.conf` | Por eso: usa el `resolv.conf` del nodo (Etapa 3) |
-
-`kubectl run` funciona en `default` porque ese namespace no tiene Pod Security `restricted`. En `demo` sería rechazado.
-
-**NodePort** (sin MetalLB):
-
-```bash
-# [ansible01 · adminlab]
+kubectl -n kube-system get cm coredns -o yaml | grep -A1 forward
 NP=$(kubectl -n demo get svc podinfo -o jsonpath='{.spec.ports[0].nodePort}'); echo "NodePort: $NP"
-curl -s "http://k8s-w01.lab.local:$NP" | head -5
+curl -s "http://k8s-w01.lab.local:$NP" | head -3
 ```
 
-Lo esperado: el JSON de podinfo. Así quedan las tres capas: **ClusterIP** (solo dentro), **NodePort** (un puerto en
-cada nodo) y **LoadBalancer** (una IP externa, que necesita algo que la asigne: MetalLB).
+| Paso | Qué esperas |
+|---|---|
+| `get svc` | `CLUSTER-IP 10.96.x.x`, `PORT(S) 80:3xxxx/TCP` |
+| `get endpointslices` | Las dos IPs `10.244.x.x`, puerto 9898 |
+| `nslookup podinfo...` | La ClusterIP |
+| `nslookup dns01.lab.local` | `10.10.10.20`: CoreDNS reenvía a `dns01` |
+| `curl ...:$NP` | El JSON de podinfo por el NodePort |
 
-#### 8.4.2 MetalLB: IPs del lab para los Services LoadBalancer
+(`kubectl run` funciona en `default` porque ese namespace no tiene Pod Security `restricted`.)
 
-En la nube, `type: LoadBalancer` crea un balanceador del proveedor. En un lab no hay nadie que lo haga: MetalLB asigna
-IPs de un rango (`.110-.119`) y las anuncia por **ARP** (modo L2) desde uno de los nodos.
+⚠️ **Error común en el mercado: NodePort como forma de "publicar" en producción.** Se abren puertos 3xxxx en todos los
+nodos y se dan a los usuarios con la IP de un nodo concreto: si ese nodo cae o se sustituye, el servicio "desaparece",
+y los puertos quedan abiertos en todos los nodos. **Cómo evitarlo:** LoadBalancer o Ingress/Gateway delante; NodePort
+solo como pieza interna.
+
+### 8.4.2 MetalLB: LoadBalancer sin nube
+
+📘 **Concepto.** En la nube, `type: LoadBalancer` crea un balanceador del proveedor. En un CPD propio no hay nadie que
+lo haga: **MetalLB** asigna IPs de un **IPAddressPool** y las anuncia. En **modo L2**, un nodo (elegido por IP)
+responde a **ARP** por esa IP y kube-proxy reparte desde ahí; si el nodo cae, otro la anuncia. No reparte carga entre
+nodos: es alta disponibilidad, no balanceo. Con `externalTrafficPolicy: Local`, solo anuncian los nodos con un pod
+listo y se conserva la IP del cliente.
+
+*Fuente:* [MetalLB — Installation](https://metallb.io/installation/) ·
+[MetalLB — Layer 2 mode](https://metallb.io/concepts/layer2/) ·
+[Service — External traffic policy](https://kubernetes.io/docs/reference/networking/virtual-ips/#external-traffic-policy)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 kubectl create namespace metallb-system
 kubectl label namespace metallb-system pod-security.kubernetes.io/enforce=privileged
 helm repo add metallb https://metallb.github.io/metallb && helm repo update
-helm search repo metallb/metallb --versions | head -5
+helm search repo metallb/metallb --versions | head -3
 helm install metallb metallb/metallb --version 0.16.1 -n metallb-system --wait
 kubectl -n metallb-system get pods -o wide
-```
-
-| Comando | Qué hace | Qué esperas | Si sale otra cosa |
-|---|---|---|---|
-| `label ... enforce=privileged` | El *speaker* de MetalLB usa `hostNetwork` (necesita responder ARP en la red del nodo): no cumple `baseline` | `namespace/metallb-system labeled` | Sin la etiqueta, los pods del *speaker* se rechazan |
-| `helm repo add` + `update` | Añade el repositorio de charts | `"metallb" has been added` | — |
-| `helm search --versions` | Comprueba que la versión fijada existe | `0.16.1` en la lista | No está → usa la que haya y anótala |
-| `helm install ... --wait` | Instala y espera a que todo esté listo | `STATUS: deployed` | Timeout → `kubectl -n metallb-system describe pod` |
-| `get pods` | `controller` (1) y `speaker` (uno por nodo) | Todos `Running` | — |
-
-```bash
-# [ansible01 · adminlab]
-cat cluster/metallb-pool.yaml
 kubectl apply -f cluster/metallb-pool.yaml
 kubectl -n demo get svc podinfo
-curl -s http://podinfo.lab.local | head -5
-```
-
-Lo esperado: `EXTERNAL-IP 10.10.10.114` (la que pide la anotación `metallb.io/loadBalancerIPs` de `apps/podinfo.yaml`)
-y el JSON de podinfo por el nombre del DNS del lab.
-
-**¿Quién responde a esa IP?** Desde el host, solo lectura:
-
-```bash
-# [host]
-curl -s -o /dev/null -w '%{http_code}\n' http://10.10.10.114
-ip neigh show 10.10.10.114
-virsh domiflist k8s-w01; virsh domiflist k8s-w02
-```
-
-Lo esperado: `200`, una MAC en `ip neigh`, y esa MAC es la de **un** nodo (compárala con `virsh domiflist`). MetalLB
-L2 no reparte carga entre nodos: un nodo "tiene" la IP y kube-proxy reparte desde ahí. Si ese nodo cae, otro la anuncia.
-
-**`externalTrafficPolicy: Local`** (en `apps/podinfo.yaml`): el tráfico solo entra por nodos que tienen un pod de
-podinfo y conserva la IP real del cliente (sin SNAT). Con `Cluster`, cualquier nodo acepta el tráfico y lo reenvía,
-cambiando el origen por su propia IP. Se ve con una sola réplica:
-
-```bash
-# [ansible01 · adminlab]
+curl -s http://podinfo.lab.local | head -3
 kubectl -n demo scale deploy/podinfo --replicas=1
-kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o wide      # ¿en qué nodo está?
-kubectl -n demo get events --field-selector involvedObject.name=podinfo --sort-by=.lastTimestamp | tail -3
-```
-
-```bash
-# [host]
-ip neigh flush 10.10.10.114 dev virbr-lab 2>/dev/null; curl -s -o /dev/null http://10.10.10.114; ip neigh show 10.10.10.114
-```
-
-Lo esperado: en los eventos del Service, `nodeAssigned ... announcing from node "k8s-w0X"` con el nodo **donde está el
-pod**, y la MAC de `ip neigh` es la de ese nodo. Con `Local`, MetalLB solo anuncia la IP desde nodos con un pod listo.
-(`ip neigh flush` necesita root: si no quieres usar `sudo` en el host, omítelo y basta con los eventos.)
-
-```bash
-# [ansible01 · adminlab]
+kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o wide
+kubectl -n demo get events --field-selector involvedObject.kind=Service --sort-by=.lastTimestamp | tail -3
 kubectl -n demo scale deploy/podinfo --replicas=2
 ```
 
-Las NetworkPolicies de la 8.4.4 usan la IP de origen; con `Local` es la del cliente de verdad (`10.10.10.30` si pruebas
-desde `ansible01`).
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `label ... privileged` | El *speaker* necesita `hostNetwork` para responder ARP | Sin la etiqueta, sus pods se rechazan |
+| `helm install --wait` | `STATUS: deployed`; `controller` + un `speaker` por nodo | — |
+| `get svc podinfo` | `EXTERNAL-IP 10.10.10.114` (la anotación `metallb.io/loadBalancerIPs` de `apps/podinfo.yaml`) | `<pending>` → el pool no se aplicó |
+| `curl podinfo.lab.local` | El JSON | — |
+| Eventos con 1 réplica | `announcing from node "k8s-w0X"`: el nodo **donde está el pod** | — |
 
-#### 8.4.3 Ingress y Gateway API con Traefik
+⚠️ **Error común en el mercado: el pool de MetalLB solapado con el DHCP.** Se elige un rango "libre" sin preguntar a
+Redes y el DHCP de la oficina reparte esas mismas IPs: conflictos de ARP, servicios que van y vienen y equipos de
+usuarios sin red. **Cómo evitarlo:** reservar el rango en el plan de direccionamiento (aquí, `.110-.119`) y excluirlo
+del DHCP.
 
-Un LoadBalancer gasta **una IP por servicio**. Un controlador de entrada usa **una IP para muchos** servicios y elige el
-destino por el nombre (`Host`) o la ruta. `ingress-nginx` se ha retirado (anuncio en noviembre de 2025, sin
-mantenimiento desde marzo de 2026); las alternativas habituales son Traefik y los controladores de **Gateway API**, su
-sucesora. Traefik hace las dos cosas.
+### 8.4.3 Ingress y Gateway API con Traefik
 
-**1. CRDs de Gateway API** (Traefik no los instala):
+📘 **Concepto.** Un LoadBalancer gasta una IP por servicio. Un **controlador de entrada** usa **una IP para muchos**
+servicios y decide el destino por el nombre (`Host`) o la ruta. **Ingress** es la API clásica (una sola pieza; las
+funciones avanzadas van en anotaciones propias de cada controlador). **Gateway API** es su sucesora: separa
+`GatewayClass` (el proveedor), `Gateway` (la entrada, de plataforma) y `HTTPRoute` (las rutas, de cada equipo).
+`ingress-nginx` se ha retirado (anuncio en noviembre de 2025, sin mantenimiento desde marzo de 2026); Traefik soporta
+las dos APIs. Los CRDs de Gateway API se instalan aparte.
+
+*Fuente:* [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) ·
+[Gateway API](https://gateway-api.sigs.k8s.io/) ·
+[Traefik — Getting started with Kubernetes](https://doc.traefik.io/traefik/getting-started/kubernetes/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
-GWAPI=v1.6.3     # la que indique la documentación de tu versión de Traefik ("Kubernetes Gateway API")
+GWAPI=v1.6.3     # la que indique la documentación de tu versión de Traefik
 kubectl apply --server-side -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GWAPI}/standard-install.yaml"
-kubectl get crd | grep gateway.networking.k8s.io
-```
-
-Lo esperado: los CRDs `gatewayclasses`, `gateways`, `httproutes`, `referencegrants`, `grpcroutes`.
-
-**2. Traefik:**
-
-```bash
-# [ansible01 · adminlab]
 kubectl create namespace traefik
 helm repo add traefik https://traefik.github.io/charts && helm repo update
-helm search repo traefik/traefik | head -3          # fija la versión y anótala en el checklist
+helm search repo traefik/traefik | head -3
 TRAEFIK_CHART=<versión-de-helm-search>
 helm install traefik traefik/traefik -n traefik --version "$TRAEFIK_CHART" \
   --set service.annotations."metallb\.io/loadBalancerIPs"=10.10.10.110 \
   --set providers.kubernetesGateway.enabled=true \
   --set gateway.listeners.web.namespacePolicy.from=All \
   --wait
-kubectl -n traefik get pods,svc
+kubectl -n traefik get svc traefik
 kubectl get gatewayclass; kubectl get gateway -A
 ```
 
-| Parte | Qué hace |
-|---|---|
-| `TRAEFIK_CHART=` | Cambia `<versión-de-helm-search>` por la de la columna `CHART VERSION` |
-| `service.annotations...=10.10.10.110` | Pide a MetalLB la IP de `ingress.lab.local` |
-| `providers.kubernetesGateway.enabled=true` | Además de `Ingress`, entiende Gateway API; crea una `GatewayClass` y un `Gateway` por defecto |
-| `gateway.listeners.web.namespacePolicy.from=All` | Que rutas de **otros** namespaces (`demo`) puedan colgarse de ese Gateway |
-
-Lo esperado: el Service `traefik` con `EXTERNAL-IP 10.10.10.110`, una `GatewayClass traefik` con `ACCEPTED True` y un
-`Gateway` (por ejemplo `traefik-gateway`) en `traefik` con `PROGRAMMED True`. **Anota su nombre**: lo usa el
-`HTTPRoute`.
-
-**3. Un `Ingress` para podinfo:**
+Cambia `<versión-de-helm-search>` por la `CHART VERSION` (y anótala). Lo esperado: `EXTERNAL-IP 10.10.10.110`, una
+`GatewayClass traefik` aceptada y un `Gateway` (por ejemplo `traefik-gateway`) programado.
 
 ```bash
 # [ansible01 · adminlab]
@@ -2034,18 +1529,8 @@ spec:
                 port: {number: 80}
 EOF
 kubectl apply -f ~/podinfo-ingress.yaml
-kubectl -n demo get ingress
 curl -s http://ingress.lab.local | head -3
 curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: otro.lab.local' http://10.10.10.110/
-```
-
-Lo esperado: `ADDRESS 10.10.10.110`, el JSON de podinfo y `404` con otro `Host`. Traefik decide por la cabecera
-`Host`, no por la IP.
-
-**4. Lo mismo con Gateway API (`HTTPRoute`):**
-
-```bash
-# [ansible01 · adminlab]
 GW=$(kubectl -n traefik get gateway -o jsonpath='{.items[0].metadata.name}'); echo "Gateway: $GW"
 cat > ~/podinfo-httproute.yaml <<EOF
 apiVersion: gateway.networking.k8s.io/v1
@@ -2064,42 +1549,34 @@ spec:
           port: 80
 EOF
 kubectl apply -f ~/podinfo-httproute.yaml
-kubectl -n demo get httproute podinfo -o jsonpath='{.status.parents[0].conditions[*].type}{"\n"}'
 curl -s -H 'Host: podinfo-gw.lab.local' http://10.10.10.110/ | head -3
 ```
 
-Lo esperado: `Accepted ResolvedRefs` y el JSON de podinfo. `podinfo-gw.lab.local` no existe en el DNS: la cabecera
-`Host` basta para demostrar el enrutado por nombre.
+Lo esperado: el JSON por `ingress.lab.local`, un `404` con otro `Host` (decide la cabecera, no la IP) y el JSON por el
+`HTTPRoute` con su propio nombre, en la **misma IP**.
 
-| | Ingress | Gateway API |
-|---|---|---|
-| Objetos | Uno: `Ingress` | Separados por rol: `GatewayClass` (proveedor), `Gateway` (plataforma), `HTTPRoute` (equipo de la app) |
-| Estado | Congelado; las funciones avanzadas van en anotaciones propias de cada controlador | Activo; cabeceras, pesos y TLS en el propio estándar |
+⚠️ **Error común en el mercado: Ingress sin `ingressClassName`.** Con dos controladores en el clúster (algo normal
+durante una migración, como la de ingress-nginx), un Ingress sin clase lo atiende el controlador por defecto, o
+ninguno, o los dos, según la configuración: el tráfico llega a donde no toca. **Cómo evitarlo:** `ingressClassName`
+siempre explícito, o `parentRefs` explícitos en Gateway API.
 
-#### 8.4.4 NetworkPolicies
+### 8.4.4 NetworkPolicies
 
-Sin políticas, **cualquier pod habla con cualquier pod** de cualquier namespace. Calico aplica las NetworkPolicies.
+📘 **Concepto.** Por defecto, **cualquier pod habla con cualquier pod** de cualquier namespace. Una **NetworkPolicy**
+selecciona pods (`podSelector`) y, para ellos, permite solo el tráfico de entrada (`ingress`) o salida (`egress`) que
+liste: en cuanto un pod está seleccionado por una política de un tipo, todo lo demás de ese tipo se descarta. Los
+orígenes pueden ser pods (`podSelector`), namespaces (`namespaceSelector`) o rangos (`ipBlock`). El puerto es el del
+**pod**, no el del Service. Las aplica el CNI (Calico).
+
+*Fuente:* [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 less apps/networkpolicies.yaml
 kubectl apply -f apps/loadgen.yaml
-kubectl -n demo rollout status deploy/loadgen
 kubectl apply -f apps/networkpolicies.yaml
-kubectl -n demo get networkpolicy
-```
-
-| Política | Qué hace |
-|---|---|
-| `denegar-entrada-por-defecto` | `podSelector: {}` sin reglas de entrada: **nadie** entra a ningún pod de `demo` |
-| `podinfo-desde-loadgen` | Abre podinfo:9898 a los pods `loadgen` |
-| `podinfo-desde-monitoring` | Abre podinfo:9898 al namespace `monitoring` (Prometheus, 8.8) |
-| `podinfo-desde-red-del-lab` | Abre podinfo:9898 a `10.10.10.0/24` (el navegador por MetalLB) |
-
-**Pruebas:**
-
-```bash
-# [ansible01 · adminlab]
 kubectl -n demo exec deploy/loadgen -- wget -qO- -T3 http://podinfo | head -3
 kubectl run intruso -it --rm --image=busybox:1.37 --restart=Never -- wget -qO- -T3 http://podinfo.demo
 curl -s -m3 http://podinfo.lab.local | head -3
@@ -2108,12 +1585,10 @@ curl -s -m3 -o /dev/null -w '%{http_code}\n' http://ingress.lab.local
 
 | Prueba | Qué esperas | Por qué |
 |---|---|---|
-| Desde `loadgen` | El JSON | Permitido por `podinfo-desde-loadgen` |
-| `intruso` desde `default` | `wget: download timed out` | Ninguna política lo permite: el paquete se descarta, no se rechaza (por eso es un timeout) |
-| Desde `ansible01` por MetalLB | El JSON | El `ipBlock` y `externalTrafficPolicy: Local`, que conserva el origen `10.10.10.30` |
-| Por el Ingress | **Falla** (`000`, `502` o `504`) | ¡Sorpresa prevista! El tráfico llega desde el **pod de Traefik** (`10.244.x.x`), que no está en ninguna regla |
-
-**Arreglo del Ingress** (abrir solo Traefik → podinfo:9898):
+| Desde `loadgen` | El JSON | `podinfo-desde-loadgen` |
+| `intruso` (namespace `default`) | `download timed out` | Ninguna regla lo permite: el paquete se **descarta** (timeout, no "refused") |
+| Desde `ansible01` por MetalLB | El JSON | El `ipBlock 10.10.10.0/24` y el origen conservado por `externalTrafficPolicy: Local` |
+| Por el Ingress | **Falla** (`000`, `502` o `504`) | El origen real es el **pod de Traefik** (`10.244.x.x`), que no está permitido |
 
 ```bash
 # [ansible01 · adminlab]
@@ -2140,72 +1615,52 @@ kubectl apply -f ~/np-podinfo-desde-traefik.yaml
 curl -s -m3 http://ingress.lab.local | head -3
 ```
 
-Lo esperado: vuelve el JSON. Fíjate en el `port: 9898`: la política se evalúa en el **pod**, así que el puerto es el del
-contenedor, no el 80 del Service. Este caso, el de Ingress roto por una política, es un buen caso de troubleshooting.
+Vuelve el JSON. `podinfo-desde-monitoring` hará lo mismo por Prometheus en la 8.8 (escenario E08).
 
-Anota qué pasaría si borraras `podinfo-desde-monitoring` (spoiler: escenario E08 de la 8.8).
+⚠️ **Error común en el mercado: "denegar todo" también en la salida, y se rompe el DNS.** Se aplica una política de
+salida por defecto (`policyTypes: ["Egress"]` sin reglas) y se abren solo los puertos de la aplicación: todos los pods
+del namespace dejan de resolver nombres, porque el DNS (CoreDNS, UDP/TCP 53 en `kube-system`) no está permitido.
+**Cómo evitarlo:** toda política de salida restrictiva incluye la regla hacia CoreDNS; y cada política nueva se prueba
+desde los clientes reales (incluidos el Ingress y la monitorización).
 
-**Anota en el checklist (filas 17-20).**
-
-**Respuestas a las preguntas de K4:**
-
-1. **ClusterIP, NodePort y LoadBalancer: ¿qué añade cada uno?** ClusterIP: IP virtual interna. NodePort: además, un
-   puerto en todos los nodos. LoadBalancer: además, una IP externa que asigna un proveedor (aquí, MetalLB).
-2. **¿Por qué el `intruso` da timeout y no "connection refused"?** La política descarta (*drop*) el paquete; nadie
-   responde.
-3. **¿Por qué se rompió el Ingress al aplicar las políticas?** El origen real es el pod de Traefik, no el cliente:
-   hay que permitir el namespace `traefik`.
-4. **¿Qué ventaja tiene Gateway API sobre Ingress?** Separa responsabilidades (plataforma frente a equipos) y estandariza
-   lo que en Ingress eran anotaciones propias de cada controlador.
-
+**Checklist:** filas 17-20.
 
 ---
 
-### 6.5 Solución K5 — Almacenamiento: PV, PVC y StorageClass
+## 8.5 Almacenamiento: PV, PVC y StorageClass
 
-**Objetivo:** datos que sobreviven al pod. **PVC** = "necesito 1 Gi"; **PV** = el volumen real; **StorageClass** = quién
-lo crea y cómo. Sin almacenamiento compartido, el lab usa **local-path-provisioner**: cada volumen es un directorio en
-el nodo donde arranca el pod, dentro del LV `lv_localpath` de la 8.2.
+> 🎫 **Ticket APP-805.** "La aplicación de fechas necesita guardar datos que sobrevivan a reinicios y despliegues.
+> No hay cabina de almacenamiento todavía: usad el disco local de los nodos, pero documentad las limitaciones."
 
-**Dónde:** `ansible01` y un worker (para ver el directorio).
+### 8.5.1 PV, PVC y StorageClass
 
-#### 8.5.1 Instalar local-path y hacerlo la StorageClass por defecto
+📘 **Concepto.** Un **PersistentVolumeClaim (PVC)** es una petición ("1 Gi, lectura-escritura"); un
+**PersistentVolume (PV)** es el volumen real; una **StorageClass** dice qué **provisionador** lo crea y cómo. Con
+`volumeBindingMode: WaitForFirstConsumer`, el volumen no se crea hasta que hay un pod que lo usa (así se crea en su
+nodo). `ReadWriteOnce` = montable en escritura por **un nodo** a la vez. `reclaimPolicy: Delete` borra los datos al
+borrar el PVC; `Retain` los conserva. **local-path-provisioner** crea cada volumen como un directorio del nodo: el PV
+queda atado a ese nodo (*nodeAffinity*).
+
+*Fuente:* [Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) ·
+[Storage Classes](https://kubernetes.io/docs/concepts/storage/storage-classes/) ·
+[local-path-provisioner](https://github.com/rancher/local-path-provisioner)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.37/deploy/local-path-storage.yaml
 kubectl -n local-path-storage rollout status deploy/local-path-provisioner
 kubectl -n local-path-storage get cm local-path-config -o jsonpath='{.data.config\.json}'; echo
-```
-
-Lo esperado: el provisionador `Running` y un JSON con `"paths":["/opt/local-path-provisioner"]`. Esa es la ruta por
-defecto, en el disco del sistema. Cámbiala por la del LV:
-
-```bash
-# [ansible01 · adminlab]
-kubectl -n local-path-storage edit configmap local-path-config
-```
-
-En el editor (vim), dentro de `config.json`, cambia `/opt/local-path-provisioner` por `/var/lib/local-path`. Guarda con
-`:wq`. Después:
-
-```bash
-# [ansible01 · adminlab]
+kubectl -n local-path-storage edit configmap local-path-config     # /opt/local-path-provisioner -> /var/lib/local-path; :wq
 kubectl -n local-path-storage get cm local-path-config -o jsonpath='{.data.config\.json}'; echo
 kubectl -n local-path-storage rollout restart deploy/local-path-provisioner
 kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 kubectl get storageclass
 ```
 
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `get cm ... config.json` | `"paths":["/var/lib/local-path"]` | La ruta vieja → el `edit` no se guardó |
-| `patch storageclass` | `storageclass.storage.k8s.io/local-path patched` | — |
-| `get storageclass` | `local-path (default)`, `PROVISIONER rancher.io/local-path`, `RECLAIMPOLICY Delete`, `VOLUMEBINDINGMODE WaitForFirstConsumer` | Sin `(default)`, los PVC sin `storageClassName` se quedan en `Pending` para siempre |
-
-#### 8.5.2 Ejercicios
-
-**1. Un PVC y un pod que escribe en él.** Dos ficheros, para crearlos por separado y ver qué hace el PVC solo:
+Lo esperado: `"paths":["/var/lib/local-path"]` (el LV de la 8.2) y `local-path (default) rancher.io/local-path Delete
+WaitForFirstConsumer`.
 
 ```bash
 # [ansible01 · adminlab]
@@ -2221,18 +1676,6 @@ spec:
     requests:
       storage: 1Gi
 EOF
-kubectl apply -f ~/fechas-pvc.yaml
-kubectl -n demo get pvc fechas
-kubectl -n demo describe pvc fechas | tail -3
-```
-
-Lo esperado: `STATUS Pending`, y en los eventos `waiting for first consumer to be created before binding`. **No es un
-error**: local-path espera a saber en qué nodo arrancará el pod para crear el volumen ahí (*WaitForFirstConsumer*).
-
-El Deployment cumple `restricted` (el namespace `demo` lo exige):
-
-```bash
-# [ansible01 · adminlab]
 cat > ~/fechas-deploy.yaml <<'EOF'
 apiVersion: apps/v1
 kind: Deployment
@@ -2242,7 +1685,7 @@ metadata:
   labels: {app.kubernetes.io/name: fechas}
 spec:
   replicas: 1
-  strategy: {type: Recreate}            # ReadWriteOnce: dos pods a la vez no pueden montarlo
+  strategy: {type: Recreate}
   selector:
     matchLabels: {app.kubernetes.io/name: fechas}
   template:
@@ -2269,118 +1712,74 @@ spec:
         - name: datos
           persistentVolumeClaim: {claimName: fechas}
 EOF
-kubectl apply -f ~/fechas-deploy.yaml --dry-run=server
-```
-
-El `--dry-run=server` envía el YAML a la API **sin crear nada**: valida esquema, Pod Security y cuotas. Lo esperado:
-`deployment.apps/fechas created (server dry run)`. Si sale `violates PodSecurity`, revisa el `securityContext`.
-
-```bash
-# [ansible01 · adminlab]
+kubectl apply -f ~/fechas-pvc.yaml
+kubectl -n demo get pvc fechas
+kubectl -n demo describe pvc fechas | tail -2
 kubectl apply -f ~/fechas-deploy.yaml
-kubectl -n demo get pvc fechas -w          # Pending -> Bound; Ctrl+C
-kubectl get pv
+kubectl -n demo get pvc fechas -w                 # Pending -> Bound; Ctrl+C
 kubectl -n demo get pods -l app.kubernetes.io/name=fechas -o wide
-```
-
-Lo esperado: `Bound`; un PV `pvc-<uuid>` de 1Gi con `RECLAIM POLICY Delete`; el pod `Running` en un worker (anota
-cuál).
-
-**2. Los datos sobreviven al pod.**
-
-```bash
-# [ansible01 · adminlab]
-sleep 30; kubectl -n demo exec deploy/fechas -- wc -l /datos/fechas.log
-kubectl -n demo delete pod -l app.kubernetes.io/name=fechas
+sleep 30; kubectl -n demo delete pod -l app.kubernetes.io/name=fechas
 kubectl -n demo rollout status deploy/fechas
 kubectl -n demo exec deploy/fechas -- head -3 /datos/fechas.log
-kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]}{"\n"}{end}'
 ```
 
-Lo esperado: el pod nuevo lee las fechas **anteriores** a su creación, y el PV tiene una *nodeAffinity* hacia un nodo
-concreto: el pod nuevo **tiene** que ir a ese nodo.
-
-**3. El volumen es un directorio del nodo.**
+| Paso | Qué esperas | Qué demuestra |
+|---|---|---|
+| PVC solo | `Pending`, `waiting for first consumer to be created before binding` | *WaitForFirstConsumer*: no es un error |
+| Con el Deployment | `Bound`; el pod en un worker (anota cuál) | — |
+| Pod borrado y recreado | El nuevo lee fechas **anteriores** a su creación | Los datos sobreviven al pod |
 
 ```bash
-# [k8s-w0X · root]  (el nodo del ejercicio 2)
+# [k8s-w0X · root]  (el nodo del pod)
 ls -l /var/lib/local-path/
 ls -lZ /var/lib/local-path/*/
-tail -3 /var/lib/local-path/*/fechas.log
 ```
 
-Lo esperado: un directorio `pvc-<uuid>_demo_fechas` con `fechas.log` dentro, y su contexto SELinux (anótalo: lo
-necesitarás en la 8.6.5).
+Lo esperado: un directorio `pvc-<uuid>_demo_fechas` con `fechas.log` y su contexto SELinux (anótalo: lo usas en la
+8.6.5). Para terminar: `kubectl delete -f ~/fechas-deploy.yaml -f ~/fechas-pvc.yaml`; con `Delete`, el directorio
+desaparece del nodo a los pocos segundos.
 
-**4. ¿Y si cae ese nodo?** Piénsalo ahora y compruébalo en el E07 de la 8.8: el pod **no** puede ir a otro nodo
-(el PV está atado al disco de ese nodo) y se queda `Pending` hasta que el nodo vuelve.
+⚠️ **Error común en el mercado: `ReadWriteOnce` con `RollingUpdate`.** Una aplicación con un volumen RWO y la
+estrategia por defecto: en el siguiente despliegue, el pod nuevo cae en otro nodo y se queda en
+`ContainerCreating` con `Multi-Attach error for volume`, porque el viejo todavía lo tiene montado; el despliegue se
+cuelga. **Cómo evitarlo:** `strategy: Recreate` (como aquí) o un StatefulSet. Y con almacenamiento local, saber que si
+el nodo cae, el pod **no** puede ir a otro (lo verás en el E07 de la 8.8): para datos importantes, almacenamiento de
+red (CSI, NFS, Ceph; la Etapa 15 monta NFS).
 
-**5. `reclaimPolicy: Delete`.**
-
-```bash
-# [ansible01 · adminlab]
-kubectl delete -f ~/fechas-deploy.yaml -f ~/fechas-pvc.yaml
-kubectl get pv
-```
-
-```bash
-# [k8s-w0X · root]
-ls /var/lib/local-path/
-```
-
-Lo esperado: el PV desaparece y, a los pocos segundos, también el directorio (un pod auxiliar de local-path lo borra).
-Con `Retain`, el PV quedaría `Released` y los datos seguirían en el disco.
-
-**Anota en el checklist (fila 21).**
-
-**Qué documentar:** PV/PVC/StorageClass, `WaitForFirstConsumer`, `ReadWriteOnce`, `reclaimPolicy`, por qué en
-producción se usa almacenamiento de red (NFS, Ceph, cabinas con CSI; la Etapa 15 monta NFS) y que `local-path` **no
-publica métricas de volumen** (`kubelet_volume_stats_*` sale vacío: lo verás en la 8.8).
-
-**Respuestas a las preguntas de K5:**
-
-1. **¿Por qué el PVC se queda en `Pending` sin pod?** `WaitForFirstConsumer`: el volumen se crea en el nodo donde se
-   programe el pod, así que espera a que exista.
-2. **¿Qué significa `ReadWriteOnce`?** Montable en lectura y escritura por **un nodo** a la vez. Por eso la
-   estrategia `Recreate`: en un *rolling update*, el pod nuevo no podría montarlo mientras viva el viejo en otro nodo.
-3. **¿Qué pasa con los datos si borro el PVC?** Con `Delete`, se borran. Con `Retain`, se quedan y hay que
-   limpiarlos a mano.
-
+**Checklist:** fila 21.
 
 ---
 
-### 6.6 Solución K6 — Seguridad: RBAC, ServiceAccounts, Pod Security, Secrets y SELinux
+## 8.6 Seguridad: RBAC, ServiceAccounts, Pod Security, Secrets y SELinux
 
-**Objetivo:** quién puede hacer qué en el clúster (RBAC), con qué identidad corren los pods (ServiceAccounts), qué
-pods se admiten (Pod Security), qué tan protegidos están los Secrets y cómo aísla SELinux los contenedores.
+> 🎫 **Ticket SEC-806.** "Auditoría: el equipo de la tienda tiene que poder desplegar en su namespace y en ningún
+> otro; las aplicaciones no pueden correr como root; queremos saber dónde están las contraseñas y si los contenedores
+> están aislados entre sí."
 
-**Dónde:** `ansible01` y, en la 8.6.5, `k8s-w02`.
+**Antes de empezar:** snapshot `*-antes-8.6` (paso 8.2.7 con ese nombre). La 8.6.5 toca containerd en un worker.
 
-**Antes de empezar:** snapshot `*-antes-8.6` (procedimiento del paso 8.2.7
-con el nombre `<nodo>-antes-8.6`). La 8.6.5 toca containerd en un worker.
+### 8.6.1 Autenticación y RBAC: un usuario que no es administrador
 
-#### 8.6.1 Un usuario que no es administrador (`dev-tienda`)
+📘 **Concepto.** Kubernetes **no guarda usuarios**: autentica a quien presente un certificado firmado por su CA (el
+`CN` es el usuario y el `O`, el grupo), un token o una identidad de un proveedor OIDC. Después, **RBAC** autoriza:
+un **Role** (en un namespace) o **ClusterRole** (para todo el clúster) lista verbos sobre recursos, y un
+**RoleBinding** o **ClusterRoleBinding** los asigna a usuarios, grupos o ServiceAccounts. Un RoleBinding puede usar un
+ClusterRole genérico (`view`, `edit`, `admin`) limitado a su namespace. La API **CertificateSigningRequest** permite
+pedir a la CA del clúster que firme un certificado de cliente. `kubectl auth can-i` (con `--as` para suplantar)
+comprueba permisos.
 
-Kubernetes **no tiene usuarios**: confía en quien presente un certificado firmado por su CA (o un token de un
-proveedor de identidad). El `CN` del certificado es el usuario y el `O`, el grupo. Se crea `dev-tienda`, del grupo
-`equipo-tienda`, con permisos de edición solo en el namespace `tienda`.
+*Fuente:* [Authenticating](https://kubernetes.io/docs/reference/access-authn-authz/authentication/) ·
+[Using RBAC Authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) ·
+[Certificates and Certificate Signing Requests](https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 mkdir -p ~/rbac && cd ~/rbac
 kubectl create namespace tienda
-openssl genrsa -out dev-tienda.key 3072
+openssl genrsa -out dev-tienda.key 3072 && chmod 600 dev-tienda.key
 openssl req -new -key dev-tienda.key -subj "/CN=dev-tienda/O=equipo-tienda" -out dev-tienda.csr
-chmod 600 dev-tienda.key
-```
-
-| Comando | Qué hace |
-|---|---|
-| `openssl genrsa` | La clave privada del usuario: **nunca** sale de su equipo |
-| `openssl req -subj "/CN=.../O=..."` | La petición de certificado: usuario `dev-tienda`, grupo `equipo-tienda` |
-
-```bash
-# [ansible01 · adminlab]  (en ~/rbac)
 cat <<EOF | kubectl apply -f -
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
@@ -2394,59 +1793,43 @@ spec:
 EOF
 kubectl get csr dev-tienda
 kubectl certificate approve dev-tienda
-kubectl get csr dev-tienda
 kubectl get csr dev-tienda -o jsonpath='{.status.certificate}' | base64 -d > dev-tienda.crt
 openssl x509 -in dev-tienda.crt -noout -subject -enddate
-```
-
-| Comando | Qué esperas | Qué significa |
-|---|---|---|
-| `get csr` (antes) | `CONDITION Pending` | La petición está en el clúster, pendiente de que un administrador la apruebe |
-| `certificate approve` | `approved` | La CA del clúster la firma |
-| `get csr` (después) | `Approved,Issued` | Ya hay certificado |
-| `openssl x509 -subject -enddate` | `subject=O=equipo-tienda, CN=dev-tienda` y una fecha a 30 días | — |
-
-**Darle permisos** con un `RoleBinding` al `ClusterRole` `edit` (crear y cambiar casi todo, salvo roles y permisos),
-solo en `tienda`:
-
-```bash
-# [ansible01 · adminlab]
 kubectl create rolebinding equipo-tienda-edit --clusterrole=edit --group=equipo-tienda -n tienda
-```
-
-**Probarlo** con un contexto propio:
-
-```bash
-# [ansible01 · adminlab]  (en ~/rbac)
 kubectl config set-credentials dev-tienda --client-certificate=dev-tienda.crt --client-key=dev-tienda.key --embed-certs
 kubectl config set-context dev-tienda --cluster=lab-k8s --user=dev-tienda --namespace=tienda
 kubectl --context dev-tienda auth can-i create deployments
 kubectl --context dev-tienda auth can-i get pods -n demo
 kubectl --context dev-tienda auth can-i get nodes
 kubectl --context dev-tienda get pods -n demo
-kubectl auth can-i --list --as=dev-tienda --as-group=equipo-tienda -n tienda | head -15
+kubectl auth can-i --list --as=dev-tienda --as-group=equipo-tienda -n tienda | head -10
 ```
 
-| Prueba | Qué esperas | Por qué |
+| Paso | Qué esperas | Qué demuestra |
 |---|---|---|
-| `can-i create deployments` (en `tienda`) | `yes` | El `RoleBinding` le da `edit` en `tienda` |
-| `can-i get pods -n demo` | `no` | Un `RoleBinding` solo vale en **su** namespace |
-| `can-i get nodes` | `no` | Los nodos no pertenecen a ningún namespace: harían falta un `ClusterRole` y un `ClusterRoleBinding` |
-| `get pods -n demo` | `Error from server (Forbidden): ... User "dev-tienda" cannot list resource "pods" ... in the namespace "demo"` | El error dice usuario, verbo, recurso y namespace: es todo lo que necesitas para diagnosticar |
-| `can-i --list --as=...` | Lo que puede hacer, como lo ve el administrador | `--as` es **suplantación**: el administrador prueba sin tener la clave del usuario |
+| `get csr` | `Pending`; tras `approve`, `Approved,Issued` | La CA firma solo lo que un administrador aprueba |
+| `openssl x509` | `subject=O=equipo-tienda, CN=dev-tienda` y fecha a 30 días | — |
+| `can-i create deployments` | `yes` | `edit` en `tienda` |
+| `can-i get pods -n demo` | `no` | Un RoleBinding solo vale en su namespace |
+| `can-i get nodes` | `no` | Los nodos no tienen namespace: harían falta ClusterRole + ClusterRoleBinding |
+| `get pods -n demo` | `Forbidden: User "dev-tienda" cannot list resource "pods" ... in the namespace "demo"` | El error dice usuario, verbo, recurso y namespace |
 
-| Objeto | Ámbito |
-|---|---|
-| `Role` / `RoleBinding` | Un namespace |
-| `ClusterRole` / `ClusterRoleBinding` | Todo el clúster (o un `ClusterRole` reutilizado con un `RoleBinding` en un namespace, como aquí) |
+⚠️ **Error común en el mercado: `cluster-admin` para todo el mundo.** Para no "perder tiempo con permisos", se da
+`cluster-admin` a todos los desarrolladores o a la cuenta de un pipeline. Un error en un `kubectl delete` o una
+credencial filtrada afecta a **todo** el clúster. **Cómo evitarlo:** RoleBindings por namespace con los ClusterRoles
+`view`/`edit`, grupos en vez de usuarios, y `auth can-i --list --as` para revisar.
 
-La clave `dev-tienda.key` y el contexto quedan en tu `~/.kube/config`. Es un ejercicio; en una empresa, cada persona
-tiene su propio kubeconfig (y normalmente un proveedor de identidad con OIDC en lugar de certificados).
+### 8.6.2 ServiceAccounts: la identidad de los pods
 
-#### 8.6.2 ServiceAccounts: los pods también tienen identidad
+📘 **Concepto.** Los procesos de los pods se autentican ante la API con una **ServiceAccount** (por defecto, `default`
+de su namespace). Su token se monta en `/var/run/secrets/kubernetes.io/serviceaccount/` (token de corta duración,
+renovado por el kubelet), junto con la CA. Como usuario, su nombre es `system:serviceaccount:<ns>:<nombre>`. Si un
+pod no habla con la API, `automountServiceAccountToken: false`.
 
-Cada pod corre con una ServiceAccount (por defecto, `default` de su namespace), y su token se monta en
-`/var/run/secrets/kubernetes.io/serviceaccount/`. Se crea una que **solo** pueda listar pods en `demo`:
+*Fuente:* [Service Accounts](https://kubernetes.io/docs/concepts/security/service-accounts/) ·
+[Configure Service Accounts for Pods](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
@@ -2506,73 +1889,73 @@ spec:
 EOF
 kubectl apply -f ~/rbac/sa-lector.yaml
 kubectl -n demo wait --for=condition=Ready pod/cliente-api --timeout=60s
-```
-
-Desde dentro del pod, hablando con la API con su token:
-
-```bash
-# [ansible01 · adminlab]
 kubectl -n demo exec cliente-api -- sh -c '
-  SA=/var/run/secrets/kubernetes.io/serviceaccount
-  API=https://kubernetes.default.svc
-  echo "== listar pods de demo:";   curl -s --cacert $SA/ca.crt -H "Authorization: Bearer $(cat $SA/token)" $API/api/v1/namespaces/demo/pods -o /dev/null -w "%{http_code}\n"
-  echo "== borrar un pod de demo:"; curl -s --cacert $SA/ca.crt -H "Authorization: Bearer $(cat $SA/token)" -X DELETE $API/api/v1/namespaces/demo/pods/cliente-api -o /dev/null -w "%{http_code}\n"
-  echo "== listar secrets:";        curl -s --cacert $SA/ca.crt -H "Authorization: Bearer $(cat $SA/token)" $API/api/v1/namespaces/demo/secrets -o /dev/null -w "%{http_code}\n"'
-kubectl auth can-i delete pods -n demo --as=system:serviceaccount:demo:lector-pods
-```
-
-| Prueba | Qué esperas | Por qué |
-|---|---|---|
-| Listar pods | `200` | El `Role` lo permite |
-| Borrar un pod | `403` | El `Role` no tiene `delete` |
-| Listar secrets | `403` | Ni siquiera `get` |
-| `auth can-i --as=system:serviceaccount:demo:lector-pods` | `no` | El nombre completo de una ServiceAccount como usuario |
-
-Si un pod **no** necesita hablar con la API (la mayoría), `automountServiceAccountToken: false` en su `spec` evita
-que tenga un token que se pueda robar.
-
-```bash
-# [ansible01 · adminlab]
+  SA=/var/run/secrets/kubernetes.io/serviceaccount; API=https://kubernetes.default.svc
+  H="Authorization: Bearer $(cat $SA/token)"
+  echo "listar pods:   $(curl -s --cacert $SA/ca.crt -H "$H" $API/api/v1/namespaces/demo/pods -o /dev/null -w %{http_code})"
+  echo "borrar un pod: $(curl -s --cacert $SA/ca.crt -H "$H" -X DELETE $API/api/v1/namespaces/demo/pods/cliente-api -o /dev/null -w %{http_code})"
+  echo "leer secrets:  $(curl -s --cacert $SA/ca.crt -H "$H" $API/api/v1/namespaces/demo/secrets -o /dev/null -w %{http_code})"'
 kubectl delete -f ~/rbac/sa-lector.yaml
 ```
 
-#### 8.6.3 Pod Security Admission
+Lo esperado: `200`, `403` y `403`.
 
-Tres **niveles** (`privileged` → sin restricciones; `baseline` → impide lo claramente peligroso: `hostNetwork`,
-`privileged`, `hostPath`; `restricted` → buenas prácticas obligatorias: no root, sin capacidades, seccomp) y tres
-**modos** por namespace (`enforce` rechaza; `audit` lo anota en el log de auditoría; `warn` avisa al usuario).
+⚠️ **Error común en el mercado: aplicaciones con una ServiceAccount con demasiados permisos.** Un chart o un operador
+de terceros pide un ClusterRole con `*` sobre `*`, y se instala sin leerlo; si esa aplicación se compromete, el
+atacante tiene el clúster. **Cómo evitarlo:** leer el RBAC con `helm template` antes de instalar (8.7.1), mínimo
+privilegio y `automountServiceAccountToken: false` en lo que no use la API.
+
+### 8.6.3 Pod Security Admission
+
+📘 **Concepto.** Los **Pod Security Standards** definen tres niveles: **privileged** (sin restricciones), **baseline**
+(impide lo claramente peligroso: `privileged`, `hostNetwork`, `hostPID`, `hostPath`...) y **restricted** (buenas
+prácticas obligatorias: `runAsNonRoot`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`,
+`seccompProfile`, solo tipos de volumen seguros). El controlador **Pod Security Admission** los aplica por
+**namespace** con etiquetas y tres modos: `enforce` (rechaza), `audit` (registra) y `warn` (avisa).
+
+*Fuente:* [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/) ·
+[Pod Security Admission](https://kubernetes.io/docs/concepts/security/pod-security-admission/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 kubectl get ns -L pod-security.kubernetes.io/enforce
 kubectl -n demo run root --image=busybox:1.37 --restart=Never -- sleep 60
 kubectl label --dry-run=server --overwrite ns metallb-system pod-security.kubernetes.io/enforce=restricted
-kubectl label --dry-run=server --overwrite ns default pod-security.kubernetes.io/enforce=baseline
 ```
 
-| Comando | Qué esperas | Qué demuestra |
-|---|---|---|
-| `get ns -L ...` | `demo restricted`, `metallb-system privileged`; el resto, vacío (= `privileged`) | El nivel de cada namespace, de un vistazo |
-| `run root` en `demo` | `Error from server (Forbidden): pods "root" is forbidden: violates PodSecurity "restricted:latest": ...` | Lee la lista entera: es la receta de un `securityContext` correcto (el Job de la 8.3) |
-| `label --dry-run=server` en `metallb-system` | `Warning: existing pods in namespace "metallb-system" violate the new PodSecurity enforce level ... host namespaces (hostNetwork=true) ...` | Antes de endurecer un namespace, el `dry-run` dice qué pods ya en marcha lo incumplen |
-| Ídem en `default` | Sin avisos (no hay pods) o avisos de restos de pruebas | — |
+| Paso | Qué esperas |
+|---|---|
+| `get ns -L` | `demo restricted`, `metallb-system privileged`; el resto, vacío (= sin restricciones) |
+| `run root` en `demo` | `Forbidden: violates PodSecurity "restricted:latest": ...` con la lista de lo que falta |
+| `label --dry-run=server` | `Warning: existing pods in namespace "metallb-system" violate the new PodSecurity enforce level ... hostNetwork=true ...`: dice qué se rompería, **sin cambiar nada** |
 
-¿Por qué `monitoring` y `metallb-system` son `privileged`? Porque node-exporter y el *speaker* de MetalLB necesitan la
-red y los procesos **del nodo** (`hostNetwork`, `hostPID`): son agentes de nodo, no aplicaciones.
+`monitoring` y `metallb-system` son `privileged` porque node-exporter y el *speaker* de MetalLB son agentes de nodo
+(`hostNetwork`, `hostPID`).
 
-#### 8.6.4 Secrets: qué protege y qué no
+⚠️ **Error común en el mercado: namespaces sin nivel (o todo `privileged`).** Como el valor por defecto no restringe
+nada, cualquier pod puede montar el disco del nodo (`hostPath: /`) o correr `privileged`: desde ahí, el nodo entero.
+Y el error contrario: activar `enforce: restricted` en producción de golpe, que rechaza los pods en su próximo
+reinicio. **Cómo evitarlo:** `warn` y `audit` primero, el `--dry-run=server` de arriba, y después `enforce`.
+
+### 8.6.4 Secrets: qué protege y qué no
+
+📘 **Concepto.** Los Secrets se protegen con **RBAC** (quién tiene `get`/`list` sobre `secrets`; el ClusterRole `edit`
+lo incluye). En etcd se guardan **en claro** salvo que el apiserver use **cifrado en reposo**
+(`EncryptionConfiguration`, `--encryption-provider-config`). Quien tenga una copia de etcd o del disco del plano de
+control tiene todos los Secrets.
+
+*Fuente:* [Good practices for Kubernetes Secrets](https://kubernetes.io/docs/concepts/security/secrets-good-practices/) ·
+[Encrypting Confidential Data at Rest](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 kubectl -n tienda create secret generic bd --from-literal=password='Tienda.2026!'
-kubectl -n tienda get secret bd -o jsonpath='{.data.password}' | base64 -d; echo
 kubectl --context dev-tienda -n tienda get secret bd -o jsonpath='{.data.password}' | base64 -d; echo
 ```
-
-Lo esperado: la contraseña en claro las dos veces. **Cualquiera con `get secrets` en el namespace los lee** (el
-ClusterRole `edit` lo incluye). La protección real es RBAC: quién tiene `get/list secrets`.
-
-**¿Y en etcd?** Están **en claro**, salvo que se configure cifrado en reposo:
 
 ```bash
 # [k8s-cp01 · root]
@@ -2582,191 +1965,159 @@ kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-system exec etcd-k8s-cp0
   get /registry/secrets/tienda/bd --print-value-only | grep -a -o 'Tienda.2026!'
 ```
 
-Lo esperado: `Tienda.2026!`. Quien tenga una copia de etcd (o del disco de `k8s-cp01`) tiene todos los Secrets.
-
-**Ampliación (opcional, con el snapshot `antes-8.6` hecho):** cifrado en reposo con una `EncryptionConfiguration`
-(proveedor `aescbc` o `secretbox`) referenciada con `--encryption-provider-config` en
-`/etc/kubernetes/manifests/kube-apiserver.yaml`. Después, `kubectl get secrets -A -o json | kubectl replace -f -`
-reescribe los existentes, y el `etcdctl get` de arriba ya no encuentra la contraseña. Procedimiento:
-[Encrypting Confidential Data at Rest](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/) en la
-documentación oficial. Antes de editar el manifiesto, cópialo **fuera** de `/etc/kubernetes/manifests/` (una copia
-dentro se arrancaría como otro pod estático).
-
 ```bash
 # [ansible01 · adminlab]
 kubectl -n tienda delete secret bd
 ```
 
-#### 8.6.5 SELinux en los contenedores
+Lo esperado: la contraseña en claro las dos veces. **Ampliación** (con el snapshot hecho): cifrado en reposo según la
+fuente de arriba. Antes de editar `kube-apiserver.yaml`, cópialo **fuera** de `/etc/kubernetes/manifests/`.
 
-En la 8.2.2 f, containerd quedó con `enable_selinux = false`: los contenedores corren con el contexto de containerd y
-SELinux no los aísla entre sí. Aquí se activa en **un** worker (`k8s-w02`) y se ve qué se rompe.
+⚠️ **Error común en el mercado: copias de etcd sin proteger.** Se programan copias de etcd (bien) y se dejan en un
+NFS o un bucket con acceso amplio (mal): en ellas están, en claro, todas las contraseñas y tokens del clúster.
+**Cómo evitarlo:** cifrado en reposo en el apiserver y las copias tratadas como secretos (cifradas y con acceso
+mínimo).
 
-**1. Sacar el trabajo del nodo** (lo explica a fondo la 8.12):
+### 8.6.5 SELinux en los contenedores
+
+📘 **Concepto.** Con `enable_selinux = true` en containerd, cada contenedor corre como **`container_t` con categorías
+MCS propias**, como el `:Z` de la 8.1.4: un pod comprometido no puede leer los ficheros de otro ni del nodo. Los
+contenedores `privileged` corren como `spc_t` (sin confinamiento). Los volúmenes que el runtime no reetiqueta
+(`hostPath`, directorios de local-path) necesitan la etiqueta `container_file_t` de forma persistente
+(`semanage fcontext` + `restorecon`). En el pod, `securityContext.seLinuxOptions` permite fijar la etiqueta.
+
+*Fuente:* [Configure a Security Context — SELinux](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#assign-selinux-labels-to-a-container) ·
+[Red Hat — Using SELinux (RHEL 9)](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/using_selinux/index)
+
+🛠️ **Práctica** (en `k8s-w02`).
 
 ```bash
 # [ansible01 · adminlab]
 kubectl drain k8s-w02 --ignore-daemonsets --delete-emptydir-data
-kubectl get nodes
 ```
-
-Lo esperado: `node/k8s-w02 drained` y `k8s-w02 Ready,SchedulingDisabled`. Los pods de `k8s-w02` se recrean en
-`k8s-w01` (salvo los DaemonSets, que se quedan).
-
-**2. Activar SELinux en containerd:**
 
 ```bash
 # [k8s-w02 · root]
 cp -a /etc/containerd/config.toml /etc/containerd/config.toml.antes-8.6
-grep -n 'enable_selinux' /etc/containerd/config.toml
 sed -i 's/enable_selinux = false/enable_selinux = true/' /etc/containerd/config.toml
 grep -n 'enable_selinux' /etc/containerd/config.toml
 systemctl restart containerd && systemctl is-active containerd
 ```
 
-Lo esperado: la línea pasa a `enable_selinux = true` y containerd `active`.
-
-**3. Volver a programar pods en `k8s-w02`:**
-
 ```bash
 # [ansible01 · adminlab]
 kubectl uncordon k8s-w02
-kubectl -n demo rollout restart deploy/podinfo
+kubectl -n demo scale deploy/podinfo --replicas=4
 kubectl -n demo get pods -o wide
 ```
-
-Si los dos pods de podinfo caen en `k8s-w01`, repite el `rollout restart` o escala a 4 réplicas para que alguno vaya a
-`k8s-w02`.
-
-**4. Mirar los contextos:**
 
 ```bash
 # [k8s-w02 · root]
 ps -eZ | grep -E 'podinfo|calico-node' | grep -v grep
 ```
 
-| Proceso | Qué esperas | Qué significa |
-|---|---|---|
-| `podinfo` | `system_u:system_r:container_t:s0:c123,c456` (categorías distintas en cada pod) | Igual que el `:Z` de la 8.1.3: cada pod con sus categorías MCS. Un pod comprometido no puede leer los ficheros de otro |
-| `calico-node` | `spc_t` (*super privileged container*) | Los contenedores `privileged` quedan fuera del confinamiento: es su naturaleza |
+```bash
+# [k8s-w01 · root]
+ps -eZ | grep podinfo | grep -v grep
+```
 
-En `k8s-w01` (sin el cambio), `ps -eZ | grep podinfo` muestra el mismo contexto para todos los pods, el que hereda de
-containerd (normalmente `container_runtime_t`): esa es la diferencia. Anota lo que salga en cada worker.
+| Nodo | Qué esperas |
+|---|---|
+| `k8s-w02` | `podinfo` como `container_t:s0:cX,cY` (categorías distintas por pod); `calico-node` como `spc_t` |
+| `k8s-w01` | El mismo contexto para todos los pods, heredado de containerd (normalmente `container_runtime_t`) |
 
-**5. Buscar lo que se rompe.** Lo habitual son los volúmenes `hostPath` y `local-path`, que no tienen la etiqueta
-`container_file_t`. Pruébalo con el ejercicio de la 8.5 en `k8s-w02`:
+**Qué se rompe:** un volumen de local-path en `k8s-w02`:
 
 ```bash
 # [ansible01 · adminlab]
+kubectl -n demo scale deploy/podinfo --replicas=2
 sed -i '/^    spec:$/a\      nodeSelector: {kubernetes.io/hostname: k8s-w02}' ~/fechas-deploy.yaml
 grep -n -B1 nodeSelector ~/fechas-deploy.yaml
 kubectl apply -f ~/fechas-pvc.yaml -f ~/fechas-deploy.yaml
-kubectl -n demo logs deploy/fechas --tail=5
-kubectl -n demo get pods -l app.kubernetes.io/name=fechas
+sleep 20; kubectl -n demo logs deploy/fechas --tail=3; kubectl -n demo get pods -l app.kubernetes.io/name=fechas
 ```
 
 ```bash
 # [k8s-w02 · root]
 timeout 20 ausearch -m AVC -ts recent | grep denied | tail -3
-ls -dZ /var/lib/local-path/*/
+ls -dZ /var/lib/local-path /var/lib/local-path/*/
 ```
 
-El `grep` debe mostrar `nodeSelector` justo debajo del `spec:` de la plantilla (6 espacios de sangría). Se usa
-`nodeSelector` y no `nodeName`: con `nodeName` el pod se salta el *scheduler*, y entonces nadie le dice a local-path en
-qué nodo crear el volumen (`WaitForFirstConsumer`) y el PVC se queda `Pending` para siempre.
-
-Lo esperado (y lo que hay que **comprobar**, no suponer): `sh: can't create /datos/fechas.log: Permission denied` en el
-log o el pod reiniciándose, y un AVC con `scontext=...container_t:s0:cX,cY` y `tcontext=...` la etiqueta del directorio
-que viste en la 8.5.2 ejercicio 3. Si **no** falla, anota por qué (qué etiqueta tenía el directorio): también es un
-resultado.
-
-**6. Arreglo correcto** (nunca `setenforce 0`):
+Se usa `nodeSelector` y no `nodeName`: con `nodeName` el pod se salta el scheduler y local-path (*WaitForFirstConsumer*)
+nunca sabría dónde crear el volumen. Lo esperado (compruébalo, no lo supongas): `Permission denied` al escribir en
+`/datos` y un AVC con `scontext=...container_t:s0:cX,cY` y la etiqueta del directorio que viste en la 8.5. Si **no**
+falla, anota qué etiqueta tenía el directorio: también es un resultado.
 
 ```bash
 # [k8s-w02 · root]
 semanage fcontext -a -t container_file_t '/var/lib/local-path(/.*)?'
 restorecon -Rv /var/lib/local-path
-ls -dZ /var/lib/local-path /var/lib/local-path/*/
 ```
 
 ```bash
 # [ansible01 · adminlab]
 kubectl -n demo rollout restart deploy/fechas
-sleep 20; kubectl -n demo logs deploy/fechas --tail=3; kubectl -n demo exec deploy/fechas -- tail -2 /datos/fechas.log
-```
-
-| Comando | Qué hace | Por qué así |
-|---|---|---|
-| `semanage fcontext -a -t container_file_t '...(/.*)?'` | Añade una **regla** a la política: todo bajo `/var/lib/local-path` es `container_file_t` | Persiste: sobrevive a un `restorecon` o a un reetiquetado completo del sistema. Un `chcon` se perdería |
-| `restorecon -Rv` | Aplica la regla a lo que ya existe | — |
-
-Si el AVC persiste por las categorías MCS (`s0` frente a `s0:cX,cY`), anótalo: es el motivo por el que los
-provisionadores de almacenamiento "de verdad" (CSI) reetiquetan cada volumen al montarlo. Documenta el caso completo en
-`troubleshooting/etapa8/`.
-
-**7. Dejarlo como estaba (o no):**
-
-```bash
-# [ansible01 · adminlab]
+sleep 20; kubectl -n demo exec deploy/fechas -- tail -2 /datos/fechas.log
 kubectl delete -f ~/fechas-deploy.yaml -f ~/fechas-pvc.yaml
 sed -i '/nodeSelector: {kubernetes.io\/hostname: k8s-w02}/d' ~/fechas-deploy.yaml
 ```
 
-Decide si `k8s-w02` se queda con `enable_selinux = true` (más seguro, y el resto de la etapa pasa a ser una prueba de
-que todo funciona con él) o vuelve a `false` (`cp -a /etc/containerd/config.toml.antes-8.6 /etc/containerd/config.toml`,
-`systemctl restart containerd`, con `drain`/`uncordon`). **Anota la decisión** en el checklist: si los dos workers
-difieren, cualquier fallo posterior de un volumen en uno solo de ellos tiene aquí su explicación.
+Si el AVC persiste por las categorías MCS, documéntalo: es la razón por la que los drivers de almacenamiento (CSI)
+reetiquetan cada volumen al montarlo. Decide si `k8s-w02` se queda con `enable_selinux = true` o vuelve a la copia
+`config.toml.antes-8.6` (con `drain`/`uncordon`), y **anótalo**: si los dos workers difieren, un fallo de volumen en
+uno solo tiene aquí su explicación.
 
-**Anota en el checklist (filas 22-23).**
+⚠️ **Error común en el mercado: SELinux desactivado en los nodos "porque Kubernetes no lo soporta".** Muchas guías lo
+desactivan en el primer paso. Kubernetes y containerd funcionan con SELinux en *enforcing*; desactivarlo quita la
+última barrera si un contenedor escapa de sus namespaces. **Cómo evitarlo:** SELinux en *enforcing*, `enable_selinux`
+en el runtime y reglas `semanage fcontext` para las rutas de datos.
 
-**Respuestas a las preguntas de K6:**
-
-1. **¿Dónde están los usuarios de Kubernetes?** En ningún sitio: se autentican con certificados firmados por la CA del
-   clúster (CN = usuario, O = grupo), tokens o un proveedor OIDC. RBAC autoriza.
-2. **`Role` con `RoleBinding` frente a `ClusterRole` con `RoleBinding`:** en los dos casos los permisos valen en un
-   namespace; el segundo reutiliza un rol definido para todo el clúster (`edit`, `view`, `admin`).
-3. **¿Por qué `metallb-system` no puede ser `restricted`?** Su *speaker* usa `hostNetwork` para responder ARP.
-4. **¿Está cifrado un Secret?** En la API, solo base64. En etcd, en claro, salvo `EncryptionConfiguration`.
-5. **¿Qué añade `enable_selinux = true`?** Que cada pod corra como `container_t` con categorías MCS propias: aislamiento
-   entre pods y con el nodo, además de los namespaces.
-
+**Checklist:** filas 22-23.
 
 ---
 
-### 6.7 Solución K7 — Helm: charts, valores y releases
+## 8.7 Helm: charts, valores y releases
 
-**Objetivo:** Helm es el gestor de paquetes de Kubernetes. Un **chart** es una plantilla de manifiestos; los
-**valores** la personalizan; cada instalación es una **release** con historial de **revisiones**.
+> 🎫 **Ticket APP-807.** "Necesitamos un servidor Git dentro del clúster para el proyecto de GitOps. Instaladlo desde
+> su chart oficial, con la configuración versionada y pudiendo volver atrás si una actualización sale mal."
 
-**Dónde:** `ansible01`.
+### 8.7.1 Charts, valores y releases
 
-#### 8.7.1 Leer lo que ya hay (MetalLB y Traefik)
+📘 **Concepto.** **Helm** es el gestor de paquetes de Kubernetes. Un **chart** es un conjunto de plantillas de
+manifiestos con unos **valores** por defecto (`values.yaml`); al instalarlo con tus valores (`-f` o `--set`) se crea
+una **release**, con un historial de **revisiones** (cada `upgrade` o `rollback` añade una). Helm guarda ese historial
+en Secrets del namespace de la release. `helm template` renderiza los manifiestos **sin aplicarlos**; `helm show
+values` enseña los valores del chart; `helm get values` los de la release. Una clave de valores que el chart no usa se
+**ignora en silencio**.
+
+*Fuente:* [Using Helm](https://helm.sh/docs/intro/using_helm/) ·
+[Charts](https://helm.sh/docs/topics/charts/) ·
+[helm template](https://helm.sh/docs/helm/helm_template/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 helm list -A
 helm -n metallb-system history metallb
 helm -n metallb-system get values metallb
-helm -n metallb-system get values metallb --all | head -20
-helm show chart metallb/metallb --version 0.16.1
+helm -n metallb-system get values metallb --all | head -15
 helm template metallb metallb/metallb --version 0.16.1 | grep -E '^kind:' | sort | uniq -c
+kubectl -n metallb-system get secrets -l owner=helm
 ```
 
-| Comando | Qué esperas | Para qué sirve |
-|---|---|---|
-| `helm list -A` | `metallb` y `traefik`, `STATUS deployed`, `REVISION 1` | Inventario de lo instalado con Helm |
-| `history` | Una revisión: `Install complete` | Cada `upgrade` añade una |
-| `get values` | `null` o vacío | Lo que **tú** cambiaste (nada) |
-| `get values --all` | Todos los valores efectivos | Lo que de verdad usa la release |
-| `show chart` | Metadatos: versión del chart, `appVersion`, dependencias | — |
-| `helm template ... \| grep kind` | Recuento de objetos: `Deployment`, `DaemonSet`, `ServiceAccount`, `ClusterRole`... | Lo que Helm **aplicaría**, sin aplicarlo: la herramienta de revisión antes de instalar nada |
+Lo esperado: `metallb` y `traefik` `deployed`; una revisión; `null` en tus valores (no cambiaste nada) y todos los
+efectivos con `--all`; el recuento de objetos que crea el chart (`Deployment`, `DaemonSet`, `ClusterRole`...) y un
+Secret `sh.helm.release.v1.metallb.v1`.
 
-#### 8.7.2 Gitea con Helm
+⚠️ **Error común en el mercado: `helm install` sin `--version`.** La misma orden instala cada mes una versión distinta
+del chart; en una reinstalación de emergencia aparece un cambio incompatible que nadie ha probado. **Cómo evitarlo:**
+`--version` siempre (como en todo el lab) y la versión anotada junto al fichero de valores.
 
-Gitea es un servidor Git; la 8.11 lo usa como repositorio de GitOps. El chart trae PostgreSQL y Valkey activados por
-defecto (varios GB de RAM); `apps/gitea-values.yaml` los apaga y usa SQLite en una sola réplica.
+### 8.7.2 Gitea con Helm
 
-**1. Namespace y contraseña del administrador** (en un Secret, nunca en el repo):
+🛠️ **Práctica.** El chart trae PostgreSQL y Valkey activados por defecto (varios GB de RAM); `apps/gitea-values.yaml`
+los apaga y usa SQLite.
 
 ```bash
 # [ansible01 · adminlab]
@@ -2775,164 +2126,854 @@ kubectl create namespace gitea
 kubectl label namespace gitea pod-security.kubernetes.io/enforce=baseline
 GITEA_PW="$(openssl rand -base64 18)"; echo "Gitea gitea-admin: $GITEA_PW"
 kubectl -n gitea create secret generic gitea-admin --from-literal=username=gitea-admin --from-literal=password="$GITEA_PW"
-```
-
-Apunta la contraseña en tu gestor de contraseñas **ahora**. Si la pierdes:
-`kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' | base64 -d`. `baseline` y no `restricted`:
-los contenedores de inicialización del chart no cumplen `restricted`.
-
-**2. Elegir versión y comparar los valores:**
-
-```bash
-# [ansible01 · adminlab]
 helm repo add gitea-charts https://dl.gitea.com/charts/ && helm repo update
-helm search repo gitea-charts/gitea --versions | head -5
+helm search repo gitea-charts/gitea --versions | head -3
 GITEA_CHART=<versión-de-helm-search>
 helm show values gitea-charts/gitea --version "$GITEA_CHART" > /tmp/gitea-defaults.yaml
 diff <(grep -E '^[a-z]' /tmp/gitea-defaults.yaml | cut -d: -f1 | sort) <(grep -E '^[a-z]' apps/gitea-values.yaml | cut -d: -f1 | sort)
-grep -n -E '^(postgresql|postgresql-ha|valkey|valkey-cluster):' -A2 /tmp/gitea-defaults.yaml
-```
-
-| Comando | Qué buscas |
-|---|---|
-| `GITEA_CHART=` | La `CHART VERSION` más reciente; anótala en el checklist |
-| `diff` de las claves de primer nivel | Las líneas con `>` son claves de **nuestro** fichero: tienen que existir también en los valores del chart. Si una clave nuestra no existe en el chart, Helm la **ignora en silencio** |
-| `grep ... postgresql ...` | Que los subcharts se llaman igual que en `gitea-values.yaml` (si cambiaron de nombre, nuestro `enabled: false` no tendría efecto) |
-
-**3. Ver qué se instalaría y después instalar:**
-
-```bash
-# [ansible01 · adminlab]
 helm template gitea gitea-charts/gitea -n gitea --version "$GITEA_CHART" -f apps/gitea-values.yaml | grep -E '^kind:' | sort | uniq -c
 helm install gitea gitea-charts/gitea -n gitea --version "$GITEA_CHART" -f apps/gitea-values.yaml --wait --timeout 10m
 kubectl -n gitea get pods,pvc,svc
 ```
 
-| Comando | Qué esperas | Si sale otra cosa |
+| Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
-| `helm template ... \| uniq -c` | Un `Deployment`, Services, un `PersistentVolumeClaim`; **ningún** `StatefulSet` de PostgreSQL ni de Valkey | Si salen, los subcharts no se apagaron: revisa el `grep` del punto 2 |
-| `helm install --wait` | `STATUS: deployed` en unos minutos | Timeout → `kubectl -n gitea describe pod` y `logs` |
-| `get pods,pvc,svc` | Pod `Running`; PVC `Bound` de 5Gi en `local-path`; Service `gitea-http` con `EXTERNAL-IP 10.10.10.115` | PVC `Pending` → la StorageClass por defecto (8.5) |
+| `echo "Gitea ..."` | La contraseña: guárdala **ya** en tu gestor | Recuperarla: `kubectl -n gitea get secret gitea-admin -o jsonpath='{.data.password}' \| base64 -d` |
+| `diff` de claves | Las líneas `>` (las nuestras) existen también en los valores del chart | Una clave nuestra que no existe en el chart se ignoraría en silencio |
+| `helm template \| uniq -c` | Un `Deployment`, Services, un PVC; **ningún** StatefulSet de PostgreSQL o Valkey | Si salen, los subcharts cambiaron de nombre: revisa `/tmp/gitea-defaults.yaml` |
+| `get pods,pvc,svc` | Pod `Running`, PVC `Bound` 5Gi en `local-path`, `gitea-http` con `EXTERNAL-IP 10.10.10.115` | PVC `Pending` → StorageClass por defecto (8.5) |
 
-**4. Primer uso:** entra en http://gitea.lab.local desde el navegador del host, con `gitea-admin` y la contraseña.
-Crea la organización `lab` y, dentro, el repositorio **público** `k8s-apps` (con un README para que exista la rama
-`main`). Lo usa la 8.11.
+Entra en http://gitea.lab.local con `gitea-admin`, crea la organización `lab` y el repositorio **público** `k8s-apps`
+(con un README, para que exista la rama `main`). Lo usa la 8.11.
 
-#### 8.7.3 `upgrade`, `history` y `rollback`
+### 8.7.3 `upgrade`, `history` y `rollback`
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 helm -n gitea upgrade gitea gitea-charts/gitea --version "$GITEA_CHART" -f apps/gitea-values.yaml \
   --set resources.limits.memory=768Mi --wait
 helm -n gitea history gitea
-helm -n gitea get values gitea | grep -A3 resources
 kubectl -n gitea get deploy gitea -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}'; echo
 helm -n gitea rollback gitea 1 --wait
 helm -n gitea history gitea
 kubectl -n gitea get deploy gitea -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}'; echo
 ```
 
-| Paso | Qué esperas | Qué demuestra |
-|---|---|---|
-| `upgrade --set ...` | `REVISION: 2` | Un cambio de valores = revisión nueva |
-| `history` | Revisiones 1 (`superseded`) y 2 (`deployed`) | — |
-| `get deploy ... limits.memory` | `768Mi` | El valor llegó al Deployment |
-| `rollback gitea 1` | `Rollback was a success!` | — |
-| `history` | **Revisión 3**: `Rollback to 1` | Un *rollback* no borra historia: crea una revisión nueva con el contenido de la 1 |
-| `limits.memory` | `512Mi` (el de `gitea-values.yaml`) | — |
+Lo esperado: `REVISION: 2` con `768Mi`; tras el rollback, una **revisión 3** (`Rollback to 1`, el rollback no borra
+historia) y `512Mi`, el valor del fichero.
 
-¡Cuidado con `--set` en el día a día! Lo que pongas con `--set` y no esté en el fichero de valores se **pierde** en el
-siguiente `upgrade -f`. En el lab, todo cambio va al fichero del repo.
+⚠️ **Error común en el mercado: cambios con `--set` que se pierden.** En una incidencia se hace `helm upgrade ... --set
+replicas=5` y funciona; semanas después, otro `helm upgrade -f values.yaml` (sin el `--set`) lo deshace sin que nadie
+lo note, y la incidencia vuelve. **Cómo evitarlo:** todo cambio va al fichero de valores versionado; `helm get values`
+para ver lo que tiene la release antes de un `upgrade`.
 
-**Anota en el checklist (fila 24):** versión del chart, PVC, IP y el historial.
-
-**Qué documentar:** chart, valores, release, revisión; `helm template` como herramienta de revisión; por qué todos los
-`helm install` del lab fijan `--version` (sin ella, la misma orden instala cosas distintas cada mes).
-
-**Respuestas a las preguntas de K7:**
-
-1. **¿Dónde guarda Helm el historial?** En Secrets del namespace de la release (`kubectl -n gitea get secrets -l
-   owner=helm`), uno por revisión.
-2. **¿Qué pasa si escribes mal una clave en el fichero de valores?** Nada: Helm la ignora. Por eso se compara con
-   `helm show values` y se revisa con `helm template` o `helm get values --all`.
-3. **¿Un `rollback` borra la revisión mala?** No: crea una revisión nueva con el contenido de la elegida.
-
+**Checklist:** fila 24.
 
 ---
 
-### 6.8 Solución K8 — Monitorización con Prometheus y Grafana
+## 8.8 Monitorización con Prometheus y Grafana
 
-Sigue la guía del repo: **[kubernetes/monitorizacion-prometheus-grafana.md](monitorizacion-prometheus-grafana.md)**.
+> 🎫 **Ticket OBS-808.** "Montad la monitorización del clúster y de los servidores del lab: métricas, paneles para los
+> equipos y alertas que despierten a la guardia **solo** cuando el usuario note algo. Después, ensayad las averías más
+> frecuentes para que la guardia sepa reconocerlas."
 
-| Parte | Contenido |
+**Requisitos:** 8.2, 8.4 (MetalLB y NetworkPolicies), 8.5 (local-path) y 8.7 (Helm). Ficheros en
+`scripts/stage8/files/monitoring/`. La guía [monitorizacion-prometheus-grafana.md](monitorizacion-prometheus-grafana.md)
+tiene los mismos escenarios en formato de consulta rápida.
+
+### 8.8.1 Cómo funciona Prometheus
+
+📘 **Concepto.** Prometheus **tira** (*pull*): cada `scrape_interval` pide `/metrics` por HTTP a cada **objetivo**
+(*target*) y guarda **series temporales** (nombre de métrica + etiquetas → valores con marca de tiempo) en su propia
+base de datos. Lo que no expone métricas se traduce con un **exporter**: `node-exporter` (el sistema operativo),
+`kube-state-metrics` (el estado de los objetos de Kubernetes) y el kubelet/cAdvisor (CPU y memoria de cada
+contenedor). Tipos de métrica: **counter** (solo sube: peticiones, errores), **gauge** (sube y baja: memoria en uso) e
+**histogram** (cuenta observaciones en *buckets*: latencias). `up` vale 1 si el último *scrape* de un objetivo
+funcionó y 0 si no. Grafana **no guarda** métricas: consulta a Prometheus y dibuja.
+
+*Fuente:* [Prometheus — Overview](https://prometheus.io/docs/introduction/overview/) ·
+[Metric types](https://prometheus.io/docs/concepts/metric_types/) ·
+[Jobs and instances](https://prometheus.io/docs/concepts/jobs_instances/)
+
+**PromQL** — el lenguaje de consulta:
+
+```promql
+up                                                   # 1 = el objetivo responde, 0 = caído
+rate(http_requests_total{namespace="demo"}[5m])      # contador -> peticiones por segundo (media de 5 min)
+sum by (status) (rate(http_requests_total[5m]))      # agregar por una etiqueta
+container_memory_working_set_bytes{namespace="demo"} # gauge, tal cual
+histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))   # p95 de latencia
+```
+
+Regla: **counters con `rate()`**, **gauges tal cual**, **histogramas con `histogram_quantile()`**.
+
+*Fuente:* [Querying basics](https://prometheus.io/docs/prometheus/latest/querying/basics/) ·
+[Functions](https://prometheus.io/docs/prometheus/latest/querying/functions/) ·
+[Histograms and summaries](https://prometheus.io/docs/practices/histograms/)
+
+### 8.8.2 El Operator, las reglas y Alertmanager
+
+📘 **Concepto.** **kube-prometheus-stack** instala el **Prometheus Operator** y lo que gestiona: Prometheus,
+Alertmanager, Grafana, node-exporter y kube-state-metrics, con ~150 reglas y ~25 dashboards de serie. El Operator
+convierte objetos de Kubernetes en configuración: un **ServiceMonitor** dice qué Services rascar y por qué puerto; un
+**PrometheusRule** contiene reglas. El Prometheus del chart **solo** carga los ServiceMonitor y PrometheusRule con la
+etiqueta `release: kube-prometheus-stack`. Hay dos tipos de reglas: **recording** (precalculan una consulta como serie
+nueva) y **alerting** (consulta + umbral + `for:`, el tiempo que debe cumplirse antes de disparar: `pending` →
+`firing`). **Alertmanager** recibe las alertas y las **agrupa** (`group_by`), las **enruta** a receptores
+(`routes`), las **inhibe** (una *critical* tapa a su *warning*) y respeta **silencios**. La alerta `Watchdog` está
+**siempre** disparada: si deja de llegar, el sistema de alertas está roto.
+
+*Fuente:* [Prometheus Operator — Getting started](https://prometheus-operator.dev/docs/getting-started/introduction/) ·
+[kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) ·
+[Recording rules](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) ·
+[Alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) ·
+[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+
+🛠️ **Práctica: instalación.**
+
+```bash
+# [ansible01 · adminlab]
+cd ~/enterprise-rhel-lab/scripts/stage8/files/monitoring
+kubectl create namespace monitoring
+kubectl label namespace monitoring pod-security.kubernetes.io/enforce=privileged
+GPW="$(openssl rand -base64 18)"; echo "Grafana admin: $GPW"
+kubectl -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password="$GPW"
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm repo update
+less kube-prometheus-stack-values.yaml
+helm template kube-prometheus-stack prometheus-community/kube-prometheus-stack --version 88.6.2 \
+  -n monitoring -f kube-prometheus-stack-values.yaml | grep -E '^kind:' | sort | uniq -c
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --version 88.6.2 -n monitoring -f kube-prometheus-stack-values.yaml --wait --timeout 15m
+kubectl -n monitoring get pods -o wide
+kubectl -n monitoring get svc | grep LoadBalancer
+kubectl -n monitoring get pvc
+```
+
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `label ... privileged` | node-exporter usa `hostNetwork` y `hostPID` | Sin ella, los pods de node-exporter se rechazan |
+| Contraseña de Grafana | Aleatoria, en un Secret (`existingSecret` en los valores) | Guárdala: `kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
+| `helm template \| uniq -c` | CRDs no salen (van aparte); `Prometheus`, `Alertmanager`, `ServiceMonitor`, `PrometheusRule`, Deployments y un DaemonSet | — |
+| `helm install --wait` | `STATUS: deployed` en 5-10 minutos | Timeout → `kubectl -n monitoring get pods` y `describe` del que no arranque |
+| `get pods` | operator, `prometheus-kps-prometheus-0`, `alertmanager-kps-alertmanager-0`, grafana, kube-state-metrics y 3 node-exporter | — |
+| `get svc` | `.111` grafana, `.112` prometheus, `.113` alertmanager | `<pending>` → pool de MetalLB |
+| `get pvc` | El de Prometheus `Bound`, 5Gi (retención: 7 días o 3 GB, lo que llegue antes) | — |
+
+```bash
+# [ansible01 · adminlab]
+kubectl apply -f alertmanager/alert-receiver.yaml
+kubectl apply -f servicemonitor-podinfo.yaml
+kubectl apply -f rules/podinfo-slo.yaml -f rules/lab-vms.yaml
+kubectl apply -f dashboards/podinfo-red.yaml
+kubectl apply -f ../apps/loadgen.yaml
+kubectl get servicemonitor,prometheusrule -A | grep -v kps
+kubectl -n monitoring logs -f deploy/alert-receiver          # deja esta terminal abierta: es la "guardia"
+```
+
+| Fichero | Qué es |
 |---|---|
-| Conceptos | Prometheus (pull), exporters, reglas, Alertmanager, Grafana, Prometheus Operator; PromQL en cinco minutos |
-| 1. Instalación | kube-prometheus-stack 88.6.2 paso a paso, con la salida esperada de cada comando; receptor de alertas ("móvil de guardia"), ServiceMonitor de podinfo, reglas y dashboard como código |
-| 2. Escenarios | **13 averías reales**: E00 falsos `TargetDown`, E01 CrashLoopBackOff, E02 OOMKilled, E03 CPU throttling, E04 errores 5xx, E05 latencia, E06 readiness, E07 nodo caído, E08 ServiceMonitor ignorado, E09 imagen inexistente, E10 disco lleno, E11 silencios e inhibición, E12 VMs fuera del clúster |
-| 3. Grafana | Explore, dashboards de serie, importar el 1860, dashboard como código, variables, usuario Viewer |
+| `alertmanager/alert-receiver.yaml` | El "móvil de guardia": un webhook que imprime las alertas en su log |
+| `servicemonitor-podinfo.yaml` | Que Prometheus rasque podinfo cada 15 s por el puerto `http` |
+| `rules/podinfo-slo.yaml` | Reglas RED de podinfo: tráfico, % de errores y p95, y sus alertas |
+| `rules/lab-vms.yaml` | Alertas de las VMs de fuera del clúster (E12) y de disco de los nodos (E10) |
+| `dashboards/podinfo-red.yaml` | Un dashboard como código: un ConfigMap con la etiqueta `grafana_dashboard: "1"` que carga el sidecar de Grafana |
 
-**Requisitos:** 8.2 (clúster), 8.4 (MetalLB y NetworkPolicies), 8.5 (local-path) y 8.7 (Helm).
+**Comprobación inicial:**
 
-**Antes de la 8.9:** snapshot `*-antes-8.9` (el primer `apply` de Terraform adopta con `import` lo hecho a mano).
+- http://prometheus.lab.local → *Status → Targets*: todo `UP` (si algo está `DOWN`, es el E00).
+- *Alerts*: solo `Watchdog` disparada.
+- http://grafana.lab.local (usuario `admin`, contraseña `$GPW`) → *Dashboards*: los de serie y **Lab · podinfo (RED)**.
+- `promtool test rules tests/podinfo-slo.test.yaml` (si ya tienes `promtool`, 8.11.1): `SUCCESS`. Las alertas también
+  se prueban sin clúster.
 
-### 6.9 Solución K9 — Infraestructura como código con Terraform
+⚠️ **Error común en el mercado: alertar por causas en vez de por síntomas.** Alertas de "CPU al 80 %", "un pod se ha
+reiniciado" o "memoria del nodo al 70 %" que despiertan a la guardia por la noche sin que ningún usuario note nada.
+En semanas, la guardia ignora las alertas (*alert fatigue*) y se pierde la que importaba. **Cómo evitarlo:** las
+alertas que despiertan, sobre lo que nota el usuario (errores, latencia, servicio caído) y con `for:`; las causas, en
+paneles o como *warning* en horario laboral.
 
-Sigue la guía del repo: **[kubernetes/terraform-iac.md](terraform-iac.md)**.
+### 8.8.3 Escenarios de guardia
 
-| Parte | Contenido |
-|---|---|
-| Preparación | Terraform 1.16 desde el repositorio de HashiCorp, paso a paso; namespace `tfstate` para el estado remoto |
-| T1-T8 | `init` y `plan` sin aplicar, `import` de lo hecho a mano, módulos, drift, bloqueo del estado, CRDs, `prevent_destroy`/`moved`, Terraform frente a Ansible |
+Cada escenario es un ticket de guardia. Al terminar cada uno, limpia para no mezclar alertas:
+
+```bash
+# [ansible01 · adminlab]  (en ~/enterprise-rhel-lab/scripts/stage8/files/monitoring)
+kubectl -n demo delete deploy,svc,servicemonitor,networkpolicy -l lab/escenario
+kubectl -n demo set env deploy/loadgen PATHS="/"
+```
+
+Anota en el checklist (filas 25-40), de cada uno: cuánto tardó la alerta, la consulta PromQL que lo demuestra y el
+comando que dio la causa.
+
+#### E00 — Falsas alarmas del plano de control
+
+> 🎫 "Recién instalado y ya salen `KubeControllerManagerDown`, `KubeSchedulerDown` o alertas de etcd."
+
+📘 kubeadm deja esas métricas en `127.0.0.1` por defecto; `kubeadm-config.yaml` ya las saca a `0.0.0.0` y firewalld
+las abre solo al lab. Si salen, el clúster se creó sin ese fichero o falta un puerto.
+
+```bash
+# [k8s-cp01 · root]
+ss -ltnp | grep -E ':(10257|10259|2381|10249) '
+firewall-cmd --zone=k8s --list-ports
+grep -n bind-address /etc/kubernetes/manifests/kube-*.yaml
+```
+
+Lo esperado: los cuatro puertos en `0.0.0.0` o `*`, y abiertos en la zona `k8s`. Arreglo: editar el manifiesto
+estático (el kubelet reinicia el pod solo) o abrir el puerto.
+
+⚠️ **Error común:** silenciar para siempre las alertas del plano de control "porque son falsas". El día que el
+scheduler cae de verdad, nadie se entera. Se arregla la causa (métricas y puertos), no la alerta.
+
+#### E01 — CrashLoopBackOff
+
+> 🎫 "El servicio no levanta tras el despliegue de esta mañana."
+
+📘 Un contenedor que termina con error se reinicia con espera creciente (*back-off*): estado `CrashLoopBackOff`. El
+log del intento fallido es el del contenedor **anterior**: `kubectl logs --previous`.
+
+*Fuente:* [Debug Pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/) ·
+[Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)
+
+```bash
+# [ansible01 · adminlab]
+kubectl apply -f scenarios/e01-crashloop.yaml
+kubectl -n demo get pods -l app.kubernetes.io/name=e01-crash -w          # Error -> CrashLoopBackOff; Ctrl+C
+kubectl -n demo describe pod -l app.kubernetes.io/name=e01-crash | sed -n '/Last State/,/Ready/p'
+kubectl -n demo logs deploy/e01-crash --previous
+```
+
+Prometheus: `kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"} == 1` y
+`increase(kube_pod_container_status_restarts_total{namespace="demo"}[10m]) > 0`. La alerta de serie
+`KubePodCrashLooping` tiene `for: 15m`: mientras tanto, está *Pending*. Causa en el log: `unknown flag: --puerto`.
+Arreglo: el parámetro correcto (`--port`) o `kubectl rollout undo`.
+
+⚠️ **Error común:** mirar `kubectl logs` sin `--previous` y ver solo el arranque en curso (vacío o a medias), y
+concluir que "no hay errores".
+
+#### E02 — OOMKilled
+
+> 🎫 "La aplicación se reinicia sola cada pocos minutos, sin errores en el log."
+
+📘 `requests` es lo que el scheduler **reserva** para planificar; `limits.memory` es el **techo**: si el contenedor lo
+supera, el kernel lo mata (OOM killer) con código **137** (128 + SIGKILL 9), motivo `OOMKilled`.
+
+*Fuente:* [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+
+```bash
+# [ansible01 · adminlab]
+kubectl apply -f scenarios/e02-oomkill.yaml
+kubectl -n demo get pod -l app.kubernetes.io/name=e02-memoria -w          # Ctrl+C tras un par de reinicios
+kubectl -n demo describe pod -l app.kubernetes.io/name=e02-memoria | grep -A4 'Last State'
+```
+
+Lo esperado: `Reason: OOMKilled`, `Exit Code: 137`. Prometheus:
+`kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1` y
+`container_memory_working_set_bytes{namespace="demo",container="app"}` subiendo hasta 128 Mi. Llega la alerta propia
+`ContenedorOOMKilled` a la guardia.
+
+⚠️ **Error común:** subir el límite de memoria cada vez que hay un OOMKilled. Si es una fuga de memoria, ningún límite
+la arregla: solo retrasa el siguiente reinicio. Hay que mirar la tendencia de memoria antes de decidir.
+
+#### E03 — CPU throttling
+
+> 🎫 "La API va lenta, la CPU del nodo está al 20 % y no hay errores."
+
+📘 `limits.cpu` se aplica con el CFS del kernel: en cada periodo, si el contenedor gasta su cuota, se le **para**
+hasta el siguiente (*throttling*), aunque el nodo tenga CPU libre.
+
+```bash
+# [ansible01 · adminlab]
+kubectl apply -f scenarios/e03-cpu-throttling.yaml
+```
+
+```promql
+sum by (pod) (rate(container_cpu_cfs_throttled_periods_total{namespace="demo"}[5m]))
+  / sum by (pod) (rate(container_cpu_cfs_periods_total{namespace="demo"}[5m]))
+```
+
+La alerta `CPUThrottlingHigh` es *info*: aparece en *Alerts*, pero la ruta de Alertmanager solo envía *warning* y
+*critical* a la guardia, a propósito.
+
+⚠️ **Error común:** límites de CPU muy bajos "por si acaso" en todas las aplicaciones. Se pagan en latencia sin que
+ningún panel de CPU del nodo lo muestre. Muchas organizaciones dejan `requests` de CPU y quitan el `limit`.
+
+#### E04 — Errores 5xx y el método RED
+
+> 🎫 "Los clientes ven errores intermitentes."
+
+📘 **RED**: *Rate* (tráfico), *Errors* (errores), *Duration* (latencia), las tres señales de un servicio. Se alerta
+sobre el **ratio** de errores (lo que nota el usuario), no sobre el número absoluto, y con `for:` para no despertar a
+nadie por un error suelto.
+
+*Fuente:* [Prometheus — Alerting (buenas prácticas)](https://prometheus.io/docs/practices/alerting/)
+
+```bash
+# [ansible01 · adminlab]
+kubectl -n demo set env deploy/loadgen PATHS="/ /status/500 /status/503"
+```
+
+```promql
+podinfo:http_errors:ratio_rate5m
+sum by (status) (rate(http_requests_total{namespace="demo"}[1m]))
+```
+
+Lo esperado: en Grafana (**Lab · podinfo (RED)**), el % de errores cruza el 5 % y, a los ~2 minutos,
+`FIRING critical PodinfoErroresAltos` en la guardia; con `PATHS="/"`, `RESOLVED`.
+
+⚠️ **Error común:** alertar con `http_requests_total{status="500"} > 0` (el contador, sin `rate`): la alerta se queda
+disparada para siempre después del primer error, porque un contador nunca baja.
+
+#### E05 — Latencia: percentiles, no medias
+
+> 🎫 "Algunos usuarios dicen que va muy lento; el panel de latencia media está bien."
+
+```bash
+# [ansible01 · adminlab]
+kubectl -n demo set env deploy/loadgen PATHS="/ / / /delay/2"
+```
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="demo"}[5m])))
+sum(rate(http_request_duration_seconds_sum{namespace="demo"}[5m])) / sum(rate(http_request_duration_seconds_count{namespace="demo"}[5m]))
+```
+
+Lo esperado: el p95 y el p99 suben a ~2 s (1 de cada 4 peticiones es lenta), la media sube mucho menos y salta
+`PodinfoLatenciaAlta` (*warning*).
+
+⚠️ **Error común:** SLOs y paneles con la latencia **media**: esconden a los usuarios lentos. Los SLOs de latencia se
+escriben con percentiles.
+
+#### E06 — Vivo pero no listo (readiness)
+
+> 🎫 "Una réplica no recibe tráfico, pero está `Running`."
+
+📘 La *livenessProbe* **reinicia** el contenedor si falla; la *readinessProbe* lo **saca del balanceo** sin reiniciarlo.
+
+*Fuente:* [Liveness, Readiness, and Startup Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
+
+```bash
+# [ansible01 · adminlab]
+POD=$(kubectl -n demo get pod -l app.kubernetes.io/name=podinfo -o name | head -1)
+kubectl -n demo exec "$POD" -- curl -s -X POST http://localhost:9898/readyz/disable
+kubectl -n demo get pods -l app.kubernetes.io/name=podinfo
+kubectl -n demo get endpointslices -l kubernetes.io/service-name=podinfo -o wide
+kubectl -n demo exec "$POD" -- curl -s -X POST http://localhost:9898/readyz/enable
+```
+
+Lo esperado: `READY 0/1` con `STATUS Running`, una sola IP en los EndpointSlices, y
+`kube_pod_status_ready{namespace="demo",condition="false"} == 1`.
+
+⚠️ **Error común:** la misma comprobación para *liveness* y *readiness*, que además depende de la base de datos: si la
+base de datos va lenta, Kubernetes **reinicia** todas las réplicas a la vez y convierte una lentitud en una caída.
+
+#### E07 — Se cae un nodo
+
+> 🎫 "Ha caído un servidor físico."
+
+📘 El kubelet informa cada pocos segundos; sin noticias, el nodo pasa a `NotReady`/`Unknown` y recibe el *taint*
+`node.kubernetes.io/unreachable`. Los pods lo toleran 300 s (`tolerationSeconds`) y después se desalojan y se recrean
+en otro nodo. Un pod con un PV local atado a ese nodo **no** puede moverse.
+
+*Fuente:* [Nodes — Node status](https://kubernetes.io/docs/concepts/architecture/nodes/#node-status) ·
+[Taint based Evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#taint-based-evictions)
+
+```bash
+# [host]
+virsh shutdown k8s-w02        # para un fallo "duro": virsh destroy k8s-w02
+```
+
+```bash
+# [ansible01 · adminlab]
+kubectl get nodes -w                                  # anota la hora de NotReady; Ctrl+C
+kubectl describe node k8s-w02 | sed -n '/Conditions/,/Addresses/p'
+kubectl -n demo get pods -o wide -w                   # a los ~5 min, recreados en k8s-w01; Ctrl+C
+```
+
+Lo esperado: `NotReady` a los ~40 s; `up{job="node-exporter"} == 0` para ese nodo; `TargetDown` y, a los 15 min,
+`KubeNodeNotReady`. Vuelta atrás: `virsh start k8s-w02`. Documenta la línea temporal real.
+
+⚠️ **Error común:** aplicaciones con una sola réplica "porque es un entorno pequeño", o con todas las réplicas en el
+mismo nodo: la caída de un nodo es un corte de varios minutos. Dos réplicas como mínimo y
+`topologySpreadConstraints` o *anti-affinity* para repartirlas.
+
+#### E08 — Prometheus no ve una aplicación nueva
+
+> 🎫 "Hemos desplegado el catálogo y en Grafana no sale nada."
+
+📘 El método vale para cualquier "no veo métricas": (1) ¿la app expone `/metrics`?, (2) ¿Prometheus tiene el
+objetivo?, (3) ¿el ServiceMonitor tiene la etiqueta que selecciona el Prometheus?, (4) ¿coincide el **nombre del
+puerto**?, (5) ¿lo bloquea una NetworkPolicy?
+
+*Fuente:* [Prometheus Operator — Troubleshooting ServiceMonitor changes](https://prometheus-operator.dev/docs/platform/troubleshooting/)
+
+```bash
+# [ansible01 · adminlab]
+kubectl apply -f scenarios/e08-servicemonitor-ignorado.yaml
+kubectl -n demo exec deploy/catalogo -- curl -s localhost:9898/metrics | grep -m2 http_requests_total
+kubectl -n monitoring get prometheus kps-prometheus -o jsonpath='{.spec.serviceMonitorSelector}'; echo
+kubectl -n demo label servicemonitor catalogo release=kube-prometheus-stack
+kubectl -n demo get svc catalogo -o jsonpath='{.spec.ports[*].name}'; echo
+kubectl -n demo patch servicemonitor catalogo --type=json -p '[{"op":"replace","path":"/spec/endpoints/0/port","value":"http"}]'
+kubectl -n demo get networkpolicy
+kubectl apply -f scenarios/e08-solucion-networkpolicy.yaml
+```
+
+| Fallo | Cómo se ve | Arreglo |
+|---|---|---|
+| 1. Falta la etiqueta | No aparece en *Status → Targets* | `release=kube-prometheus-stack` |
+| 2. Puerto mal nombrado | En *Service Discovery*, 0 objetivos activos | El ServiceMonitor pide `metrics`; el Service lo llama `http` |
+| 3. NetworkPolicy | `DOWN` con `context deadline exceeded` y `TargetDown` | Abrir `monitoring` → `catalogo:9898` |
+
+A los ~30 s, `UP`. Limpieza: `kubectl delete -f scenarios/e08-solucion-networkpolicy.yaml -f
+scenarios/e08-servicemonitor-ignorado.yaml`.
+
+⚠️ **Error común:** dar por buena una aplicación porque "funciona", sin comprobar que aparece en *Targets*. El día de
+la incidencia no hay métricas de ella.
+
+#### E09 — Imagen que no existe
+
+> 🎫 "El despliegue de la versión nueva no termina."
+
+```bash
+# [ansible01 · adminlab]
+kubectl apply -f scenarios/e09-imagen-inexistente.yaml
+kubectl -n demo get pods -l app.kubernetes.io/name=e09-version
+kubectl -n demo describe pod -l app.kubernetes.io/name=e09-version | tail -5
+```
+
+Lo esperado: `ErrImagePull` → `ImagePullBackOff`, y en los eventos `manifest unknown`. Si fuera la actualización de un
+Deployment existente, el *rollout* se queda a medias y las réplicas viejas siguen sirviendo: `rollout status` y
+`rollout undo`.
+
+⚠️ **Error común:** `imagePullPolicy: Always` con `latest` y un registro caído: cualquier reinicio de pod falla,
+incluidos los de versiones que funcionaban.
+
+#### E10 — Disco del nodo lleno
+
+> 🎫 "Los pods del nodo 1 desaparecen y aparecen como `Evicted`."
+
+📘 Por debajo de los umbrales de `nodefs`/`imagefs` (`evictionHard`), el kubelet marca `DiskPressure`, limpia imágenes
+y **desaloja pods**.
+
+*Fuente:* [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/)
+
+```bash
+# [k8s-w01 · root]
+df -h /var/lib/kubelet
+fallocate -l 5G /var/lib/kubelet/relleno-e10.img          # ajústalo para dejar < 10 % libre; fallocate reserva
+                                                          # bloques sin escribir datos: el qcow2 del host no crece
+df -h /var/lib/kubelet
+```
+
+```bash
+# [ansible01 · adminlab]
+kubectl describe node k8s-w01 | grep -A2 DiskPressure
+kubectl get pods -A | grep -i evicted
+```
+
+Lo esperado: `NodoK8sDiscoCasiLleno` (regla del lab, 2 min), `DiskPressure True` y pods desalojados. Vuelta atrás:
+`rm /var/lib/kubelet/relleno-e10.img` y `kubectl delete pod -A --field-selector=status.phase=Failed`.
+
+⚠️ **Error común:** no tener alerta de disco **antes** del umbral del kubelet: la primera señal es la cascada de
+desalojos.
+
+#### E11 — Ventana de mantenimiento: silencios, agrupación e inhibición
+
+> 🎫 "Mañana a las 10:00 se reinicia `k8s-w02` por parches: que no salte la guardia."
+
+1. Alertmanager (http://alertmanager.lab.local) → *New Silence*: `node="k8s-w02"`, 30 min, con el número de cambio en
+   el comentario. Repite el E07: la guardia no recibe nada; en *Alerts* siguen visibles, silenciadas.
+2. Agrupación: E04 y E05 a la vez llegan como pocos mensajes (`group_by: [alertname, namespace]`).
+3. Inhibición: una *critical* y una *warning* del mismo `alertname`/`namespace` → solo llega la *critical*.
+4. Por CLI: `kubectl -n monitoring exec sts/alertmanager-kps-alertmanager -- amtool silence query --alertmanager.url=http://localhost:9093`
+
+⚠️ **Error común:** silencios sin fecha de fin o demasiado amplios (`severity=~".+"`), creados en una ventana y nunca
+borrados: semanas después, una avería real no llega a nadie.
+
+#### E12 — Las VMs de fuera del clúster
+
+> 🎫 "Queremos las mismas alertas para `dns01`, que no está en Kubernetes."
+
+```bash
+# [dns01 · root]
+curl -sSLO https://github.com/prometheus/node_exporter/releases/download/v1.12.1/node_exporter-1.12.1.linux-amd64.tar.gz
+curl -sSL https://github.com/prometheus/node_exporter/releases/download/v1.12.1/sha256sums.txt | grep linux-amd64.tar.gz | sha256sum -c
+tar xzf node_exporter-1.12.1.linux-amd64.tar.gz && install -m 0755 node_exporter-1.12.1.linux-amd64/node_exporter /usr/local/bin/
+useradd --system --no-create-home --shell /sbin/nologin node_exporter
+cat > /etc/systemd/system/node_exporter.service <<'EOF'
+[Unit]
+Description=Prometheus node_exporter
+After=network-online.target
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter --collector.systemd --collector.systemd.unit-include=(named|chronyd|sshd)\.service
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+restorecon -v /usr/local/bin/node_exporter && systemctl daemon-reload && systemctl enable --now node_exporter
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.10.10.0/24" port port="9100" protocol="tcp" accept' && firewall-cmd --reload
+curl -s localhost:9100/metrics | grep -m1 node_systemd_unit_state
+```
+
+El job `lab-vms` ya está en los valores del chart. Comprueba `up{job="lab-vms"}` y después `systemctl stop named` en
+`dns01` → `DNSdelLabParado` (1 min); `systemctl start named` → `RESOLVED`.
+
+*Fuente:* [node_exporter](https://github.com/prometheus/node_exporter)
+
+⚠️ **Error común:** exporters escuchando en `0.0.0.0` sin firewall: las métricas del sistema (procesos, montajes,
+servicios) quedan abiertas a toda la red. La regla `rich-rule` de arriba solo deja entrar al lab.
+
+### 8.8.4 Grafana
+
+📘 **Concepto.** Grafana consulta **fuentes de datos** (aquí, Prometheus) y dibuja **paneles** agrupados en
+**dashboards**; las **variables** (`$namespace`) hacen un dashboard reutilizable. En kube-prometheus-stack, un
+*sidecar* carga como dashboard cualquier ConfigMap con la etiqueta `grafana_dashboard: "1"`: es **dashboards como
+código**, y lo que se cambia en la web sin guardarlo en el ConfigMap se pierde.
+
+*Fuente:* [Grafana — Dashboards](https://grafana.com/docs/grafana/latest/dashboards/) ·
+[Variables](https://grafana.com/docs/grafana/latest/dashboards/variables/) ·
+[Provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/)
+
+🛠️ **Práctica.**
+
+1. *Explore* → Prometheus → las consultas de 8.8.1, cambiando el rango de tiempo.
+2. Dashboards de serie: "Kubernetes / Compute Resources / Namespace (Pods)" (`demo`) y "Node Exporter / Nodes": busca
+   en ellos E02, E03 y E07.
+3. *Dashboards → New → Import* → ID **1860** (*Node Exporter Full*).
+4. En `dashboards/podinfo-red.yaml`, añade un panel "pods no listos" con
+   `sum(kube_pod_status_ready{namespace="demo",condition="false"})`, `kubectl apply` y recarga: persiste.
+5. Una variable `namespace` (`label_values(kube_pod_info, namespace)`) usada en las consultas.
+6. *Administration → Users*: un usuario con rol *Viewer* para el equipo de la aplicación.
+
+⚠️ **Error común en el mercado: Grafana con `admin/admin` o `admin/prom-operator`.** Las contraseñas por defecto de
+la imagen o del chart, expuestas por un LoadBalancer: cualquiera de la red ve (y cambia) todos los paneles y fuentes
+de datos. **Cómo evitarlo:** contraseña en un Secret (`existingSecret`, como aquí), usuarios con rol *Viewer* y, en
+empresa, SSO.
+
+**Antes de la 8.9:** snapshot `*-antes-8.9`.
+
+---
+
+## 8.9 Infraestructura como código con Terraform
+
+> 🎫 **Ticket IAC-809.** "La plataforma se montó a mano y nadie sabe exactamente qué hay. Pasadla a código sin cortar
+> el servicio: namespaces con cuotas, MetalLB y la monitorización, y un módulo para que los equipos publiquen
+> aplicaciones monitorizadas siempre igual."
 
 **Requisitos:** 8.4 (MetalLB y su pool), 8.6 (namespace `tienda`) y 8.8 (kube-prometheus-stack y el Secret
-`grafana-admin`), todo instalado a mano tal como dicen esas subetapas.
+`grafana-admin`), instalados a mano tal como dicen esas subetapas. Código en `scripts/stage8/files/terraform/`. La guía
+[terraform-iac.md](terraform-iac.md) tiene los mismos escenarios en formato de consulta rápida.
+
+### 8.9.1 Terraform: declarativo, providers y estado
+
+📘 **Concepto.** Terraform es **declarativo**: describes el estado final en ficheros `.tf` (HCL) y Terraform calcula
+los pasos. Los **providers** traducen recursos a llamadas de una API (aquí, `hashicorp/kubernetes` y `hashicorp/helm`);
+se fijan con restricciones de versión (`~> 3.4`) y el fichero **`.terraform.lock.hcl`** guarda las versiones exactas y
+sus *hashes* (va a Git). El **estado** (`tfstate`) es lo que Terraform cree que existe y su correspondencia con el
+código; puede contener secretos en claro y **no** va a Git. Un **backend** remoto guarda el estado fuera de tu equipo
+y, si lo admite, lo **bloquea** durante cada operación; el backend `kubernetes` lo guarda en un Secret y bloquea con un
+Lease. Flujo: `init` (providers y backend) → `plan` (diferencia entre código, estado y realidad) → `apply`.
+
+*Fuente:* [What is Terraform?](https://developer.hashicorp.com/terraform/intro) ·
+[State](https://developer.hashicorp.com/terraform/language/state) ·
+[Backend kubernetes](https://developer.hashicorp.com/terraform/language/backend/kubernetes) ·
+[Dependency lock file](https://developer.hashicorp.com/terraform/language/files/dependency-lock) ·
+[Kubernetes provider](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs)
+
+| Capa del lab | Qué gestiona | Estado |
+|---|---|---|
+| `10-plataforma/` | Namespaces con cuotas, Secret de Grafana, MetalLB y kube-prometheus-stack (`helm_release`) | `tfstate-default-plataforma` |
+| `20-config/` | Pool de MetalLB y aplicaciones con el módulo (usan CRDs de la capa 10) | `tfstate-default-config` |
+| `modules/app-monitorizada/` | Deployment + Service + ServiceMonitor + PrometheusRule | — |
+
+**Terraform frente a Ansible:** Terraform **crea y destruye recursos** con un estado; Ansible **configura máquinas**
+de forma idempotente sin estado. **OpenTofu** es la bifurcación abierta (MPL) de Terraform: mismos ficheros, comando
+`tofu`.
+
+🛠️ **Práctica: preparación.**
+
+```bash
+# [ansible01 · adminlab]
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+sudo dnf install -y terraform
+terraform version
+kubectl create namespace tfstate
+cp -r ~/enterprise-rhel-lab/scripts/stage8/files/terraform ~/terraform-lab && cd ~/terraform-lab
+ls 10-plataforma 20-config
+```
+
+Lo esperado: `Terraform v1.16.x`; el namespace `tfstate` (el backend no lo crea); y los `.tf` de las dos capas.
+
+⚠️ **Error común en el mercado: el `terraform.tfstate` en Git.** Se sube el estado al repositorio "para compartirlo":
+contiene contraseñas en claro, y dos personas trabajando con copias distintas del estado acaban destruyendo recursos
+que el otro creó. **Cómo evitarlo:** backend remoto con bloqueo, `*.tfstate*` en `.gitignore`, y el `.lock.hcl` sí en
+Git.
+
+### 8.9.2 T1 — `init` y `plan`: leer antes de tocar
+
+📘 **Concepto.** `terraform plan` no cambia nada: compara y muestra `+` crear, `~` cambiar, `-` destruir y `-/+`
+**destruir y recrear** (corte de servicio). `terraform validate` comprueba la sintaxis y las referencias; `terraform
+fmt -check` el formato. Las variables sensibles se pasan por entorno (`TF_VAR_<nombre>`), nunca en ficheros del repo.
+
+*Fuente:* [terraform plan](https://developer.hashicorp.com/terraform/cli/commands/plan) ·
+[Input variables](https://developer.hashicorp.com/terraform/language/values/variables)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]
+cd ~/terraform-lab/10-plataforma
+export TF_VAR_grafana_admin_password="$(kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d)"
+terraform init
+terraform fmt -check -recursive && terraform validate
+terraform plan -var-file=lab.tfvars
+```
+
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `init` | Descarga los providers, `Successfully configured the backend "kubernetes"`, crea `.terraform.lock.hcl` | `namespaces "tfstate" not found` → falta el `create namespace` |
+| `fmt` / `validate` | Sin salida / `Success!` | — |
+| `plan` | Quiere **crear** `monitoring`, `metallb-system`, `demo`, `tienda`, el Secret y las dos releases... que ya existen | `Kubernetes cluster unreachable` → kubeconfig o `kube_context` |
+
+**No apliques:** fallaría con `already exists` o `cannot re-use a name that is still in use`.
+
+⚠️ **Error común en el mercado: `terraform apply -auto-approve` sin leer el plan.** En un pipeline o "porque el
+cambio era pequeño": un `-/+` escondido entre 40 líneas recrea una base de datos o un balanceador. **Cómo evitarlo:**
+`plan -out=plan.tfplan`, leer cada `-` y `-/+`, y `apply plan.tfplan` (se aplica exactamente lo revisado).
+
+### 8.9.3 T2 — Adoptar lo hecho a mano con `import`
+
+📘 **Concepto.** Los bloques `import { to = ... id = ... }` traen al estado un recurso que ya existe, sin recrearlo;
+el `plan` dice `will be imported` y, si el código difiere de la realidad, también `will be updated in-place`. Así se
+mete bajo código un entorno existente.
+
+*Fuente:* [Import](https://developer.hashicorp.com/terraform/language/import)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]  (en ~/terraform-lab/10-plataforma)
+vim imports.tf                                  # descomenta los bloques import
+terraform plan -var-file=lab.tfvars -out=plan.tfplan
+terraform apply plan.tfplan
+vim imports.tf                                  # vuelve a comentarlos: ya están en el estado
+terraform plan -var-file=lab.tfvars
+terraform state list
+kubectl -n tienda describe resourcequota
+kubectl -n tfstate get secret,lease
+```
+
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `plan -out` | `Plan: 7 to import, 4 to add, N to change, 0 to destroy`. *add* = las ResourceQuota y LimitRange de `demo` y `tienda`; *change* = diferencias como etiquetas `managed-by` | **Cualquier** `-` o `-/+` → para y entiende por qué; corrige el **código**, no el clúster |
+| `apply plan.tfplan` | `Apply complete!` | — |
+| Segundo `plan` | `No changes. Your infrastructure matches the configuration.` | Cambios persistentes en un `helm_release` → valores que el chart normaliza: alinea el fichero |
+| `describe resourcequota` | La cuota de `tienda` (10 pods, 1 CPU de límites) | — |
+| `get secret,lease` | `tfstate-default-plataforma` y su Lease | — |
+
+Si `TF_VAR_grafana_admin_password` no coincide con la del clúster, el plan la cambiaría: por eso se lee del Secret.
+
+⚠️ **Error común en el mercado: "recrear" en vez de importar.** Para pasar a Terraform algo que ya existe, se borra y
+se deja que Terraform lo cree de nuevo: corte de servicio y, si había datos (PVCs), pérdida. **Cómo evitarlo:**
+`import` y `0 to destroy` como condición innegociable.
+
+### 8.9.4 T3 — Módulos y `for_each`
+
+📘 **Concepto.** Un **módulo** es un conjunto de recursos reutilizable con entradas (`variable`) y salidas (`output`).
+`for_each` crea una instancia por elemento de un mapa (aquí, una app por entrada de `apps` en `lab.tfvars`). Las
+**validaciones** de variables rechazan valores incorrectos antes del plan.
+
+*Fuente:* [Modules](https://developer.hashicorp.com/terraform/language/modules) ·
+[for_each](https://developer.hashicorp.com/terraform/language/meta-arguments/for_each) ·
+[Custom validation rules](https://developer.hashicorp.com/terraform/language/values/variables#custom-validation-rules)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]
+cd ~/terraform-lab/20-config
+terraform init
+vim imports.tf                                  # descomenta: el pool de MetalLB se creó a mano en la 8.4
+terraform plan -var-file=lab.tfvars
+terraform apply -var-file=lab.tfvars
+vim imports.tf                                  # vuelve a comentarlos
+terraform output apps
+curl -s http://10.10.10.117 | head -3
+```
+
+Lo esperado: `2 to import` y la app `tienda-web` (Deployment, Service, ServiceMonitor, regla); en Prometheus,
+`serviceMonitor/tienda/tienda-web` y la regla `tienda-web.errores`, sin escribir YAML. Prueba: añade `tienda-api` en
+`lab.tfvars` (solo crea lo nuevo), pon `imagen = "...:latest"` (lo rechaza la validación) y `replicas = 20` (la cuota
+lo frena: `kubectl -n tienda get events | grep -i quota`).
+
+⚠️ **Error común en el mercado: copiar y pegar en lugar de módulos.** Cada aplicación con su propio bloque de 200
+líneas copiado de la anterior: cuando cambia el estándar (una etiqueta, una alerta), hay que tocar 30 sitios y siempre
+se olvida alguno. **Cómo evitarlo:** un módulo con versiones, y las diferencias entre apps como variables.
+
+### 8.9.5 T4 — *Drift*
+
+📘 **Concepto.** Un cambio hecho fuera de Terraform (a mano, por otra herramienta) es ***drift***: el siguiente `plan`
+lo muestra como diferencia, y `apply` lo revierte al código. Con IaC, el código es la fuente de verdad.
+
+*Fuente:* [Manage resource drift](https://developer.hashicorp.com/terraform/tutorials/state/resource-drift)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]  (en ~/terraform-lab/20-config)
+kubectl -n tienda scale deploy/tienda-web --replicas=5
+kubectl -n tienda label deploy/tienda-web urgente=si
+terraform plan -var-file=lab.tfvars
+```
+
+Lo esperado: `~ replicas: 5 -> 2` y la etiqueta. Decide: si el cambio era bueno, pásalo al **código**; si no, `apply`
+lo revierte. Documenta la decisión.
+
+⚠️ **Error común en el mercado: "arreglos" a mano en producción que el siguiente `apply` deshace.** En una incidencia
+se escala o se cambia algo en la consola; días después, un `apply` rutinario lo revierte y la incidencia vuelve. **Cómo
+evitarlo:** cada cambio de emergencia se pasa al código en cuanto pasa la emergencia, y `plan` periódicos para detectar
+*drift*.
+
+### 8.9.6 T5 — Bloqueo del estado
+
+🛠️ **Práctica.** Abre **dos sesiones** en `ansible01`, en `~/terraform-lab/10-plataforma` (con el `export` de la
+contraseña en las dos), y lanza `terraform apply -var-file=lab.tfvars` en las dos casi a la vez.
+
+```bash
+# [ansible01 · adminlab]  (tercera sesión)
+kubectl -n tfstate get lease -o wide
+```
+
+Lo esperado: la segunda espera o falla con `Error acquiring the state lock`, y el Lease muestra el titular. Contesta
+`no` en la primera.
+
+⚠️ **Error común en el mercado: `terraform force-unlock` como reflejo.** Se fuerza el desbloqueo porque "se ha
+quedado colgado", mientras el `apply` de un compañero sigue en marcha: el estado se corrompe. **Cómo evitarlo:**
+`force-unlock <ID>` solo con la certeza de que el proceso que lo tenía ha muerto.
+
+### 8.9.7 T6 — CRDs que aún no existen
+
+📘 **Concepto.** `kubernetes_manifest` consulta el esquema del CRD **al planificar**: si el CRD no existe, el `plan`
+falla con `no matches for kind`. Por eso un mismo `apply` no puede instalar un chart con CRDs y crear objetos de esos
+CRDs: capas separadas (como el lab) o dos fases.
+
+*Fuente:* [kubernetes_manifest](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/manifest)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]  (en ~/terraform-lab/20-config)
+cat > t6-prueba.tf <<'EOF'
+resource "kubernetes_manifest" "app_argocd" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata   = { name = "podinfo", namespace = "argocd" }
+    spec       = { project = "default" }
+  }
+}
+EOF
+terraform plan -var-file=lab.tfvars
+rm t6-prueba.tf
+```
+
+Lo esperado: el error **en el plan** (Argo CD llega en la 8.11).
+
+⚠️ **Error común en el mercado: `-target` como forma de trabajar.** Para esquivar este error, se aplica siempre por
+partes con `-target=...`; el estado deja de reflejar el conjunto y los cambios fuera del *target* se acumulan sin
+revisar. **Cómo evitarlo:** capas con estados separados; `-target` solo en emergencias.
+
+### 8.9.8 T7 — `prevent_destroy` y `moved`
+
+📘 **Concepto.** `lifecycle { prevent_destroy = true }` hace que cualquier plan que destruya ese recurso **falle**. Un
+bloque `moved { from = ...  to = ... }` renombra un recurso en el estado sin destruirlo.
+
+*Fuente:* [lifecycle](https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle) ·
+[Refactoring con moved](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring)
+
+🛠️ **Práctica.**
+
+```bash
+# [ansible01 · adminlab]  (en ~/terraform-lab/10-plataforma)
+terraform plan -destroy -var-file=lab.tfvars          # Error: Instance cannot be destroyed (kube_prometheus_stack)
+```
+
+En `metallb.tf` cambia `resource "helm_release" "metallb"` por `"balanceador"` y lanza `terraform plan`: sale
+destruir `metallb` y crear `balanceador`, es decir, desinstalar y reinstalar MetalLB (corte de todas las IPs .110-.119). Añade al final de `metallb.tf`:
+
+```hcl
+moved {
+  from = helm_release.metallb
+  to   = helm_release.balanceador
+}
+```
+
+`terraform plan` → `has moved to`, `0 to destroy`. Deshaz el cambio al terminar.
+
+⚠️ **Error común en el mercado: renombrar recursos "por limpieza" sin `moved`.** Un cambio de nombre en el código que
+parece inocuo en la revisión del *pull request* y que, aplicado, destruye y recrea el recurso. **Cómo evitarlo:** leer
+el plan (no solo el diff del código) y `moved` en todo renombrado.
+
+### 8.9.9 T8 — Quién hace qué
+
+| Tarea | Herramienta | Por qué |
+|---|---|---|
+| Crear las VMs | Terraform (provider `libvirt`) o `lab.sh vm-create` | Ciclo de vida: crear y destruir |
+| Paquetes, LVs, swap, firewalld, containerd | Ansible (8.13) | Configuración del sistema, idempotente, sin estado |
+| `kubeadm init/join` | Ansible | Pasos imperativos con orden |
+| Namespaces, cuotas, releases de plataforma | Terraform | Estado y plan revisable |
+| Aplicaciones de los equipos | Argo CD (8.11) | Git como fuente de verdad, autocorrección |
+
+Escribe la tuya en el checklist (filas 41-48) y defiéndela.
 
 ---
 
-### 6.10 Solución K10 — OpenShift: Red Hat OpenShift Local (CRC) en el host
+## 8.10 OpenShift: Red Hat OpenShift Local (CRC)
 
-> **Orden:** se hace **al final de la etapa** (ver la sección 0). Necesita el
-> clúster kubeadm apagado y es la única subetapa que toca el host.
+> **Orden:** se hace **al final de la etapa**. Necesita el clúster kubeadm apagado y es la única subetapa que toca el
+> host.
+>
+> 🎫 **Ticket PLAT-810.** "El cliente usa OpenShift. Antes de la reunión técnica, comprobad qué cambia respecto a
+> nuestro Kubernetes: si nuestros manifiestos funcionan tal cual, cómo se publica una aplicación y cómo se gestiona el
+> clúster."
 
-**Objetivo:** OpenShift es Kubernetes con todo lo que en la 8.2-8.9 has montado a mano ya integrado (red, registro de
-imágenes, monitorización, rutas, consola web, actualizaciones gestionadas) y con seguridad más estricta por defecto.
-Se ve qué cambia trabajando con él.
+### 8.10.1 OpenShift frente a Kubernetes "a pelo"
 
-**Dónde:** el host (Linux Mint), como tu usuario.
+📘 **Concepto.** **OpenShift** es la distribución de Kubernetes de Red Hat: trae integrado lo que en la 8.2-8.9 se
+montó a mano (red, registro de imágenes, monitorización, entrada HTTP, consola web) y se gestiona con **operadores**,
+incluidas sus propias actualizaciones (`ClusterVersion`, `ClusterOperators`). Diferencias clave: los **proyectos** son
+namespaces con RBAC y cuotas preparados; las **Security Context Constraints (SCC)** sustituyen a Pod Security, y la
+de por defecto, `restricted-v2`, asigna a cada proyecto un **rango de UIDs** y rechaza un `runAsUser` fijo fuera de
+él; las **Routes** publican Services por nombre (`*.apps-crc.testing`); **S2I** construye imágenes dentro del clúster;
+`oc` es el cliente (compatible con `kubectl`). **OpenShift Local** (CRC) es un OpenShift de un nodo en una VM de tu
+equipo: necesita 4 vCPU, ~10,5 GiB de RAM y 35 GB de disco, y `crc setup` configura el host (libvirt, una red `crc`,
+`dnsmasq` de NetworkManager para `*.crc.testing`). Linux Mint **no** es una plataforma soportada.
 
-**Requisitos de CRC:** 4 vCPU físicas, ~10,5-11 GiB de RAM libres y 35 GB de disco **en el host**; cuenta gratuita de
-Red Hat Developer para descargar `crc` y el *pull secret* (console.redhat.com → OpenShift → Local).
+*Fuente:* [OpenShift Local — Introducing](https://crc.dev/docs/introducing/) ·
+[OpenShift Container Platform — documentación](https://docs.redhat.com/en/documentation/openshift_container_platform/) (capítulos *Managing security context constraints* y *Configuring routes*)
 
-> ⚠️ **Linux Mint no es una plataforma soportada por CRC** (lo es RHEL/Fedora; en Ubuntu y derivados suele funcionar
-> si se usa NetworkManager, como en Mint). Y `crc setup` **modifica el host**: configura libvirt y su red `crc`, un
-> `dnsmasq` de NetworkManager para `*.crc.testing` y `*.apps-crc.testing`, y añade tu usuario a grupos. En el lab,
-> además, el host ya enruta `*.lab.local` hacia `dns01` (`lab.sh host-dns`, Etapa 4): un cambio en el DNS del host puede
-> romperlo. Por eso, primero solo lectura y una decisión con la lista delante. Si algo preocupa, se queda en teoría y
-> se practica en el **Developer Sandbox** de Red Hat (OpenShift en la nube, gratuito y temporal).
+> ⚠️ El host ya enruta `*.lab.local` hacia `dns01` (`lab.sh host-dns`, Etapa 4): un cambio en el DNS del host puede
+> romperlo. Primero solo lectura, y una decisión con la lista de cambios delante. Si algo preocupa, se practica en el
+> **Developer Sandbox** de Red Hat (OpenShift en la nube, gratuito y temporal).
 
-#### 8.10.1 Revisión de solo lectura del host
+🛠️ **Práctica: revisión de solo lectura y descarga.**
 
 ```bash
 # [host]
 nproc; free -h; df -h ~
 virsh net-list --all
-resolvectl status | grep -A3 -E 'virbr-lab|Link'
 resolvectl query dns01.lab.local
 systemctl is-active NetworkManager
-```
-
-Anota todo: es el "antes". Lo esperado: ≥ 4 CPU, ≥ 11 GiB disponibles **con el clúster apagado**, ≥ 35 GB libres,
-las redes `default` y `lab-net`, `dns01.lab.local` resolviendo a `10.10.10.20` y NetworkManager `active`.
-
-#### 8.10.2 Apagar el clúster y descargar `crc`
-
-```bash
-# [host]
 scripts/lab.sh down k8s-w02; scripts/lab.sh down k8s-w01; scripts/lab.sh down k8s-cp01
 free -h
 ```
 
-Descarga desde console.redhat.com (OpenShift → Local) el tarball de `crc` para Linux y el *pull secret*
+Anota todo: es el "antes". Descarga de console.redhat.com (OpenShift → Local) el tarball de `crc` y el *pull secret*
 (`pull-secret.txt`) en `~/Descargas`. Después, sin `sudo`:
 
 ```bash
@@ -2940,178 +2981,147 @@ Descarga desde console.redhat.com (OpenShift → Local) el tarball de `crc` para
 mkdir -p ~/bin ~/crc && tar xJf ~/Descargas/crc-linux-amd64.tar.xz -C ~/crc --strip-components=1
 install -m 0755 ~/crc/crc ~/bin/crc
 crc version
-```
-
-Lo esperado: la versión de CRC y la de OpenShift que trae (anótalas en el checklist). Si `crc: command not found`,
-`~/bin` no está en tu `PATH`: abre una terminal nueva o usa `~/bin/crc`.
-
-#### 8.10.3 Configurar y revisar qué cambiaría
-
-```bash
-# [host]
 crc config set memory 11264
 crc config set cpus 4
 crc config set consent-telemetry no
-crc config view
 crc setup --check-only
 ```
 
-| Comando | Qué hace | Qué esperas |
+| Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
-| `config set memory 11264` | RAM de la VM de OpenShift, en MiB (11 GiB) | — |
-| `config set cpus 4` | vCPU de la VM | — |
-| `config set consent-telemetry no` | No enviar telemetría | — |
-| `config view` | Configuración actual | Las tres claves |
-| `setup --check-only` | **Solo comprueba**: lista lo que `crc setup` cambiaría, sin cambiarlo | Una lista de comprobaciones con las que fallan (las que `setup` arreglaría) |
+| `free -h` con el clúster apagado | ≥ 11 GiB disponibles | — |
+| `crc version` | Versión de CRC y de OpenShift (anótalas) | `command not found` → `~/bin` no está en el `PATH`: usa `~/bin/crc` |
+| `crc setup --check-only` | La lista de comprobaciones y las que `crc setup` arreglaría (= los cambios en el host) | Si tu versión no tiene la opción, `crc setup --help`; **no** lances `crc setup` sin saber qué hará |
 
-Si tu versión no tiene `--check-only`, `crc setup --help` dice qué opciones hay; **no** lances `crc setup` sin saber qué
-va a hacer. Copia la salida al checklist (fila 49) y decide.
-
-#### 8.10.4 (Tras decidirlo) instalar y arrancar
+🛠️ **Práctica: (tras decidirlo) arrancar y comparar.**
 
 ```bash
 # [host]
 crc setup
 crc start -p ~/Descargas/pull-secret.txt
 eval "$(crc oc-env)"
-crc console --credentials
 oc login -u developer -p developer https://api.crc.testing:6443
-oc whoami; oc get nodes
 resolvectl query dns01.lab.local
-```
-
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `crc setup` | `Your system is correctly setup for using CRC` | Un error de una comprobación → léelo, no lo fuerces |
-| `crc start` | 10-20 minutos; al final, la URL de la consola y las credenciales | Falta de memoria → ¿el clúster kubeadm sigue encendido? |
-| `oc login`, `oc get nodes` | `developer` y un nodo `crc` `Ready` | — |
-| `resolvectl query dns01.lab.local` | Sigue resolviendo `10.10.10.20` | Si no, el `dnsmasq` de CRC ha pisado el DNS del lab: es un caso de troubleshooting y `crc cleanup` lo deshace |
-
-#### 8.10.5 Ejercicios comparando con Kubernetes "a pelo"
-
-```bash
-# [host]
 oc new-project tienda
-oc apply -f scripts/stage8/files/apps/podinfo.yaml
-```
-
-Este `apply` trae el namespace `demo` (un `developer` no puede crearlo) y los recursos. Para el ejercicio, aplica solo
-el Deployment y el Service en `tienda`:
-
-```bash
-# [host]
 sed -e '/^kind: Namespace/,/^---/d' -e 's/namespace: demo/namespace: tienda/' scripts/stage8/files/apps/podinfo.yaml > /tmp/podinfo-oc.yaml
 oc apply -f /tmp/podinfo-oc.yaml
 oc get pods; oc get events --sort-by=.lastTimestamp | tail -5
 ```
 
-| Ejercicio | Comando | Qué esperas | Lo equivalente en el lab |
-|---|---|---|---|
-| Proyecto | `oc new-project tienda`; `oc get project tienda -o yaml` | Proyecto = namespace con RBAC, cuotas y SCC listos | 8.6 a mano |
-| podinfo sin tocar | `oc apply -f /tmp/podinfo-oc.yaml` | **Falla**: el SCC `restricted-v2` no admite `runAsUser: 100` (OpenShift asigna un UID del rango del proyecto) | Pod Security `restricted` (aquí sí valía) |
-| Corregirlo | Quita las líneas `runAsUser: 100` de `/tmp/podinfo-oc.yaml` y repite | Pods `Running` con un UID alto (`oc exec deploy/podinfo -- id`) | — |
-| Route | `oc expose svc/podinfo`; `oc get route` y `curl` a la URL | Nombre `podinfo-tienda.apps-crc.testing` | Ingress + Traefik + DNS (8.4) |
-| S2I | `oc new-app` con un repo de GitHub o de Gitea (si lo enciendes) | Construye la imagen **dentro** del clúster | No hay: Podman fuera del clúster (8.1) |
-| Consola web: *Observe* | `crc console` | Prometheus/Alertmanager integrados (en CRC, apagados por defecto: `crc config set enable-cluster-monitoring true`, pide 14 GiB) | 8.8 entero |
-| Operadores | `oc get clusteroperators`; `oc get clusterversion` (como `kubeadmin`) | El clúster se gestiona con operadores y versiones del propio OpenShift | `kubeadm upgrade` (8.12) |
-
-**OpenShift Virtualization** (KubeVirt) ejecuta VMs como objetos de Kubernetes y es la alternativa de Red Hat a vSphere
-tras la compra de VMware por Broadcom. CRC no la soporta (no hay virtualización anidada suficiente): se estudia en
-teoría y se relaciona con la Etapa 10 (VMware) y la 14 (migraciones). Anota sus conceptos: `VirtualMachine`,
-`DataVolume`, migración en vivo, Migration Toolkit for Virtualization.
-
-#### 8.10.6 Dejar el host como estaba
+Lo esperado: OpenShift arranca en 10-20 minutos; `dns01.lab.local` sigue resolviendo (si no, el `dnsmasq` de CRC ha
+pisado el DNS del lab: caso de troubleshooting, y `crc cleanup` lo deshace); y podinfo **no** arranca: los eventos
+dicen que `runAsUser: 100` no está en el rango permitido por `restricted-v2`.
 
 ```bash
 # [host]
+sed -i '/runAsUser: 100/d' /tmp/podinfo-oc.yaml
+oc apply -f /tmp/podinfo-oc.yaml
+oc get pods; oc exec deploy/podinfo -- id
+oc expose svc/podinfo
+oc get route podinfo
+curl -s "http://$(oc get route podinfo -o jsonpath='{.spec.host}')" | head -3
+```
+
+Lo esperado: pods `Running` con un UID alto asignado por OpenShift, y la Route `podinfo-tienda.apps-crc.testing`
+respondiendo. Para el resto de la comparación:
+
+| En OpenShift | Comando | Lo equivalente en el lab |
+|---|---|---|
+| Proyecto | `oc get project tienda -o yaml` | 8.6 a mano |
+| S2I | `oc new-app` con un repositorio de GitHub | Podman fuera del clúster (8.1) |
+| Monitorización | Consola → *Observe* (en CRC, apagada: `crc config set enable-cluster-monitoring true`, pide 14 GiB) | 8.8 entero |
+| Operadores y versión | `oc login -u kubeadmin` (`crc console --credentials`); `oc get clusteroperators`, `oc get clusterversion` | `kubeadm upgrade` (8.12) |
+
+**OpenShift Virtualization** (KubeVirt) ejecuta VMs como objetos de Kubernetes: es la alternativa de Red Hat a vSphere
+tras la compra de VMware por Broadcom. CRC no la soporta; se estudia en teoría (`VirtualMachine`, `DataVolume`,
+migración en vivo, Migration Toolkit for Virtualization) y se relaciona con las Etapas 10 y 14.
+
+```bash
+# [host]  dejarlo como estaba
 crc stop
-crc delete            # si necesitas liberar el disco (~35 GB)
-crc cleanup           # deshace lo que hizo crc setup en el host
+crc delete            # si necesitas liberar los ~35 GB
+crc cleanup           # deshace lo que hizo crc setup
 resolvectl query dns01.lab.local
 virsh net-list --all
 ```
 
-Compara con el "antes" de la 8.10.1. Lo esperado: el DNS del lab resolviendo y solo las redes `default` y `lab-net`.
+⚠️ **Error común en el mercado: `oc adm policy add-scc-to-user anyuid` para que "funcione".** Al primer rechazo por
+SCC, se da `anyuid` (o `privileged`) a la ServiceAccount de la aplicación, o a todo el proyecto: se pierde la principal
+ventaja de seguridad de OpenShift. **Cómo evitarlo:** quitar el `runAsUser` fijo y hacer la imagen compatible con UIDs
+arbitrarios (ficheros con permisos de grupo 0), que es lo que pide la documentación de OpenShift para imágenes.
 
-**Anota en el checklist (filas 49-50).**
+**Checklist:** filas 49-50.
 
 ---
 
-### 6.11 Solución K11 — CI/CD y GitOps (Gitea + Argo CD)
+## 8.11 CI/CD y GitOps (Gitea + Argo CD)
 
-**Objetivo:** **CI** = comprobar cada cambio antes de aplicarlo; **CD con GitOps** = el clúster se sincroniza solo con
-lo que dice Git.
+> 🎫 **Ticket DEV-811.** "Queremos que ningún cambio de manifiestos llegue al clúster sin pasar una validación, y que
+> las aplicaciones se desplieguen desde Git: lo que está en `main` es lo que corre, y volver atrás es un *revert*."
 
-**Dónde:** `ansible01`.
+### 8.11.1 CI: validar antes de aplicar
 
-#### 8.11.1 CI: `validar.sh` y sus herramientas
+📘 **Concepto.** **Integración continua (CI):** cada cambio pasa automáticamente unas comprobaciones antes de aceptarse.
+Para infraestructura: sintaxis y estilo (`yamllint`), validez frente al esquema de la API (`kubeconform`), reglas y
+pruebas unitarias de alertas (`promtool check rules`, `promtool test rules`) y `terraform fmt`/`validate`.
+`scripts/stage8/files/ci/validar.sh` hace todo eso sin clúster y sin tocar nada; si falta una herramienta, la salta y
+lo dice.
 
-`scripts/stage8/files/ci/validar.sh` hace lo que haría un pipeline con cada cambio de la etapa: `yamllint`,
-`kubeconform` (manifiestos frente al esquema de la API 1.36), `promtool` (reglas y pruebas unitarias de alertas) y
-`terraform fmt`/`validate`. **Sin clúster y sin tocar nada.** Si falta una herramienta, la salta y lo dice.
+*Fuente:* [kubeconform](https://github.com/yannh/kubeconform) ·
+[Unit testing for rules (promtool)](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/) ·
+[yamllint](https://yamllint.readthedocs.io/)
 
-**1. Instalar lo que falte** (Terraform viene de la 8.9):
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
 sudo dnf install -y python3-pip python3-pyyaml
-pip3 install --user yamllint
-yamllint --version
-```
-
-```bash
-# [ansible01 · adminlab]  kubeconform: binario de GitHub con suma de verificación
-KC_VERSION=v0.7.0        # cámbialo por la última de https://github.com/yannh/kubeconform/releases
+pip3 install --user yamllint && yamllint --version
+KC_VERSION=v0.7.0        # la última de https://github.com/yannh/kubeconform/releases
 cd /tmp
 curl -fsSLO "https://github.com/yannh/kubeconform/releases/download/${KC_VERSION}/kubeconform-linux-amd64.tar.gz"
 curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KC_VERSION}/CHECKSUMS" | grep 'kubeconform-linux-amd64.tar.gz' | sha256sum -c
 tar xzf kubeconform-linux-amd64.tar.gz kubeconform && install -m 0755 kubeconform ~/.local/bin/
-kubeconform -v
-```
-
-```bash
-# [ansible01 · adminlab]  promtool: viene en el tarball de Prometheus
 PROM_VERSION=3.x.y       # la última 3.x de https://github.com/prometheus/prometheus/releases (sin la "v")
-cd /tmp
 curl -fsSLO "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
 curl -fsSL "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/sha256sums.txt" | grep "prometheus-${PROM_VERSION}.linux-amd64.tar.gz" | sha256sum -c
 tar xzf "prometheus-${PROM_VERSION}.linux-amd64.tar.gz" "prometheus-${PROM_VERSION}.linux-amd64/promtool"
 install -m 0755 "prometheus-${PROM_VERSION}.linux-amd64/promtool" ~/.local/bin/
-promtool --version
-```
-
-| Comprobación | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `sha256sum -c` | `...tar.gz: OK` | `FAILED` → no lo instales. Si el `grep` no devuelve nada, el nombre del fichero de sumas cambió: míralo en la página de la versión |
-| `kubeconform -v` / `promtool --version` | La versión | `command not found` → `~/.local/bin` no está en el `PATH` (abre otra sesión) |
-
-**2. Ejecutar:**
-
-```bash
-# [ansible01 · adminlab]
+kubeconform -v; promtool --version
 git -C ~/enterprise-rhel-lab pull
 ~/enterprise-rhel-lab/scripts/stage8/files/ci/validar.sh
-```
-
-Lo esperado: cuatro bloques (`== 1. yamllint`, `== 2. kubeconform`, `== 3. promtool`, `== 4. terraform`) con `OK` y
-`RESULTADO: OK` al final. Lo `OMITIDO` (por ejemplo, `terraform validate` sin red) no cuenta como fallo.
-
-**3. Romper a propósito** (en una copia, no en el repo):
-
-```bash
-# [ansible01 · adminlab]
 rm -rf /tmp/ci-prueba && cp -r ~/enterprise-rhel-lab/scripts/stage8/files /tmp/ci-prueba
 sed -i 's/> 0.05/> 0.10/' /tmp/ci-prueba/monitoring/rules/podinfo-slo.yaml
 /tmp/ci-prueba/ci/validar.sh | grep -E 'FALLO|RESULTADO'
 ```
 
-Lo esperado: `FALLO tests/podinfo-slo.rules.yaml desfasado` (la copia que usan las pruebas ya no coincide con la regla)
-y `RESULTADO: 1 FALLO(S)`. Prueba también una sangría rota en un YAML (lo caza `yamllint`) y un `replicas: "dos"` en
-`apps/podinfo.yaml` (lo caza `kubeconform`). Así funciona un pipeline: el cambio no entra si no pasa.
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `sha256sum -c` | `...tar.gz: OK` | `FAILED` → no lo instales; si el `grep` no devuelve nada, el fichero de sumas cambió de nombre: míralo en la página de la versión |
+| `validar.sh` | Los bloques 1-4 con `OK` y `RESULTADO: OK` (lo `OMITIDO` no cuenta como fallo) | — |
+| En la copia rota | `FALLO tests/podinfo-slo.rules.yaml desfasado` y `RESULTADO: 1 FALLO(S)` | — |
 
-**Ampliación:** un *runner* de Gitea Actions que ejecute `validar.sh` en cada `push` al repositorio `lab/k8s-apps`.
+Prueba también una sangría rota (la caza `yamllint`) y `replicas: "dos"` en `apps/podinfo.yaml` (la caza
+`kubeconform`).
 
-#### 8.11.2 Instalar Argo CD
+⚠️ **Error común en el mercado: un CI que solo comprueba la sintaxis.** El pipeline pasa `yamllint` y da por bueno un
+manifiesto con un campo inexistente (que la API ignora o rechaza al aplicar) o una alerta que nunca dispara. **Cómo
+evitarlo:** validar contra el esquema de la versión de la API y **probar** las alertas con datos (`promtool test
+rules`).
+
+### 8.11.2 GitOps con Argo CD
+
+📘 **Concepto.** **GitOps:** el estado deseado vive en Git y un agente **dentro** del clúster lo aplica y lo vigila
+(*pull*), en lugar de que un pipeline empuje los cambios con credenciales del clúster (*push*). **Argo CD** compara una
+`Application` (repositorio, ruta, revisión y destino) con lo que hay en el clúster: `Synced`/`OutOfSync` y
+`Healthy`. Con sincronización automática, `prune` borra lo que se quita de Git y `selfHeal` deshace los cambios hechos
+a mano. Por defecto consulta el repositorio cada 3 minutos. Volver atrás es un `git revert`.
+
+*Fuente:* [Argo CD — Overview](https://argo-cd.readthedocs.io/en/stable/) ·
+[Getting Started](https://argo-cd.readthedocs.io/en/stable/getting_started/) ·
+[Automated Sync Policy](https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
@@ -3123,16 +3133,9 @@ kubectl -n argocd get svc argocd-server
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
 ```
 
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `apply --server-side` | Muchos `serverside-applied` | Sin `--server-side`, los CRDs grandes fallan con `metadata.annotations: Too long` |
-| `rollout status` | `successfully rolled out` | — |
-| `patch svc` | `EXTERNAL-IP 10.10.10.116` | `<pending>` → la IP está ocupada o fuera del pool |
-| `initial-admin-secret` | La contraseña inicial de `admin` | Apúntala; después de cambiarla, borra ese Secret |
-
-Entra en https://argocd.lab.local (certificado autofirmado: acéptalo) con `admin` y esa contraseña.
-
-#### 8.11.3 Un repositorio GitOps en Gitea
+Lo esperado: muchos `serverside-applied` (sin `--server-side`, los CRDs grandes fallan con `metadata.annotations: Too
+long`), `EXTERNAL-IP 10.10.10.116` y la contraseña inicial de `admin`. Entra en https://argocd.lab.local (certificado
+autofirmado), cámbiala y borra después ese Secret.
 
 ```bash
 # [ansible01 · adminlab]
@@ -3179,15 +3182,6 @@ spec:
 EOF
 git add podinfo-gitops && git -c user.name=adminlab -c user.email=adminlab@lab.local commit -m "podinfo gestionado por GitOps"
 git push origin main
-```
-
-`git push` pide usuario y contraseña: `gitea-admin` y la de la 8.7.2. Los manifiestos **no** llevan `namespace`: lo
-pone la `Application`.
-
-#### 8.11.4 La `Application` de Argo CD
-
-```bash
-# [ansible01 · adminlab]
 cat > ~/app-podinfo-gitops.yaml <<'EOF'
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -3205,98 +3199,70 @@ spec:
     namespace: gitops
   syncPolicy:
     automated:
-      prune: true          # borra del clúster lo que se borre de Git
-      selfHeal: true       # deshace los cambios hechos a mano
+      prune: true
+      selfHeal: true
     syncOptions: [CreateNamespace=true]
 EOF
 kubectl apply -f ~/app-podinfo-gitops.yaml
-kubectl -n argocd get application podinfo-gitops -w     # SYNC STATUS Synced, HEALTH Healthy; Ctrl+C
+kubectl -n argocd get application podinfo-gitops -w          # Synced / Healthy; Ctrl+C
 kubectl -n gitops get deploy,pods
 ```
 
-| Clave | Qué hace |
-|---|---|
-| `repoURL` | El repo por el nombre **interno** del Service de Gitea (Argo CD está dentro del clúster) |
-| `path` | La carpeta del repo con los manifiestos |
-| `destination.namespace` | Dónde se crean |
-| `automated` + `prune` + `selfHeal` | Sincroniza sola, borra lo que sobra y deshace la deriva |
-
-Lo esperado: `Synced` y `Healthy` en menos de un minuto, y 2 pods en `gitops`. Si se queda en `Unknown` con
-`repository not found`, revisa la URL (`kubectl -n gitea get svc`) y que el repo sea **público**.
-
-#### 8.11.5 Drift, despliegue y vuelta atrás
-
-**1. Drift con autocorrección:**
-
-```bash
-# [ansible01 · adminlab]
-kubectl -n gitops scale deploy/podinfo --replicas=5
-kubectl -n gitops get deploy podinfo -w          # 5 -> 2 en segundos; Ctrl+C
-```
-
-Compáralo con el T4 de Terraform (8.9): allí el drift solo se ve al hacer `plan`; aquí se corrige solo.
-
-**2. Despliegue = commit:**
+`git push` pide usuario y contraseña: `gitea-admin` y la de la 8.7.2. Los manifiestos no llevan `namespace`: lo pone
+la `Application`. El `repoURL` es el nombre **interno** del Service de Gitea. Si la `Application` se queda en
+`Unknown` con `repository not found`, revisa la URL (`kubectl -n gitea get svc`) y que el repositorio sea público.
 
 ```bash
 # [ansible01 · adminlab]  (en ~/k8s-apps)
+kubectl -n gitops scale deploy/podinfo --replicas=5
+kubectl -n gitops get deploy podinfo -w                      # 5 -> 2 en segundos (selfHeal); Ctrl+C
 sed -i 's/replicas: 2/replicas: 3/' podinfo-gitops/podinfo.yaml
 git -c user.name=adminlab -c user.email=adminlab@lab.local commit -am "podinfo a 3 réplicas" && git push origin main
-kubectl -n gitops get deploy podinfo -w          # a los ~3 min (o al pulsar Refresh en la web): 3; Ctrl+C
-```
-
-Argo CD consulta el repo cada 3 minutos por defecto. En la web, *Refresh* lo fuerza.
-
-**3. Vuelta atrás = `git revert`:**
-
-```bash
-# [ansible01 · adminlab]  (en ~/k8s-apps)
+kubectl -n gitops get deploy podinfo -w                      # 3 en ~3 min, o Refresh en la web; Ctrl+C
 git revert --no-edit HEAD && git push origin main
 git log --oneline | head -3
 ```
 
-Lo esperado: vuelve a 2 réplicas, y el historial de Git dice **quién**, **qué** y **cuándo**: la auditoría sale gratis.
+Lo esperado: el escalado manual se deshace solo; el commit se despliega solo; el `revert` vuelve a 2 réplicas, y el
+historial de Git dice quién, qué y cuándo. Compáralo con el T4 de Terraform: allí el *drift* solo se ve al hacer
+`plan`.
 
-**Anota en el checklist (filas 51-52).**
+⚠️ **Error común en el mercado: el *hotfix* manual que Argo CD deshace.** En plena incidencia, alguien cambia algo con
+`kubectl` en un namespace con `selfHeal`; Argo CD lo revierte en segundos y la incidencia "vuelve sola". Lo contrario
+también pasa: se desactiva `selfHeal` "un momento" y se queda así. **Cómo evitarlo:** en GitOps, el arreglo de
+emergencia es un commit (o se pausa la sincronización de esa `Application`, documentándolo, y se vuelve a activar).
 
-**Qué documentar:** CI frente a CD; *push* (Terraform, Ansible, `kubectl apply`) frente a *pull* (GitOps); y quién
-gestiona qué en el lab (plataforma con Terraform, aplicaciones con Argo CD).
-
-**Respuestas a las preguntas de K11:**
-
-1. **¿Qué diferencia hay entre `kubectl apply` desde un pipeline y GitOps?** En el primero, el pipeline **empuja** con
-   credenciales del clúster; en GitOps, un agente dentro del clúster **tira** de Git y corrige la deriva.
-2. **¿Cómo se vuelve atrás en GitOps?** Con `git revert`: el estado anterior vuelve a ser el de Git.
-3. **¿Qué hace `selfHeal`?** Deshace los cambios manuales que diferencian el clúster de Git.
-
+**Checklist:** filas 51-52.
 
 ---
 
-### 6.12 Solución K12 — Operación del clúster: mantenimiento, copias de etcd y actualización
+## 8.12 Operación del clúster: mantenimiento, etcd y actualización
 
-**Antes de empezar:** snapshot `*-antes-8.12` de los tres nodos (apagados) y, además, una copia de etcd (8.12.2).
+> 🎫 **Ticket OPS-812.** "Ventana de mantenimiento del sábado: parches del sistema en los workers sin corte, copia de
+> etcd verificada y fuera del nodo, y actualización del clúster a la 1.37."
 
-#### 8.12.1 Mantenimiento de un nodo: `drain`, PodDisruptionBudget y `uncordon`
+**Antes de empezar:** snapshot `*-antes-8.12` de los tres nodos (apagados).
 
-**1. Sin protección:**
+### 8.12.1 Mantenimiento de un nodo: `drain`, PodDisruptionBudget y `uncordon`
+
+📘 **Concepto.** `kubectl cordon` marca un nodo como no programable; `kubectl drain` lo marca y **desaloja** sus pods
+usando la API de *eviction*, que respeta los **PodDisruptionBudgets**. Un PDB (`minAvailable` o `maxUnavailable`)
+limita cuántos pods de una aplicación pueden estar caídos a la vez por interrupciones **voluntarias** (mantenimiento),
+no por fallos. Los DaemonSets se ignoran con `--ignore-daemonsets`. `uncordon` vuelve a permitir pods, pero no mueve
+los que ya están en otros nodos.
+
+*Fuente:* [Safely Drain a Node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/) ·
+[Disruptions](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) ·
+[Specifying a Disruption Budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/)
+
+🛠️ **Práctica.**
 
 ```bash
 # [ansible01 · adminlab]
-kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o wide
 kubectl drain k8s-w02 --ignore-daemonsets --delete-emptydir-data
 kubectl get nodes
 kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o wide
 ```
-
-| Comando | Qué hace | Qué esperas |
-|---|---|---|
-| `drain` | Marca el nodo como no programable (*cordon*) y **desaloja** sus pods, respetando los PodDisruptionBudgets | `node/k8s-w02 drained` |
-| `--ignore-daemonsets` | Los DaemonSets (calico-node, kube-proxy, node-exporter) se quedan: volverían a crearse en el mismo nodo | Sin la opción, el `drain` se niega |
-| `--delete-emptydir-data` | Acepta perder los volúmenes `emptyDir` (temporales) | — |
-| `get nodes` | `k8s-w02 Ready,SchedulingDisabled` | — |
-| `get pods` | Los dos podinfo en `k8s-w01` | — |
-
-**2. Parchear el SO del nodo** (lo que se haría en una ventana de mantenimiento):
 
 ```bash
 # [k8s-w02 · root]
@@ -3306,17 +3272,8 @@ needs-restarting -r; reboot
 
 ```bash
 # [ansible01 · adminlab]
-kubectl get nodes -w     # k8s-w02 NotReady -> Ready,SchedulingDisabled; Ctrl+C
+kubectl get nodes -w     # k8s-w02 vuelve Ready,SchedulingDisabled; Ctrl+C
 kubectl uncordon k8s-w02
-```
-
-`uncordon` vuelve a permitir pods en el nodo, pero **no** mueve los que ya están en `k8s-w01`: se reparten en el próximo
-*rollout* o escalado.
-
-**3. Con un PodDisruptionBudget:**
-
-```bash
-# [ansible01 · adminlab]
 cat > ~/pdb-podinfo.yaml <<'EOF'
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -3330,33 +3287,36 @@ spec:
       app.kubernetes.io/name: podinfo
 EOF
 kubectl apply -f ~/pdb-podinfo.yaml
-kubectl -n demo get pdb podinfo
 kubectl -n demo scale deploy/podinfo --replicas=1
 kubectl -n demo get pdb podinfo
 NODO=$(kubectl -n demo get pods -l app.kubernetes.io/name=podinfo -o jsonpath='{.items[0].spec.nodeName}'); echo "$NODO"
 kubectl drain "$NODO" --ignore-daemonsets --delete-emptydir-data --timeout=60s
+kubectl uncordon "$NODO"
+kubectl -n demo scale deploy/podinfo --replicas=2 && kubectl -n demo rollout status deploy/podinfo
 ```
 
 | Paso | Qué esperas | Qué demuestra |
 |---|---|---|
-| `get pdb` con 2 réplicas | `MIN AVAILABLE 1`, `ALLOWED DISRUPTIONS 1` | Se puede desalojar uno |
-| Con 1 réplica | `ALLOWED DISRUPTIONS 0` | — |
-| `drain` del nodo de esa réplica | Repite `Cannot evict pod as it would violate the pod's disruption budget` y acaba con `timed out` | El PDB **protege el servicio**: el administrador del nodo no puede dejarlo sin réplicas |
+| Primer `drain` | `node/k8s-w02 drained`; `Ready,SchedulingDisabled`; podinfo en `k8s-w01` | — |
+| `get pdb` con 1 réplica | `ALLOWED DISRUPTIONS 0` | — |
+| `drain` del nodo de esa réplica | `Cannot evict pod as it would violate the pod's disruption budget` hasta el `timed out` | El PDB protege el servicio: hay que escalar antes del mantenimiento |
 
-Arreglo: escalar antes del mantenimiento.
+⚠️ **Error común en el mercado: `drain --disable-eviction` o borrar pods a mano para "acabar antes".** Se salta el PDB
+y se deja la aplicación sin réplicas en mitad de la ventana. El error simétrico: un PDB con `minAvailable` igual al
+número de réplicas (`ALLOWED DISRUPTIONS 0` para siempre), que bloquea **todos** los mantenimientos. **Cómo
+evitarlo:** al menos 2 réplicas, PDB con margen y `drain` normal.
 
-```bash
-# [ansible01 · adminlab]
-kubectl uncordon "$NODO"
-kubectl -n demo scale deploy/podinfo --replicas=2
-kubectl -n demo rollout status deploy/podinfo
-kubectl drain "$NODO" --ignore-daemonsets --delete-emptydir-data && kubectl uncordon "$NODO"
-```
+### 8.12.2 Copia y restauración de etcd
 
-#### 8.12.2 Copia de etcd
+📘 **Concepto.** etcd guarda todo el estado del clúster: sin copia de etcd, perder el plano de control es perder el
+clúster. `etcdctl snapshot save` hace una copia **consistente** de un miembro en marcha (con TLS mutuo: CA, certificado
+y clave); `etcdutl snapshot status` la comprueba y `etcdutl snapshot restore` crea, a partir de ella, un **directorio
+de datos nuevo**. Para restaurar en un clúster kubeadm se apunta el pod estático de etcd a ese directorio.
 
-Todo el estado del clúster (objetos, Secrets, configuración) está en etcd. Sin copia de etcd, perder `k8s-cp01` es
-perder el clúster.
+*Fuente:* [Operating etcd clusters for Kubernetes — Backing up / Restoring](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/) ·
+[etcd — Disaster recovery](https://etcd.io/docs/v3.6/op-guide/recovery/)
+
+🛠️ **Práctica: copia.**
 
 ```bash
 # [k8s-cp01 · root]
@@ -3365,25 +3325,8 @@ ETCD="kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-system exec etcd-k
   --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key"
 $ETCD endpoint status -w table
 $ETCD snapshot save /var/lib/etcd/snapshot-$(date +%F).db
-ls -lh /var/lib/etcd/snapshot-*.db
-kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-system exec etcd-k8s-cp01 -- etcdutl snapshot status /var/lib/etcd/snapshot-$(date +%F).db -w table
-```
-
-| Comando | Qué hace | Qué esperas |
-|---|---|---|
-| `ETCD=...` | Guarda en una variable el `etcdctl` del propio pod de etcd con sus certificados (etcd exige TLS mutuo) | — |
-| `endpoint status` | Estado del miembro | Una fila con versión, tamaño de la base de datos y `IS LEADER true` |
-| `snapshot save` | Copia consistente de la base de datos. `/var/lib/etcd` del pod es un `hostPath`: el fichero aparece en el nodo | `Snapshot saved at /var/lib/etcd/snapshot-2026-...db` |
-| `etcdutl snapshot status` | Comprueba la copia | Hash, revisión, número de claves y tamaño |
-
-Si `etcdctl` o `etcdutl` no existen en la imagen de tu versión, el error es `executable file not found`: descarga el
-tarball de etcd de la misma versión (la de `endpoint status`) desde las *releases* de etcd en GitHub y usa los
-binarios en `k8s-cp01`.
-
-**Una copia en el mismo disco no es una copia.** Llévala a `ansible01`:
-
-```bash
-# [k8s-cp01 · root]
+kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-system exec etcd-k8s-cp01 -- \
+  etcdutl snapshot status /var/lib/etcd/snapshot-$(date +%F).db -w table
 install -o adminlab -m 0600 /var/lib/etcd/snapshot-$(date +%F).db ~adminlab/
 ```
 
@@ -3393,113 +3336,93 @@ mkdir -p ~/copias-etcd && scp adminlab@k8s-cp01.lab.local:'snapshot-*.db' ~/copi
 ssh adminlab@k8s-cp01.lab.local 'rm -f snapshot-*.db'
 ```
 
-#### 8.12.3 Restaurar etcd (con el snapshot `antes-8.12` hecho)
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `endpoint status` | Una fila con versión, tamaño e `IS LEADER true` | — |
+| `snapshot save` | `Snapshot saved at /var/lib/etcd/snapshot-...db` (`/var/lib/etcd` es un `hostPath`: el fichero queda en el nodo) | `executable file not found` → la imagen de tu versión no trae los binarios: descarga el tarball de etcd de la misma versión |
+| `snapshot status` | Hash, revisión, claves y tamaño | — |
+| `scp` | La copia en `ansible01` | — |
 
-**1. Un cambio que perder:**
+🛠️ **Práctica: restauración.**
 
 ```bash
 # [ansible01 · adminlab]
 kubectl create namespace borrame
-kubectl get ns borrame
 ```
 
 ```bash
-# [k8s-cp01 · root]
-$ETCD snapshot save /var/lib/etcd/con-borrame.db       # si cerraste la sesión, vuelve a definir ETCD
+# [k8s-cp01 · root]  (si cerraste la sesión, vuelve a definir ETCD)
+$ETCD snapshot save /var/lib/etcd/con-borrame.db
 ```
 
 ```bash
 # [ansible01 · adminlab]
 kubectl delete namespace borrame
-kubectl get ns borrame          # NotFound
 ```
-
-**2. Restaurar en un directorio nuevo** (dentro de `/var/lib/etcd`, que el pod ve):
 
 ```bash
 # [k8s-cp01 · root]
 kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-system exec etcd-k8s-cp01 -- \
   etcdutl snapshot restore /var/lib/etcd/con-borrame.db --data-dir /var/lib/etcd/restaurado
 ls /var/lib/etcd/restaurado
-```
-
-Lo esperado: un directorio `member/`. Es una base de datos nueva con el estado de la copia.
-
-**3. Apuntar el pod de etcd al directorio restaurado.** El manifiesto es un pod estático: el kubelet lo recrea en
-cuanto cambia el fichero.
-
-```bash
-# [k8s-cp01 · root]
-cp -a /etc/kubernetes/manifests/etcd.yaml /root/etcd.yaml.antes-restauracion     # FUERA de manifests/
-grep -n -A2 'name: etcd-data' /etc/kubernetes/manifests/etcd.yaml
-```
-
-Lo esperado: dos apariciones de `etcd-data`, una en `volumeMounts` (`mountPath: /var/lib/etcd`) y otra en `volumes`
-(`hostPath: path: /var/lib/etcd`). Se cambia **solo** la del `hostPath`:
-
-```bash
-# [k8s-cp01 · root]
+cp -a /etc/kubernetes/manifests/etcd.yaml /root/etcd.yaml.antes-restauracion      # FUERA de manifests/
 sed -i '/hostPath:/{n;s|path: /var/lib/etcd$|path: /var/lib/etcd/restaurado|}' /etc/kubernetes/manifests/etcd.yaml
 diff /root/etcd.yaml.antes-restauracion /etc/kubernetes/manifests/etcd.yaml
-```
-
-El `diff` debe mostrar **una** línea: `path: /var/lib/etcd` → `path: /var/lib/etcd/restaurado` en el volumen
-`etcd-data`. Si cambia otra cosa, restaura la copia y hazlo con `vim`.
-
-```bash
-# [k8s-cp01 · root]
-watch crictl ps --name 'etcd|kube-apiserver'          # se reinician los dos; Ctrl+C cuando estén Running
+watch crictl ps --name 'etcd|kube-apiserver'          # se reinician; Ctrl+C cuando estén Running
 ```
 
 ```bash
 # [ansible01 · adminlab]
 kubectl get ns borrame
 kubectl get nodes; kubectl get pods -A | grep -v -E 'Running|Completed'
+kubectl delete namespace borrame
 ```
 
-Lo esperado: `borrame` **vuelve** (`Active`) y el clúster sigue sano. Si la API no vuelve en 2-3 minutos:
-`crictl logs $(crictl ps -a --name etcd -q | head -1)` en `k8s-cp01`; y la vuelta atrás es copiar
-`/root/etcd.yaml.antes-restauracion` a `manifests/` (o el snapshot de la VM).
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `snapshot restore` + `ls` | Un directorio `member/` | — |
+| `diff` | **Una** línea: el `hostPath` del volumen `etcd-data` pasa a `/var/lib/etcd/restaurado` | Cambia algo más → restaura la copia y edítalo con `vim` |
+| `get ns borrame` | `Active`: ha vuelto | La API no vuelve en 2-3 min → `crictl logs $(crictl ps -a --name etcd -q \| head -1)`; vuelta atrás: copia `/root/etcd.yaml.antes-restauracion` a `manifests/` |
 
-**Para dejarlo limpio:** `kubectl delete namespace borrame`. El etcd sigue usando `/var/lib/etcd/restaurado`: es
-válido, pero anótalo (en la 8.12.4, `kubeadm upgrade` lee el manifiesto actual).
+Desde ahora etcd usa `/var/lib/etcd/restaurado`: es válido; anótalo.
 
-#### 8.12.4 Actualización 1.36 → 1.37
+⚠️ **Error común en el mercado: copias que nunca se han restaurado.** Hay un cron de `snapshot save` desde hace años,
+en el mismo disco del nodo, y el día que hace falta se descubre que la copia está vacía, corrupta o se perdió con el
+disco. **Cómo evitarlo:** copia fuera del nodo, `snapshot status` en cada copia y un ensayo de restauración periódico
+como este. Y nunca dejar la copia de un manifiesto **dentro** de `/etc/kubernetes/manifests/`: el kubelet la arrancaría
+como un segundo etcd.
 
-Reglas: **una versión menor cada vez**; primero el plano de control, después los workers, de uno en uno; `kubectl`
-admite una versión menor de diferencia con la API.
+### 8.12.3 Actualizar de 1.36 a 1.37
 
-**0. Compatibilidad**, antes de tocar nada: comprueba en la documentación de Calico (requisitos del sistema), MetalLB,
-Traefik y kube-prometheus-stack que tus versiones admiten Kubernetes 1.37, y anótalo. Abre Grafana
-("Kubernetes / Compute Resources / Cluster") para ver el *upgrade* en directo.
+📘 **Concepto.** La **política de versiones** obliga a actualizar **una versión menor cada vez** y en orden: primero el
+plano de control (`kubeadm upgrade plan` → `kubeadm upgrade apply`), después kubelet y kubectl de ese nodo, y luego los
+workers de uno en uno (`kubeadm upgrade node`, kubelet, `uncordon`). El kubelet puede ir hasta tres versiones menores
+**por detrás** de la API, nunca por delante. `kubeadm upgrade apply` **renueva** los certificados del plano de control
+(caducan al año). Antes: comprobar la compatibilidad de los complementos (Calico, MetalLB, Traefik,
+kube-prometheus-stack).
 
-**1. Plano de control (`k8s-cp01`):**
+*Fuente:* [Upgrading kubeadm clusters](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/) ·
+[Version Skew Policy](https://kubernetes.io/releases/version-skew-policy/) ·
+[Certificate Management with kubeadm](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-certs/)
+
+🛠️ **Práctica.** En otra terminal, un bucle que demuestre que no hay corte:
+
+```bash
+# [ansible01 · adminlab]
+while true; do printf '%s %s\n' "$(date +%T)" "$(curl -s -m2 -o /dev/null -w '%{http_code}' http://podinfo.lab.local)"; sleep 1; done
+```
+
+**Plano de control:**
 
 ```bash
 # [k8s-cp01 · root]
 cp -a /etc/yum.repos.d/kubernetes.repo /root/kubernetes.repo.v1.36
 sed -i 's/v1\.36/v1.37/g' /etc/yum.repos.d/kubernetes.repo
-grep -E 'name|baseurl|gpgkey' /etc/yum.repos.d/kubernetes.repo
 dnf list --showduplicates kubeadm --disableexcludes=kubernetes | tail -3
 dnf install -y 'kubeadm-1.37.*' --disableexcludes=kubernetes
-kubeadm version -o short
 kubeadm upgrade plan
+kubeadm upgrade apply v1.37.Z          # la versión exacta que dice el plan
 ```
-
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `sed` + `grep` | Las tres líneas con `v1.37` | — |
-| `dnf list --showduplicates` | Versiones `1.37.z` | Vacío → el repositorio 1.37 no existe o la URL está mal |
-| `kubeadm version` | `v1.37.z` | — |
-| `upgrade plan` | Tabla con la versión actual y la objetivo de cada componente, y el comando exacto: `kubeadm upgrade apply v1.37.z` | Errores de *preflight* → léelos antes de seguir |
-
-```bash
-# [k8s-cp01 · root]
-kubeadm upgrade apply v1.37.Z          # la versión exacta que dijo el plan
-```
-
-Tarda unos minutos y acaba con `SUCCESS! Your cluster was upgraded to "v1.37.z"`. Actualiza los manifiestos estáticos
-(apiserver, controller-manager, scheduler, etcd si toca), CoreDNS y kube-proxy, y **renueva los certificados**.
 
 ```bash
 # [ansible01 · adminlab]
@@ -3515,10 +3438,10 @@ systemctl daemon-reload && systemctl restart kubelet
 ```bash
 # [ansible01 · adminlab]
 kubectl uncordon k8s-cp01
-kubectl get nodes          # k8s-cp01 v1.37.z, workers v1.36.5
+kubectl get nodes
 ```
 
-**2. Cada worker, de uno en uno** (primero `k8s-w01`, comprobar, y después `k8s-w02`):
+**Cada worker, de uno en uno** (`k8s-w01`, comprobar, y después `k8s-w02`):
 
 ```bash
 # [k8s-w0X · root]
@@ -3545,42 +3468,47 @@ kubectl uncordon k8s-w0X
 kubectl get nodes
 ```
 
-Mientras, en otra terminal, comprueba que podinfo no se corta:
+| Paso | Qué esperas | Si sale otra cosa |
+|---|---|---|
+| `dnf list --showduplicates` | Versiones `1.37.z` | Vacío → el repositorio 1.37 no está |
+| `upgrade plan` | Tabla de versiones y el comando exacto | Errores de *preflight* → léelos antes de seguir |
+| `upgrade apply` | `SUCCESS! Your cluster was upgraded to "v1.37.z"` | — |
+| `get nodes` tras el plano de control | `k8s-cp01` en 1.37, workers en 1.36.5 | — |
+| Bucle de `curl` | Todo `200` | Un `000` durante un `drain` → las dos réplicas estaban en el mismo nodo |
+| Final | 3 nodos en `v1.37.z`; `kubeadm certs check-expiration` con ~365 días otra vez | — |
 
-```bash
-# [ansible01 · adminlab]
-while true; do printf '%s %s\n' "$(date +%T)" "$(curl -s -m2 -o /dev/null -w '%{http_code}' http://podinfo.lab.local)"; sleep 1; done
-```
+Actualiza también `kubectl` en `ansible01` (`sed` en su `.repo` y `dnf install 'kubectl-1.37.*'`).
 
-Lo esperado: todo `200` (con 2 réplicas y el PDB). Un `000` durante el `drain` de un worker significa que las dos
-réplicas estaban en el mismo nodo.
+⚠️ **Error común en el mercado: clústeres que nadie actualiza... hasta que caducan los certificados.** Un clúster
+kubeadm sin actualizar en un año: un lunes, la API rechaza a todos (`x509: certificate has expired`) y el kubelet de
+los nodos deja de hablar con ella. Y, cuando por fin se actualiza, se intenta saltar varias versiones de golpe.
+**Cómo evitarlo:** actualizar al menos una vez al año (renueva los certificados), una versión menor cada vez, y una
+alerta sobre la caducidad de los certificados.
 
-**3. `ansible01`:** actualiza también `kubectl` (`sed` en su `.repo` y `dnf install 'kubectl-1.37.*'`).
-
-**4. Comprobación final:**
-
-```bash
-# [ansible01 · adminlab]
-kubectl get nodes -o wide                         # 3 x v1.37.z
-kubectl get pods -A | grep -v -E 'Running|Completed'
-kubectl version
-```
-
-```bash
-# [k8s-cp01 · root]
-kubeadm certs check-expiration                    # ~365 días otra vez: el upgrade los renovó
-```
-
-**Ampliación (opcional): Velero** para copias de objetos y volúmenes con destino S3 (MinIO en `dns01` o en el host).
+**Checklist:** filas 53-55.
 
 ---
 
-### 6.13 Solución K13 — Automatizar lo aprendido con Ansible
+## 8.13 Automatizar lo aprendido con Ansible
 
-Proyecto **separado** en `ansible01:~/k8s-ansible` (no en `~/ansible-lab`: `stage7-setup` lo sincroniza con
-`rsync --delete` y borraría lo tuyo; caso etapa7/04). Lo mismo que en la práctica de la Etapa 7: escribirlo a mano.
+> 🎫 **Ticket PLAT-813.** "Mañana hay que añadir un worker más y dentro de un mes habrá que reconstruir uno. Que la
+> preparación de un nodo y su incorporación al clúster sean un playbook, no una página de wiki."
 
-**Preparación:**
+### 8.13.1 Del procedimiento manual al rol
+
+📘 **Concepto.** Solo se automatiza lo que ya se ha hecho y entendido a mano. Un **rol** idempotente debe dejar el nodo
+igual que la 8.2.2 y, en una segunda ejecución, dar `changed=0`. Los pasos imperativos (`kubeadm init`, `join`) se
+hacen idempotentes con `creates:` (no ejecutar si existe un fichero que el paso crea). Para esta etapa hacen falta las
+colecciones `ansible.posix` (mount, sysctl, firewalld) y `community.general` (lvol, filesystem, modprobe), con versiones
+compatibles con `ansible-core` 2.14 de `ansible01`.
+
+*Fuente:* [Ansible — Roles](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html) ·
+[ansible.posix](https://docs.ansible.com/ansible/latest/collections/ansible/posix/index.html) ·
+[community.general](https://docs.ansible.com/ansible/latest/collections/community/general/index.html) ·
+[command — `creates`](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html)
+
+🛠️ **Práctica.** Proyecto **separado** en `ansible01:~/k8s-ansible` (nunca en `~/ansible-lab`, que `stage7-setup`
+sincroniza con `rsync --delete`: caso etapa7/04).
 
 ```bash
 # [host]  la clave de ansible01 en los tres nodos (con el acceso que el host ya tiene)
@@ -3618,34 +3546,33 @@ workers
 EOF
 cat > requirements.yml <<'EOF'
 collections:
-  - name: ansible.posix          # mount, sysctl, firewalld
+  - name: ansible.posix
     version: "1.5.4"
-  - name: community.general      # lvg, lvol, modprobe
-    version: "8.6.0"             # compatible con ansible-core 2.14 (compruébalo con ansible-galaxy)
+  - name: community.general
+    version: "8.6.0"
 EOF
 ansible-galaxy collection install -r requirements.yml -p ./collections
 ansible k8s -m ping -o
+ansible-galaxy role init roles/k8s_node
 ```
 
-Si `ansible-galaxy` avisa de que una versión no es compatible con tu `ansible-core` 2.14, baja la versión de esa
-colección (mira `requires_ansible` en su página de Galaxy).
+Lo esperado: las dos colecciones instaladas (si `ansible-galaxy` avisa de que una versión no es compatible con tu
+`ansible-core`, baja esa versión; mira `requires_ansible` en su página de Galaxy) y 3 `pong`.
 
-**Módulos para cada pieza del rol `k8s_node`** (consulta cada uno con `ansible-doc <módulo>`):
+**El rol `k8s_node`** — cada pieza de la 8.2.2 con su módulo (consulta cada uno con `ansible-doc <módulo>`):
 
 | Pieza (8.2.2) | Módulo |
 |---|---|
-| LVs | `community.general.lvol` (y `community.general.filesystem` para el XFS) |
-| Montajes en `fstab` | `ansible.posix.mount` (`state: mounted`) |
-| Swap | `ansible.builtin.command: swapoff -a` con `when: ansible_swaptotal_mb > 0` + `ansible.builtin.replace` en `fstab` |
-| Módulos del kernel | `community.general.modprobe` + `ansible.builtin.copy` a `/etc/modules-load.d/k8s.conf` |
-| sysctl | `ansible.posix.sysctl` (con `sysctl_file: /etc/sysctl.d/90-k8s.conf`) |
-| NetworkManager | `ansible.builtin.copy` + handler `systemctl reload NetworkManager` |
-| Zona `k8s` | `ansible.posix.firewalld` (`zone`, `source`, `port`, `service`, `permanent`, `immediate`; la zona nueva con `state: present`) |
-| containerd | `ansible.builtin.yum_repository`, `ansible.builtin.dnf`, `ansible.builtin.command: containerd config default` **solo si** el fichero no tiene `SystemdCgroup = true` (`creates` no sirve aquí: piensa por qué), `ansible.builtin.replace` |
-| Paquetes v1.36 | `ansible.builtin.yum_repository` con `exclude`, `ansible.builtin.dnf` con `disable_excludes: kubernetes` |
-| kubelet | `ansible.builtin.systemd` (`enabled: true`) |
+| a. LVs y XFS | `community.general.lvol`, `community.general.filesystem` |
+| a. Montajes | `ansible.posix.mount` (`state: mounted`) |
+| b. Swap | `ansible.builtin.command: swapoff -a` con `when: ansible_swaptotal_mb > 0`, y `ansible.builtin.replace` en `fstab` |
+| c. Módulos y sysctl | `community.general.modprobe`, `ansible.builtin.copy` a `modules-load.d`, `ansible.posix.sysctl` con `sysctl_file` |
+| d. NetworkManager | `ansible.builtin.copy` + handler que recarga NetworkManager |
+| e. Zona `k8s` | `ansible.posix.firewalld` (`zone`, `source`, `port`, `service`, `permanent: true`, `immediate: true`; la zona con `state: present`) |
+| f. containerd | `ansible.builtin.yum_repository`, `ansible.builtin.dnf`, `ansible.builtin.shell: containerd config default > ...` **solo** si el fichero no tiene `SystemdCgroup = true` (regístralo antes con un `ansible.builtin.command: grep` y `changed_when: false`), `ansible.builtin.replace` y handler de reinicio |
+| g. Kubernetes 1.36 | `ansible.builtin.yum_repository` con `exclude`, `ansible.builtin.dnf` con `disable_excludes: kubernetes`, `ansible.builtin.systemd` (`enabled: true`) |
 
-**Esqueleto del playbook `k8s-cluster.yml`:**
+**El playbook `k8s-cluster.yml`:**
 
 ```yaml
 - name: Preparar los nodos
@@ -3655,11 +3582,15 @@ colección (mira `requires_ansible` en su página de Galaxy).
 - name: Plano de control
   hosts: control_plane
   tasks:
+    - name: Fichero de configuración de kubeadm
+      ansible.builtin.copy:
+        src: ~/enterprise-rhel-lab/scripts/stage8/files/cluster/kubeadm-config.yaml
+        dest: /root/kubeadm-config.yaml
+        mode: "0600"
     - name: kubeadm init (solo si no hay clúster)
       ansible.builtin.command: kubeadm init --config /root/kubeadm-config.yaml --upload-certs
       args:
-        creates: /etc/kubernetes/admin.conf       # idempotente: si existe, no se ejecuta
-    # ... Calico (kubectl create solo si no existe el namespace tigera-operator)
+        creates: /etc/kubernetes/admin.conf
 
 - name: Workers
   hosts: workers
@@ -3670,16 +3601,19 @@ colección (mira `requires_ansible` en su página de Galaxy).
       delegate_to: k8s-cp01
       register: join
       changed_when: false
-      when: not (ansible_facts ... )   # piensa: ¿cómo sabes si el nodo ya está unido? (/etc/kubernetes/kubelet.conf)
-    - name: kubeadm join
+    - name: kubeadm join (solo si el nodo no está unido)
       ansible.builtin.command: "{{ join.stdout }}"
       args:
         creates: /etc/kubernetes/kubelet.conf
 ```
 
-**Criterios:** `--syntax-check`, `--check --diff` y, en la ejecución real, la **segunda** da `changed=0`.
+Para Calico, después del `init`, `creates:` no sirve (`kubectl create -f` no deja ningún fichero en el nodo): registra
+una comprobación previa (`kubectl get ns tigera-operator`, con `failed_when: false` y `changed_when: false`) y lanza el
+`kubectl create` solo `when:` esa comprobación falló.
 
-**Prueba de fuego** (con el snapshot `antes-8.12` o uno nuevo):
+**Criterios:** `--syntax-check`, `--check --diff`, y en la ejecución real la **segunda** da `changed=0`.
+
+**Prueba de fuego:** reconstruir un worker solo con Ansible.
 
 ```bash
 # [ansible01 · adminlab]
@@ -3688,16 +3622,55 @@ kubectl drain k8s-w02 --ignore-daemonsets --delete-emptydir-data && kubectl dele
 
 ```bash
 # [host]
-virsh destroy k8s-w02 2>/dev/null; scripts/lab.sh snapshot revert k8s-w02 5     # el nodo vuelve a "antes de Kubernetes"
+scripts/lab.sh snapshot revert k8s-w02 5          # vuelve a "antes de Kubernetes"
 ```
 
 ```bash
 # [ansible01 · adminlab]  (en ~/k8s-ansible)
 ansible-playbook k8s-cluster.yml --limit 'k8s-w02,k8s-cp01'
-kubectl get nodes -w           # k8s-w02 vuelve a Ready solo con Ansible
+kubectl get nodes -w           # k8s-w02 vuelve a Ready; Ctrl+C
 ```
 
-Después: rol `node_exporter` para las VMs del lab (lo que en el E12 de la 8.8 se hizo a mano en `dns01`).
+Después, como ampliación: un rol `node_exporter` para las VMs del lab (lo que el E12 hizo a mano en `dns01`).
 
-**Anota en el checklist (fila 56)** y la tabla de quién hace qué: Ansible (nodos), Terraform (plataforma), Argo CD
-(aplicaciones).
+⚠️ **Error común en el mercado: playbooks que "funcionan una vez".** Tareas `command`/`shell` sin `creates`,
+`changed_when` ni comprobación previa: la segunda ejecución falla (`kubeadm init` sobre un clúster existente) o, peor,
+rehace algo que ya estaba bien, y nadie se atreve a volver a lanzarlo. **Cómo evitarlo:** módulos declarativos siempre
+que existan, `creates`/`when` en los imperativos, y la segunda ejecución con `changed=0` como criterio de aceptación.
+
+**Checklist:** fila 56 y la tabla de quién hace qué: Ansible (nodos), Terraform (plataforma), Argo CD (aplicaciones).
+
+---
+
+## Diferencias RHEL 7/8/9/10
+
+Solo con datos **medidos** en el lab o de documentación oficial (regla del proyecto):
+
+| Aspecto | RHEL 7 | RHEL 8 | RHEL 9 | RHEL 10 | Fuente / estado |
+|---|---|---|---|---|---|
+| Herramientas de contenedores | Repositorio *extras* | Módulo `container-tools:rhel8` | Metapaquete `container-tools` (AppStream) | Por verificar | RHEL 9: **medido** (`container-tools-1-15.el9`, podman 5.8.2); RHEL 7 y 8: documentación de Red Hat |
+| cgroups por defecto | v1 | v1 | v2 | v2 | Documentación de Red Hat; por medir en el lab con `stat -fc %T /sys/fs/cgroup` (8.1.6) |
+| Nodos de Kubernetes del lab | — | — | ✔ | — | Decisión de la etapa: kubelet recientes exigen cgroup v2 |
+
+**Impacto en una migración:** las aplicaciones contenerizadas en RHEL 7/8 con cgroup v1 deben revisarse (límites,
+herramientas de monitorización) al pasar a RHEL 9/10; la instalación de Podman cambia de módulo a paquete.
+
+## Primeros comandos ante cualquier problema del clúster
+
+```bash
+kubectl get nodes -o wide; kubectl get pods -A | grep -v -E 'Running|Completed'   # qué no está bien
+kubectl describe pod <pod> -n <ns>                                     # Events: casi siempre dicen la causa
+kubectl logs <pod> -n <ns> [--previous]                                # --previous: el contenedor que murió
+kubectl get events -A --sort-by=.lastTimestamp | tail -30
+journalctl -u kubelet -u containerd --since -15min                    # en el nodo afectado
+crictl ps -a; crictl logs <id>                                         # en el nodo, sin pasar por la API
+firewall-cmd --get-active-zones; journalctl -k | grep -i -E 'reject|drop'   # red de pods: firewalld primero
+```
+
+## Cierre de la etapa
+
+- [ ] `checklists/etapa8.md` completo, con resultados **obtenidos**.
+- [ ] `scripts/stage8/files/ci/validar.sh` en verde.
+- [ ] `scripts/lab.sh test all <nodo>` con 0 FAIL en los tres nodos.
+- [ ] Casos reales en `troubleshooting/etapa8/` (el primero: etapa8/01, contexto de build y nombre corto) y su índice.
+- [ ] Snapshots `*-stage8-complete` de los tres nodos (apagados).

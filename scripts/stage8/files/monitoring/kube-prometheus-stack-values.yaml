@@ -36,7 +36,7 @@ prometheus:
       metallb.io/loadBalancerIPs: 10.10.10.112   # prometheus.lab.local
   prometheusSpec:
     retention: 7d
-    retentionSize: 8GB                     # lo que se cumpla antes; el PVC es de 10 Gi
+    retentionSize: 3GB                     # lo que se cumpla antes; el PVC es de 5 Gi (host con poco disco)
     scrapeInterval: 30s
     evaluationInterval: 30s
     resources:
@@ -49,7 +49,7 @@ prometheus:
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 10Gi
+              storage: 5Gi
     # Las VMs del lab (fuera del clúster) con node_exporter: escenario E12
     additionalScrapeConfigs:
       - job_name: lab-vms
