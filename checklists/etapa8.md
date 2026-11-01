@@ -28,10 +28,10 @@ comparado con OpenShift; con CI/GitOps y automatización con Ansible de lo que a
 ## 8.1 Podman
 | # | Prueba | Resultado esperado | Resultado obtenido |
 |---|---|---|---|
-| 1 | `podman run` de podinfo rootless en ansible01 | Responde en :8080; el proceso es de `adminlab` en el host | |
-| 2 | Imagen propia desde UBI 9 con `USER 1001` | `podman build` + `podman history` con las capas | |
-| 3 | Volumen con y sin `:Z` | Sin `:Z`, `Permission denied` (AVC); con `:Z`, contexto `container_file_t` | |
-| 4 | `podman kube generate` y Quadlet | YAML de Pod; contenedor arrancado por systemd tras reiniciar | |
+| 1 | `podman run` de podinfo rootless en ansible01 | Responde en :8080; el proceso es de `adminlab` en el host | ✅ 2026-10-29. `container-tools-1-15.el9`, podman **5.8.2-8.el9_8** (AppStream RHEL 9.8); `rootless=true`, `netavark`, imágenes en `~/.local/share/containers/storage`; `adminlab:100000:65536` en subuid/subgid; podinfo 6.15.0 respondiendo en :8080 |
+| 2 | Imagen propia desde UBI 9 con `USER 1001` | `podman build` + `podman history` con las capas | ✅ 2026-10-30. UBI 9 minimal **9.8**; `User=1001 Cmd=[/usr/local/bin/saludo.sh]`; `Capas=3` (`COPY` y `RUN chmod` 3.58 kB cada una; `USER`/`CMD`/`LABEL` 0 B); 109 MB. Primer intento fallido: caso [01](../troubleshooting/etapa8/01-build-contexto-equivocado-y-nombre-corto.md) |
+| 3 | Volumen con y sin `:Z` | Sin `:Z`, `Permission denied` (AVC); con `:Z`, contexto `container_file_t` | ✅ 2026-10-30. Sin `:Z`: `Permission denied` y AVC `container_t` → `user_home_t`. Con `:Z`: `system_u:object_r:container_file_t:s0:c87,c584` en `~/datos` y `hola.txt`; el home sigue en `user_home_dir_t`; permisos Unix sin cambios |
+| 4 | `podman kube generate` y Quadlet | YAML de Pod; contenedor arrancado por systemd tras reiniciar | ✅ 2026-11-01 (confirmado por el usuario). Pod con 3 contenedores (`infra`, `web`, `cliente`); `kube generate` → `kind: Pod`; `kube play`/`kube down` correctos tras el caso [02](../troubleshooting/etapa8/02-barra-invertida-en-mitad-de-linea.md). Quadlet: `saludo` `active (running)` (`saludo.container; generated`), `Linger` de `no` a `yes`, relanzado tras `podman kill` (`Restart=always`) y en marcha tras `reboot` con `Linger=yes`. Logs: caso [03](../troubleshooting/etapa8/03-journalctl-user-sin-diario-persistente.md) |
 
 ## 8.2 Clúster con kubeadm
 | # | Prueba | Resultado esperado | Resultado obtenido |
@@ -122,4 +122,6 @@ comparado con OpenShift; con CI/GitOps y automatización con Ansible de lo que a
 ## Errores encontrados y solución
 | Error | Causa | Solución |
 |---|---|---|
-| | | |
+| `podman run lab/saludo:1.0` intenta descargar de 3 registros; imagen `<none>` | Build lanzado desde `~` (contexto equivocado) y nombre corto | Directorio propio y `localhost/lab/saludo:1.0` (caso 01) |
+| `executable file ' bash' not found`; pod `Degraded` | `\` en mitad de la línea: el espacio pasa a formar parte del comando | Una línea sin `\` (caso 02) |
+| `journalctl --user`: `No journal files were found` | Diario volátil: los logs de usuario van al del sistema | `podman logs saludo` o `sudo journalctl _SYSTEMD_USER_UNIT=saludo.service` (caso 03) |

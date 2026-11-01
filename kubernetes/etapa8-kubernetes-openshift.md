@@ -1,6 +1,6 @@
 # Etapa 8 — Kubernetes y OpenShift, con Prometheus/Grafana y Terraform
 
-> **Estado: 🚧 En curso** (8.1 empezada el 2026-10-29).
+> **Estado: 🚧 En curso.** 8.1 completa (2026-10-29 → 2026-11-01, 3 casos reales); siguiente: 8.2.
 > **Tutorial práctico continuo:** cada tema empieza con el **concepto** (resumen de la documentación oficial, con su
 > enlace) e inmediatamente se **practica** en el lab, a mano y sin scripts, como si fuera un ticket de trabajo real.
 > Cada tema termina con un **error común en el mercado**: lo que se ve de verdad en empresas y cómo evitarlo.
@@ -217,8 +217,8 @@ Un snapshot de un clúster encendido no es consistente (etcd escribiendo a mitad
 | 8.1.2 Contenedor = proceso aislado | ✅ 2026-10-29 |
 | 8.1.3 Imágenes y capas             | ✅ 2026-10-30 |
 | 8.1.4 Volúmenes y SELinux          | ✅ 2026-10-30 |
-| 8.1.5 Pods y YAML de Kubernetes    | ⏳            |
-| 8.1.6 Servicio systemd con Quadlet | ⏳            |
+| 8.1.5 Pods y YAML de Kubernetes    | ✅ 2026-10-31 |
+| 8.1.6 Servicio systemd con Quadlet | ✅ 2026-11-01 |
 
 ### 8.1.1 Instalar Podman en RHEL 9
 
@@ -366,7 +366,7 @@ podman images localhost/lab/saludo
 > ✅ **Resultado real (2026-10-30):** `User=1001  Cmd=[/usr/local/bin/saludo.sh]`, `Capas=3`; en `history`, `COPY` y
 > `RUN chmod` con `3.58kB` cada uno, y `USER`, `CMD` y `LABEL` con `0B`; `localhost/lab/saludo 1.0 38202e4c3e82 109 MB`.
 >
-> **Primer intento fallido** (caso etapa8/01, pendiente de documentar): el `Containerfile` se creó en `~` y el script
+> **Primer intento fallido** (caso [etapa8/01](../troubleshooting/etapa8/01-build-contexto-equivocado-y-nombre-corto.md)): el `Containerfile` se creó en `~` y el script
 > en `~/podman-lab/saludo`. El build desde `~` se paró en el `COPY` y dejó una imagen intermedia `<none>` con
 > `User=` vacío y `Cmd=[/bin/bash]`; después, `podman run lab/saludo:1.0` intentó descargarla de
 > `registry.access.redhat.com`, `registry.redhat.io` y `docker.io`.
@@ -469,7 +469,28 @@ podman kube down ~/podman-lab/saludo-pod.yaml
 | `kube generate` + `grep` | `apiVersion: v1`, `kind: Pod`, `web` y `cliente` con sus imágenes | El mismo objeto que usa Kubernetes |
 | `kube play` / `pod ps` | El pod recreado, `Running` | Del YAML a contenedores |
 
-Si `podman run --name web` dice `name "web" is already in use`, queda el del 8.1.2: `podman rm -f web`. Guarda
+Si `podman run --name web` dice `name "web" is already in use`, queda el del 8.1.2: `podman rm -f web`.
+
+> ✅ **Resultado real (2026-10-31):** pod con 3 contenedores, `curl localhost:8081/version` → `6.15.0`, YAML
+> `kind: Pod`. **Primer intento fallido** (caso [etapa8/02](../troubleshooting/etapa8/02-barra-invertida-en-mitad-de-linea.md)):
+> el comando de `cliente` se escribió en una sola línea **con** la `\` en medio. Fuera del final de la línea, la `\`
+> escapa el espacio siguiente y el comando pasa a ser ` bash`: `executable file ' bash' not found`; el contenedor quedó
+> creado pero parado (`podman ps -a`), y `kube generate` copió el error, que `kube play` reprodujo (pod `Degraded`).
+> Los comandos de varias líneas se pegan tal cual o se escriben en una sola **sin** la `\`.
+
+```text
+┌──────────────── ansible01 ──────────────────────────────────────────────┐
+│  curl localhost:8081 ──► puerto 8081 del POD (-p 8081:9898)             │
+│  ┌────────────────────── POD saludo-pod ─────────────────────────────┐  │
+│  │  red compartida: una IP, un localhost                             │  │
+│  │  ┌───────────┐   ┌──────────────────┐   ┌──────────────────────┐  │  │
+│  │  │ infra     │   │ web              │◄──│ cliente              │  │  │
+│  │  │ (pause)   │   │ podinfo :9898    │   │ curl localhost:9898  │  │  │
+│  │  └───────────┘   └──────────────────┘   └──────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│  kube generate ──► saludo-pod.yaml (kind: Pod) ──► kube play / kubectl  │
+└─────────────────────────────────────────────────────────────────────────┘
+``` Guarda
 `saludo-pod.yaml`: en la 8.3 lo comparas con un Deployment.
 
 ⚠️ **Error común en el mercado: meter varias aplicaciones en un mismo pod.** Se ponen la aplicación y su base de datos
@@ -534,6 +555,12 @@ journalctl --user -u saludo -n 3 --no-pager
 | `journalctl`                | Una línea de saludo cada 30 s                                                                                             | —                                                         |
 | `Linger`                    | Primero el valor previo (anótalo); después `Linger=yes`                                                                   | —                                                         |
 | Tras el reboot, `podman ps` | `saludo` en `Up` sin hacer nada                                                                                           | Sin linger, no arranca hasta que entras                   |
+| `journalctl --user -u saludo` → `No journal files were found` | — | Diario volátil: los logs de los servicios de usuario van al del sistema. `podman logs --tail 5 saludo` o `sudo journalctl _SYSTEMD_USER_UNIT=saludo.service -n 5` (caso [etapa8/03](../troubleshooting/etapa8/03-journalctl-user-sin-diario-persistente.md)) |
+
+> ✅ **Resultado real (2026-11-01, confirmado por el usuario):** `saludo` `active (running)`; tras `podman kill`,
+> relanzado con otro ID (`Restart=always`); tras `reboot` con `Linger=yes` (antes, `Linger=no`), en marcha sin iniciar
+> sesión. Logs: `podman logs` o `journalctl _SYSTEMD_USER_UNIT=saludo.service` (caso 03). El contenedor escribe la hora
+> en UTC (la UBI no tiene zona horaria): `Environment=TZ=Europe/Madrid` en `[Container]` la alinea con el host.
 
 **Vuelta atrás:** `systemctl --user stop saludo`, `rm ~/.config/containers/systemd/saludo.container`,
 `systemctl --user daemon-reload` y, si antes era `no`, `sudo loginctl disable-linger adminlab`.

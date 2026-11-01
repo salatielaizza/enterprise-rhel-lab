@@ -2,14 +2,16 @@
 
 Ver formato y regla general en [`troubleshooting/README.md`](../README.md).
 
-Todavía sin casos: se añaden al ejecutar la etapa. Además de las incidencias que surjan solas (🔎), los escenarios de
+Casos reales (🔎 = encontrado al ejecutar, no provocado). Además de las incidencias que surjan solas, los escenarios de
 la 8.8 ([E00-E12](../../kubernetes/monitorizacion-prometheus-grafana.md)) y de la 8.9
 ([T1-T8](../../kubernetes/terraform-iac.md)) se provocan a propósito: documenta como caso los que no salgan como
 dice la guía o los que enseñen algo que no esté ya escrito.
 
-| Caso | Tema |
-|---|---|
-| — | — |
+| Caso | Subetapa | Tema |
+|---|---|---|
+| [01](01-build-contexto-equivocado-y-nombre-corto.md) 🔎 | 8.1.3 | `podman build` desde el directorio equivocado y nombre corto de imagen |
+| [02](02-barra-invertida-en-mitad-de-linea.md) 🔎 | 8.1.5 | Una `\` en mitad de la línea: `executable file ' bash' not found` y pod `Degraded` |
+| [03](03-journalctl-user-sin-diario-persistente.md) 🔎 | 8.1.6 | `journalctl --user` sin entradas: diario volátil |
 
 ## Primeros comandos ante cualquier problema del clúster
 

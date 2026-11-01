@@ -1,6 +1,6 @@
 # ☸️ Etapa 8 — Kubernetes y OpenShift (`scripts/stage8/`)
 
-> **Estado: 🚧 Pendiente.** Guía paso a paso: [`kubernetes/etapa8-kubernetes-openshift.md`](../../kubernetes/etapa8-kubernetes-openshift.md).
+> **Estado: 🚧 En curso** (8.1 completa, 2026-11-01). Guía paso a paso: [`kubernetes/etapa8-kubernetes-openshift.md`](../../kubernetes/etapa8-kubernetes-openshift.md).
 > Checklist: [`checklists/etapa8.md`](../../checklists/etapa8.md).
 
 ## Qué hay aquí
