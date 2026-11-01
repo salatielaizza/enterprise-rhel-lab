@@ -12,21 +12,21 @@
 Cada subetapa empieza con un **ticket**: la petición tal como llegaría a un equipo de sistemas o plataforma. Después,
 cada tema sigue siempre el mismo orden:
 
-| Bloque | Qué contiene |
-|---|---|
-| 📘 **Concepto** | Lo más importante de la documentación oficial, resumido. Al final, la **Fuente** con el enlace: si algo de aquí contradice a la documentación de tu versión, manda la documentación |
-| 🛠️ **Práctica** | Los comandos completos, listos para pegar, con una tabla **Qué esperas · Si sale otra cosa** |
-| ⚠️ **Error común en el mercado** | El fallo que más se ve en ese tema, cómo se detecta y cómo se evita |
+| Bloque                           | Qué contiene                                                                                                                                                                        |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 📘 **Concepto**                  | Lo más importante de la documentación oficial, resumido. Al final, la **Fuente** con el enlace: si algo de aquí contradice a la documentación de tu versión, manda la documentación |
+| 🛠️ **Práctica**                 | Los comandos completos, listos para pegar, con una tabla **Qué esperas · Si sale otra cosa**                                                                                        |
+| ⚠️ **Error común en el mercado** | El fallo que más se ve en ese tema, cómo se detecta y cómo se evita                                                                                                                 |
 
 **Dónde se ejecuta cada comando:** va siempre en la primera línea del bloque.
 
-| Etiqueta | Significa |
-|---|---|
-| `# [host]` | Linux Mint, en la raíz del repo (`~/Proyectos/PROYECTO_ENTERPRISE_RHEL_INFRASTRUCTURE_LAB/enterprise-rhel-lab`) |
-| `# [ansible01 · adminlab]` | `ssh adminlab@ansible01`; aquí se usan `podman`, `kubectl`, `helm` y `terraform` |
-| `# [k8s-cp01 · root]` | `ssh adminlab@k8s-cp01` y después `sudo -i` |
-| `# [nodos · root]` | Lo mismo en **los tres** nodos (`k8s-cp01`, `k8s-w01`, `k8s-w02`), uno detrás de otro |
-| `# [workers · root]` | Solo en `k8s-w01` y `k8s-w02` |
+| Etiqueta                   | Significa                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `# [host]`                 | Linux Mint, en la raíz del repo (`~/Proyectos/PROYECTO_ENTERPRISE_RHEL_INFRASTRUCTURE_LAB/enterprise-rhel-lab`) |
+| `# [ansible01 · adminlab]` | `ssh adminlab@ansible01`; aquí se usan `podman`, `kubectl`, `helm` y `terraform`                                |
+| `# [k8s-cp01 · root]`      | `ssh adminlab@k8s-cp01` y después `sudo -i`                                                                     |
+| `# [nodos · root]`         | Lo mismo en **los tres** nodos (`k8s-cp01`, `k8s-w01`, `k8s-w02`), uno detrás de otro                           |
+| `# [workers · root]`       | Solo en `k8s-w01` y `k8s-w02`                                                                                   |
 
 Si un comando no da lo que dice la tabla, **para**: no sigas encadenando comandos. Pega la salida y conviértelo en un
 caso de `troubleshooting/etapa8/NN-*.md`. Las salidas marcadas **✅ Resultado real** son de este lab; el resto son las
@@ -44,14 +44,14 @@ provocando averías reales, **gestionarlo como código con Terraform** y con **G
 
 ## Prerrequisitos
 
-| Qué | Cómo comprobarlo | Por qué |
-|---|---|---|
-| Etapas 1-7 completas | `scripts/lab.sh status` y snapshots `*-stage7-complete` | Los nodos se crean con `lab.sh` y pasan por las etapas 2-5 |
-| `dns01` y `ansible01` encendidas | `scripts/lab.sh up dns01; scripts/lab.sh up ansible01` | DNS y hora de todo el lab; `ansible01` es la estación de control |
-| Repos de Red Hat | `sudo subscription-manager repos --list-enabled` en una VM | `dnf` en los nodos y en `ansible01` |
-| ~19 GiB de RAM libres en el host | `free -h` | Clúster (14 GiB) + `dns01` y `ansible01` (5 GiB) |
+| Qué                                                                         | Cómo comprobarlo                                                                           | Por qué                                                                     |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Etapas 1-7 completas                                                        | `scripts/lab.sh status` y snapshots `*-stage7-complete`                                    | Los nodos se crean con `lab.sh` y pasan por las etapas 2-5                  |
+| `dns01` y `ansible01` encendidas                                            | `scripts/lab.sh up dns01; scripts/lab.sh up ansible01`                                     | DNS y hora de todo el lab; `ansible01` es la estación de control            |
+| Repos de Red Hat                                                            | `sudo subscription-manager repos --list-enabled` en una VM                                 | `dnf` en los nodos y en `ansible01`                                         |
+| ~19 GiB de RAM libres en el host                                            | `free -h`                                                                                  | Clúster (14 GiB) + `dns01` y `ansible01` (5 GiB)                            |
 | ≥ 60 GB libres en el host (100 GB cubren toda la etapa, OpenShift incluido) | `df -h` del pool `lab-images` (ver [Presupuesto de disco](#presupuesto-de-disco-del-host)) | Los discos son qcow2 *thin*: ocupan lo que se escribe, no su tamaño virtual |
-| Salida a Internet desde lab-net | `curl -sI https://registry.k8s.io` desde `ansible01` | Imágenes, charts y paquetes |
+| Salida a Internet desde lab-net                                             | `curl -sI https://registry.k8s.io` desde `ansible01`                                       | Imágenes, charts y paquetes                                                 |
 
 ## Arquitectura
 
@@ -128,14 +128,14 @@ bloques que la VM ha escrito alguna vez. Dos matices importantes:
 
 **Estimación para esta etapa** (orientativa: compruébala con tus medidas):
 
-| Qué | Ocupación real aproximada en el host |
-|---|---|
-| 3 discos de sistema (RHEL 9 mínimo + etapas 2-5 + paquetes de Kubernetes) | 9-12 GB |
-| Disco de datos de `k8s-cp01` (imágenes del plano de control, etcd) | 2-4 GB |
-| Discos de datos de los workers (imágenes de todas las subetapas, Prometheus, Gitea) | 8-15 GB entre los dos |
-| Snapshots (`stage5`, `cluster-vacio` y los `antes-*`) | 5-15 GB, según los cambios entre ellos |
-| **Clúster completo** | **≈ 25-45 GB** |
-| OpenShift Local (8.10, en tu home, `~/.crc`) | ≈ 35 GB, que se recuperan con `crc delete` |
+| Qué                                                                                 | Ocupación real aproximada en el host       |
+| ----------------------------------------------------------------------------------- | ------------------------------------------ |
+| 3 discos de sistema (RHEL 9 mínimo + etapas 2-5 + paquetes de Kubernetes)           | 9-12 GB                                    |
+| Disco de datos de `k8s-cp01` (imágenes del plano de control, etcd)                  | 2-4 GB                                     |
+| Discos de datos de los workers (imágenes de todas las subetapas, Prometheus, Gitea) | 8-15 GB entre los dos                      |
+| Snapshots (`stage5`, `cluster-vacio` y los `antes-*`)                               | 5-15 GB, según los cambios entre ellos     |
+| **Clúster completo**                                                                | **≈ 25-45 GB**                             |
+| OpenShift Local (8.10, en tu home, `~/.crc`)                                        | ≈ 35 GB, que se recuperan con `crc delete` |
 
 Con ~100 GB libres caben los dos, aunque con poco margen al final. Para no tener que borrar nada que ya existe:
 
@@ -157,12 +157,12 @@ virsh vol-list lab-images --details | grep -E 'Name|k8s'
 du -ch "$POOL"/k8s-* 2>/dev/null | tail -1
 ```
 
-| Comando | Qué esperas |
-|---|---|
-| `pool-dumpxml` | La ruta del pool (por ejemplo, `/var/lib/libvirt/images/lab`) |
-| `df -h "$POOL" ~` | Espacio libre del sistema de ficheros del pool y del de tu home (CRC usa `~/.crc`). Si son el mismo, salen iguales |
-| `vol-list --details` | `Capacity` = tamaño virtual (20 o 40 GiB); `Allocation` = lo que ocupa de verdad |
-| `du -ch` | El total real de los discos de `k8s-*` (vacío antes de crearlos) |
+| Comando              | Qué esperas                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `pool-dumpxml`       | La ruta del pool (por ejemplo, `/var/lib/libvirt/images/lab`)                                                      |
+| `df -h "$POOL" ~`    | Espacio libre del sistema de ficheros del pool y del de tu home (CRC usa `~/.crc`). Si son el mismo, salen iguales |
+| `vol-list --details` | `Capacity` = tamaño virtual (20 o 40 GiB); `Allocation` = lo que ocupa de verdad                                   |
+| `du -ch`             | El total real de los discos de `k8s-*` (vacío antes de crearlos)                                                   |
 
 Anota en el checklist la ocupación tras la 8.2, la 8.8 y la 8.13: es un buen dato para dimensionar de verdad.
 
@@ -177,17 +177,17 @@ no confiar en el tamaño virtual.
 La numeración va de 8.1 a 8.13, pero **OpenShift Local (8.10) se hace al final**: exige el clúster apagado y
 `crc setup` toca el host.
 
-| # | Subetapa | 📸 Snapshot (con los nodos **apagados**) |
-|---|---|---|
-| 1 | 8.1 Podman | — (vale `ansible01-stage7-complete`) |
-| 2 | 8.2 kubeadm | `*-stage5-complete` antes; `*-cluster-vacio` al terminar |
-| 3-5 | 8.3 Objetos · 8.4 Red · 8.5 Almacenamiento | |
-| 6 | 8.6 Seguridad | `*-antes-8.6` |
-| 7-8 | 8.7 Helm · 8.8 Prometheus/Grafana | `*-antes-8.9` al terminar la 8.8 |
-| 9 | 8.9 Terraform | |
-| 10 | 8.11 CI y GitOps | `*-antes-8.12` + copia de etcd |
-| 11-12 | 8.12 Operación · 8.13 Ansible | |
-| 13 | 8.10 OpenShift Local | |
+| #     | Subetapa                                   | 📸 Snapshot (con los nodos **apagados**)                 |
+| ----- | ------------------------------------------ | -------------------------------------------------------- |
+| 1     | 8.1 Podman                                 | — (vale `ansible01-stage7-complete`)                     |
+| 2     | 8.2 kubeadm                                | `*-stage5-complete` antes; `*-cluster-vacio` al terminar |
+| 3-5   | 8.3 Objetos · 8.4 Red · 8.5 Almacenamiento |                                                          |
+| 6     | 8.6 Seguridad                              | `*-antes-8.6`                                            |
+| 7-8   | 8.7 Helm · 8.8 Prometheus/Grafana          | `*-antes-8.9` al terminar la 8.8                         |
+| 9     | 8.9 Terraform                              |                                                          |
+| 10    | 8.11 CI y GitOps                           | `*-antes-8.12` + copia de etcd                           |
+| 11-12 | 8.12 Operación · 8.13 Ansible              |                                                          |
+| 13    | 8.10 OpenShift Local                       |                                                          |
 
 Un snapshot de un clúster encendido no es consistente (etcd escribiendo a mitad): el procedimiento está en el paso
 8.2.7. Si vas justo de tiempo, prioriza 8.2, 8.3, 8.4, 8.8 y 8.9: es lo que más aparece en las ofertas.
@@ -211,14 +211,14 @@ Un snapshot de un clúster encendido no es consistente (etcd escribiendo a mitad
 **Dónde:** `ansible01`, como `adminlab`. **Vuelta atrás:** cada tema tiene la suya; si todo falla,
 `scripts/lab.sh snapshot revert ansible01 7`.
 
-| Tema | Estado |
-|---|---|
-| 8.1.1 Instalar Podman | ✅ 2026-10-29 |
+| Tema                               | Estado       |
+| ---------------------------------- | ------------ |
+| 8.1.1 Instalar Podman              | ✅ 2026-10-29 |
 | 8.1.2 Contenedor = proceso aislado | ✅ 2026-10-29 |
-| 8.1.3 Imágenes y capas | ✅ 2026-10-30 |
-| 8.1.4 Volúmenes y SELinux | ✅ 2026-10-30 |
-| 8.1.5 Pods y YAML de Kubernetes | ⏳ |
-| 8.1.6 Servicio systemd con Quadlet | ⏳ |
+| 8.1.3 Imágenes y capas             | ✅ 2026-10-30 |
+| 8.1.4 Volúmenes y SELinux          | ✅ 2026-10-30 |
+| 8.1.5 Pods y YAML de Kubernetes    | ⏳            |
+| 8.1.6 Servicio systemd con Quadlet | ⏳            |
 
 ### 8.1.1 Instalar Podman en RHEL 9
 
@@ -245,14 +245,14 @@ grep adminlab /etc/subuid /etc/subgid
 getenforce
 ```
 
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `repos --list-enabled` | `rhel-9-for-x86_64-baseos-rpms` y `...-appstream-rpms` | Vacío → la suscripción no da repos |
-| `dnf info` (descarga metadatos: prueba que el certificado es válido) | `podman` y `container-tools` en `rhel-9-for-x86_64-appstream-rpms` | `Failed to download metadata` / `403` → certificado caducado |
-| `dnf install -y container-tools` | `Complete!` | — |
-| `podman info --format` | `true netavark /home/adminlab/.local/share/containers/storage`: rootless, backend de red actual, imágenes en tu home | `false` → estás como root |
-| `grep /etc/subuid /etc/subgid` | `adminlab:100000:65536` en los dos | Sin línea → rootless falla con `cannot find mappings` |
-| `getenforce` | `Enforcing` | Otra cosa → el tema 8.1.4 no tiene sentido |
+| Comando                                                              | Qué esperas                                                                                                          | Si sale otra cosa                                            |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `repos --list-enabled`                                               | `rhel-9-for-x86_64-baseos-rpms` y `...-appstream-rpms`                                                               | Vacío → la suscripción no da repos                           |
+| `dnf info` (descarga metadatos: prueba que el certificado es válido) | `podman` y `container-tools` en `rhel-9-for-x86_64-appstream-rpms`                                                   | `Failed to download metadata` / `403` → certificado caducado |
+| `dnf install -y container-tools`                                     | `Complete!`                                                                                                          | —                                                            |
+| `podman info --format`                                               | `true netavark /home/adminlab/.local/share/containers/storage`: rootless, backend de red actual, imágenes en tu home | `false` → estás como root                                    |
+| `grep /etc/subuid /etc/subgid`                                       | `adminlab:100000:65536` en los dos                                                                                   | Sin línea → rootless falla con `cannot find mappings`        |
+| `getenforce`                                                         | `Enforcing`                                                                                                          | Otra cosa → el tema 8.1.4 no tiene sentido                   |
 
 > ✅ **Resultado real (2026-10-29):** `container-tools-1-15.el9`, `podman-5.8.2-8.el9_8` (build de RHEL 9.8, la misma
 > versión menor que `ansible01`); `true netavark /home/adminlab/.local/share/containers/storage`;
@@ -290,14 +290,14 @@ podman top web user huser pid hpid
 podman rm -f web
 ```
 
-| Comando | Qué esperas | Qué demuestra |
-|---|---|---|
-| `skopeo inspect` | Un `"Digest": "sha256:..."` (lee el registro **sin descargar**) | Que la versión fijada existe. `manifest unknown` → no existe |
-| `podman run -d -p 8080:9898` | Capas descargándose y un ID | `address already in use` → algo usa el 8080 |
-| `curl localhost:8080` | JSON con `"version": "6.15.0"` | — |
-| `podman exec web ps` | podinfo con PID 1 | Espacio de PIDs propio |
-| `ps -ef \| grep [p]odinfo` | `podinfo` como proceso del host, con un UID grande (100000+) | Desde fuera es un proceso normal |
-| `podman top ... user huser pid hpid` | Usuario dentro y su UID en el host; PID dentro y fuera | El mapeo de `/etc/subuid` |
+| Comando                              | Qué esperas                                                     | Qué demuestra                                                |
+| ------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------ |
+| `skopeo inspect`                     | Un `"Digest": "sha256:..."` (lee el registro **sin descargar**) | Que la versión fijada existe. `manifest unknown` → no existe |
+| `podman run -d -p 8080:9898`         | Capas descargándose y un ID                                     | `address already in use` → algo usa el 8080                  |
+| `curl localhost:8080`                | JSON con `"version": "6.15.0"`                                  | —                                                            |
+| `podman exec web ps`                 | podinfo con PID 1                                               | Espacio de PIDs propio                                       |
+| `ps -ef \| grep [p]odinfo`           | `podinfo` como proceso del host, con un UID grande (100000+)    | Desde fuera es un proceso normal                             |
+| `podman top ... user huser pid hpid` | Usuario dentro y su UID en el host; PID dentro y fuera          | El mapeo de `/etc/subuid`                                    |
 
 ⚠️ **Error común en el mercado: tratar el contenedor como una VM.** Se entra con `exec` a "arreglar" cosas (instalar
 paquetes, editar ficheros) en un contenedor en marcha. Al recrearlo, todo se pierde, y nadie sabe qué cambió. **Cómo
@@ -355,13 +355,13 @@ podman history localhost/lab/saludo:1.0 | head -6
 podman images localhost/lab/saludo
 ```
 
-| Comando | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `skopeo list-tags` | Etiquetas `"9.6"`, `"9.7"`, `"9.8"`: usa la más alta en el `FROM` | — |
-| `pwd` | `/home/adminlab/podman-lab/saludo` **antes** de los `cat >` | Otro directorio → los ficheros acaban en otro sitio |
-| `ls -la` | `Containerfile` y `saludo.sh`, con más de 0 bytes | — |
-| `podman build ... .` | `STEP 1/6`...`STEP 6/6`, `Successfully tagged localhost/lab/saludo:1.0` | Se para en `COPY` → el fichero no está en el contexto |
-| `podman run --rm` | `... Hola desde <id> (uid=1001)` | `Trying to pull registry.access.redhat.com/lab/saludo` → la imagen no existe en local |
+| Comando              | Qué esperas                                                             | Si sale otra cosa                                                                     |
+| -------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `skopeo list-tags`   | Etiquetas `"9.6"`, `"9.7"`, `"9.8"`: usa la más alta en el `FROM`       | —                                                                                     |
+| `pwd`                | `/home/adminlab/podman-lab/saludo` **antes** de los `cat >`             | Otro directorio → los ficheros acaban en otro sitio                                   |
+| `ls -la`             | `Containerfile` y `saludo.sh`, con más de 0 bytes                       | —                                                                                     |
+| `podman build ... .` | `STEP 1/6`...`STEP 6/6`, `Successfully tagged localhost/lab/saludo:1.0` | Se para en `COPY` → el fichero no está en el contexto                                 |
+| `podman run --rm`    | `... Hola desde <id> (uid=1001)`                                        | `Trying to pull registry.access.redhat.com/lab/saludo` → la imagen no existe en local |
 
 > ✅ **Resultado real (2026-10-30):** `User=1001  Cmd=[/usr/local/bin/saludo.sh]`, `Capas=3`; en `history`, `COPY` y
 > `RUN chmod` con `3.58kB` cada uno, y `USER`, `CMD` y `LABEL` con `0B`; `localhost/lab/saludo 1.0 38202e4c3e82 109 MB`.
@@ -407,13 +407,13 @@ podman run --rm -v ~/datos:/datos:Z registry.access.redhat.com/ubi9/ubi-minimal:
 ls -laZ ~/datos
 ```
 
-| Paso | Qué esperas | Qué demuestra |
-|---|---|---|
-| `ls -laZ` (antes) | `adminlab`, `unconfined_u:object_r:user_home_t:s0` | — |
-| Sin `:Z` | `cat: /datos/hola.txt: Permission denied` | Los permisos Unix están bien; algo más bloquea |
-| `ausearch -m avc` | `avc: denied { read } ... scontext=...container_t... tcontext=...user_home_t` | Es SELinux. `timeout` por el caso [etapa2/06](../troubleshooting/etapa2/06-ausearch-colgado-timeout.md) |
-| Con `:Z` | `hola desde el host` | — |
-| `ls -laZ` (después) | `system_u:object_r:container_file_t:s0:cX,cY` | Podman reetiquetó el directorio |
+| Paso                | Qué esperas                                                                   | Qué demuestra                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `ls -laZ` (antes)   | `adminlab`, `unconfined_u:object_r:user_home_t:s0`                            | —                                                                                                       |
+| Sin `:Z`            | `cat: /datos/hola.txt: Permission denied`                                     | Los permisos Unix están bien; algo más bloquea                                                          |
+| `ausearch -m avc`   | `avc: denied { read } ... scontext=...container_t... tcontext=...user_home_t` | Es SELinux. `timeout` por el caso [etapa2/06](../troubleshooting/etapa2/06-ausearch-colgado-timeout.md) |
+| Con `:Z`            | `hola desde el host`                                                          | —                                                                                                       |
+| `ls -laZ` (después) | `system_u:object_r:container_file_t:s0:cX,cY`                                 | Podman reetiquetó el directorio                                                                         |
 
 > ✅ **Resultado real (2026-10-30):** `hola desde el host`; `~/datos` y `hola.txt` en
 > `system_u:object_r:container_file_t:s0:c87,c584`; el home (`..`) sigue en `user_home_dir_t`. Los permisos Unix
@@ -527,13 +527,13 @@ podman ps
 journalctl --user -u saludo -n 3 --no-pager
 ```
 
-| Paso | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `quadlet -dryrun -user` | El `.service` generado, con `ExecStart=/usr/bin/podman run ... localhost/lab/saludo:1.0 /usr/local/bin/saludo.sh --bucle` | Un error de sintaxis sale aquí y no se genera nada |
-| `start saludo` + `status` | `active (running)` | `Unit saludo.service not found` → el generador no la creó |
-| `journalctl` | Una línea de saludo cada 30 s | — |
-| `Linger` | Primero el valor previo (anótalo); después `Linger=yes` | — |
-| Tras el reboot, `podman ps` | `saludo` en `Up` sin hacer nada | Sin linger, no arranca hasta que entras |
+| Paso                        | Qué esperas                                                                                                               | Si sale otra cosa                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `quadlet -dryrun -user`     | El `.service` generado, con `ExecStart=/usr/bin/podman run ... localhost/lab/saludo:1.0 /usr/local/bin/saludo.sh --bucle` | Un error de sintaxis sale aquí y no se genera nada        |
+| `start saludo` + `status`   | `active (running)`                                                                                                        | `Unit saludo.service not found` → el generador no la creó |
+| `journalctl`                | Una línea de saludo cada 30 s                                                                                             | —                                                         |
+| `Linger`                    | Primero el valor previo (anótalo); después `Linger=yes`                                                                   | —                                                         |
+| Tras el reboot, `podman ps` | `saludo` en `Up` sin hacer nada                                                                                           | Sin linger, no arranca hasta que entras                   |
 
 **Vuelta atrás:** `systemctl --user stop saludo`, `rm ~/.config/containers/systemd/saludo.container`,
 `systemctl --user daemon-reload` y, si antes era `no`, `sudo loginctl disable-linger adminlab`.
@@ -568,16 +568,16 @@ Services con balanceo, escalado declarativo (`replicas: 3`) y actualizaciones pr
 
 📘 **Concepto.** Un clúster tiene un **plano de control** y **nodos**:
 
-| Componente | Dónde | Qué hace |
-|---|---|---|
-| `kube-apiserver` | Plano de control | La única puerta: todo (kubectl, kubelets, controladores) pasa por la API, que valida, autoriza y guarda |
-| `etcd` | Plano de control | Base de datos clave-valor con **todo** el estado del clúster |
-| `kube-scheduler` | Plano de control | Decide en qué nodo va cada pod nuevo, según recursos, afinidades y *taints* |
-| `kube-controller-manager` | Plano de control | Los bucles de control: comparan estado deseado y real y corrigen (ReplicaSets, nodos, endpoints...) |
-| `kubelet` | Cada nodo | Arranca y vigila los pods asignados a su nodo, a través del runtime |
-| Runtime (containerd) | Cada nodo | Descarga imágenes y ejecuta contenedores (interfaz CRI) |
-| `kube-proxy` | Cada nodo | Programa las reglas que hacen funcionar los Services |
-| CNI (Calico) | Cada nodo | Da IP a los pods y los conecta entre nodos |
+| Componente                | Dónde            | Qué hace                                                                                                |
+| ------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `kube-apiserver`          | Plano de control | La única puerta: todo (kubectl, kubelets, controladores) pasa por la API, que valida, autoriza y guarda |
+| `etcd`                    | Plano de control | Base de datos clave-valor con **todo** el estado del clúster                                            |
+| `kube-scheduler`          | Plano de control | Decide en qué nodo va cada pod nuevo, según recursos, afinidades y *taints*                             |
+| `kube-controller-manager` | Plano de control | Los bucles de control: comparan estado deseado y real y corrigen (ReplicaSets, nodos, endpoints...)     |
+| `kubelet`                 | Cada nodo        | Arranca y vigila los pods asignados a su nodo, a través del runtime                                     |
+| Runtime (containerd)      | Cada nodo        | Descarga imágenes y ejecuta contenedores (interfaz CRI)                                                 |
+| `kube-proxy`              | Cada nodo        | Programa las reglas que hacen funcionar los Services                                                    |
+| CNI (Calico)              | Cada nodo        | Da IP a los pods y los conecta entre nodos                                                              |
 
 `kubeadm` es la herramienta oficial para **arrancar** un clúster con buenas prácticas (`init`, `join`, `upgrade`); no
 instala la red de pods ni nada más.
@@ -615,17 +615,17 @@ dig +short k8s-api.lab.local @10.10.10.20
 for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh snapshot create "$h" 5; done
 ```
 
-| Paso | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `free` / `df` | ≥ 19 GiB disponibles; ≥ 60 GB libres en el pool `lab-images` | RAM: apaga las `app01` que no uses. Disco: ver [Presupuesto de disco](#presupuesto-de-disco-del-host) |
-| `grep '^k8s'` | 3 líneas: RHEL 9, `.100/.101/.102`, 4096/5120 MB, discos 20 y 40, `opcional` | — |
-| `vm-create` | La VM instalada y encendida (pide la contraseña de `adminlab` una vez) | `virsh console k8s-cp01` para ver la instalación (`Ctrl+]` para salir) |
-| `status` | Las tres con `SSH OK` | — |
-| `register` | Cambia `TU_USUARIO_DE_RED_HAT` por tu usuario; la contraseña se pide en la VM | — |
-| `stage2`...`stage5` | Cada etapa termina sin errores | Arréglalo **ahora**: después no sabrás de dónde viene |
-| `test all` | 0 FAIL en los tres | — |
-| `dig` | `10.10.10.100` | — |
-| `snapshot create ... 5` | `<nodo>-stage5-complete` en los tres | — |
+| Paso                    | Qué esperas                                                                   | Si sale otra cosa                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `free` / `df`           | ≥ 19 GiB disponibles; ≥ 60 GB libres en el pool `lab-images`                  | RAM: apaga las `app01` que no uses. Disco: ver [Presupuesto de disco](#presupuesto-de-disco-del-host) |
+| `grep '^k8s'`           | 3 líneas: RHEL 9, `.100/.101/.102`, 4096/5120 MB, discos 20 y 40, `opcional`  | —                                                                                                     |
+| `vm-create`             | La VM instalada y encendida (pide la contraseña de `adminlab` una vez)        | `virsh console k8s-cp01` para ver la instalación (`Ctrl+]` para salir)                                |
+| `status`                | Las tres con `SSH OK`                                                         | —                                                                                                     |
+| `register`              | Cambia `TU_USUARIO_DE_RED_HAT` por tu usuario; la contraseña se pide en la VM | —                                                                                                     |
+| `stage2`...`stage5`     | Cada etapa termina sin errores                                                | Arréglalo **ahora**: después no sabrás de dónde viene                                                 |
+| `test all`              | 0 FAIL en los tres                                                            | —                                                                                                     |
+| `dig`                   | `10.10.10.100`                                                                | —                                                                                                     |
+| `snapshot create ... 5` | `<nodo>-stage5-complete` en los tres                                          | —                                                                                                     |
 
 ⚠️ **Error común en el mercado: relojes desincronizados.** Nodos sin NTP (o con NTP bloqueado por el firewall) que se
 desfasan unos minutos: aparecen errores `x509: certificate has expired or is not yet valid` al unir un nodo, tokens
