@@ -12,6 +12,7 @@ dice la guía o los que enseñen algo que no esté ya escrito.
 | [01](01-build-contexto-equivocado-y-nombre-corto.md) 🔎 | 8.1.3 | `podman build` desde el directorio equivocado y nombre corto de imagen |
 | [02](02-barra-invertida-en-mitad-de-linea.md) 🔎 | 8.1.5 | Una `\` en mitad de la línea: `executable file ' bash' not found` y pod `Degraded` |
 | [03](03-journalctl-user-sin-diario-persistente.md) 🔎 | 8.1.6 | `journalctl --user` sin entradas: diario volátil |
+| [04](04-ssh-alias-nodos-k8s-no-generados.md) 🔎 | 8.2.1 | `ssh k8s-cp01`: `Could not resolve hostname` (alias SSH generados con el inventario antiguo) |
 
 ## Primeros comandos ante cualquier problema del clúster
 

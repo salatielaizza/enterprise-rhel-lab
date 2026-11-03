@@ -24,7 +24,7 @@ cada tema sigue siempre el mismo orden:
 | -------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `# [host]`                 | Linux Mint, en la raíz del repo (`~/Proyectos/PROYECTO_ENTERPRISE_RHEL_INFRASTRUCTURE_LAB/enterprise-rhel-lab`) |
 | `# [ansible01 · adminlab]` | `ssh adminlab@ansible01`; aquí se usan `podman`, `kubectl`, `helm` y `terraform`                                |
-| `# [k8s-cp01 · root]`      | `ssh adminlab@k8s-cp01` y después `sudo -i`                                                                     |
+| `# [k8s-cp01 · root]`      | `ssh k8s-cp01` (alias del paso 8.2.1) y después `sudo -i`                                                       |
 | `# [nodos · root]`         | Lo mismo en **los tres** nodos (`k8s-cp01`, `k8s-w01`, `k8s-w02`), uno detrás de otro                           |
 | `# [workers · root]`       | Solo en `k8s-w01` y `k8s-w02`                                                                                   |
 
@@ -630,6 +630,13 @@ grep '^k8s' scripts/hosts.conf
 scripts/lab.sh vm-create k8s-cp01
 scripts/lab.sh vm-create k8s-w01
 scripts/lab.sh vm-create k8s-w02
+cp -a ~/.ssh/lab_config ~/.ssh/lab_config.antes-8.2
+for h in k8s-cp01 k8s-w01 k8s-w02; do
+  grep -q "^Host $h\$" ~/.ssh/lab_config && continue
+  ip=$(awk -v n="$h" '$1==n {print $3}' scripts/hosts.conf)
+  printf 'Host %s\n  HostName %s\n  User adminlab\n  IdentityFile ~/.ssh/lab_ed25519\n  IdentitiesOnly yes\n  UserKnownHostsFile ~/.ssh/known_hosts_lab\n  StrictHostKeyChecking accept-new\n\n' "$h" "$ip" >> ~/.ssh/lab_config
+done
+for h in k8s-cp01 k8s-w01 k8s-w02; do ssh "$h" hostname; done
 scripts/lab.sh status
 for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh register "$h" TU_USUARIO_DE_RED_HAT; done
 scripts/lab.sh stage4-dns
@@ -647,12 +654,18 @@ for h in k8s-cp01 k8s-w01 k8s-w02; do scripts/lab.sh snapshot create "$h" 5; don
 | `free` / `df`           | ≥ 19 GiB disponibles; ≥ 60 GB libres en el pool `lab-images`                  | RAM: apaga las `app01` que no uses. Disco: ver [Presupuesto de disco](#presupuesto-de-disco-del-host) |
 | `grep '^k8s'`           | 3 líneas: RHEL 9, `.100/.101/.102`, 4096/5120 MB, discos 20 y 40, `opcional`  | —                                                                                                     |
 | `vm-create`             | La VM instalada y encendida (pide la contraseña de `adminlab` una vez)        | `virsh console k8s-cp01` para ver la instalación (`Ctrl+]` para salir)                                |
+| Alias en `lab_config`   | Las tres responden `k8s-*.lab.local`                                          | Los alias de `~/.ssh/lab_config` los generó `host-setup` con el `hosts.conf` de la Etapa 1: sin este bloque, `ssh k8s-cp01` → `Could not resolve hostname` (caso [etapa8/04](../troubleshooting/etapa8/04-ssh-alias-nodos-k8s-no-generados.md)) |
 | `status`                | Las tres con `SSH OK`                                                         | —                                                                                                     |
 | `register`              | Cambia `TU_USUARIO_DE_RED_HAT` por tu usuario; la contraseña se pide en la VM | —                                                                                                     |
 | `stage2`...`stage5`     | Cada etapa termina sin errores                                                | Arréglalo **ahora**: después no sabrás de dónde viene                                                 |
 | `test all`              | 0 FAIL en los tres                                                            | —                                                                                                     |
 | `dig`                   | `10.10.10.100`                                                                | —                                                                                                     |
 | `snapshot create ... 5` | `<nodo>-stage5-complete` en los tres                                          | —                                                                                                     |
+
+> ✅ **Resultado real (2026-11-03):** etapas 2-5 sin errores; `test all` con **172 PASS / 0 FAIL** en los tres nodos;
+> `test_time` con la única fuente `10.10.10.20` seleccionada (`^*`); `vg_data` de 40 GiB con 32 GiB libres; snapshots
+> `*-stage5-complete` creados. Justo antes, `chronyc sources` en `dns01` mostraba `^?` y `System clock synchronized: no`:
+> chrony recién reiniciado aún no había elegido servidor (`Reach 3`); se sincronizó solo en un par de minutos.
 
 ⚠️ **Error común en el mercado: relojes desincronizados.** Nodos sin NTP (o con NTP bloqueado por el firewall) que se
 desfasan unos minutos: aparecen errores `x509: certificate has expired or is not yet valid` al unir un nodo, tokens
@@ -667,7 +680,7 @@ nodos: solo los puertos de firewalld (apartado e).
 
 ```bash
 # [host]
-ssh adminlab@k8s-cp01
+ssh k8s-cp01
 # [k8s-cp01]
 sudo -i
 ```
@@ -847,7 +860,7 @@ firewall-cmd --zone=k8s --list-all
 
 ```bash
 # [host]  en otra terminal, antes de cerrar nada
-ssh adminlab@k8s-cp01 hostname
+ssh k8s-cp01 hostname
 ```
 
 | Paso | Qué esperas | Si sale otra cosa |
@@ -993,7 +1006,7 @@ objeto `Installation` con el pool de IPs de los pods.
 ```bash
 # [host]
 scp scripts/stage8/files/cluster/kubeadm-config.yaml scripts/stage8/files/cluster/calico-custom-resources.yaml \
-    adminlab@k8s-cp01.lab.local:
+    k8s-cp01:
 ```
 
 ```bash
@@ -1137,7 +1150,7 @@ git clone https://github.com/salatielaizza/enterprise-rhel-lab.git ~/enterprise-
 
 | Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
-| `kubectl get nodes` | Los 3 nodos | `scp` pide contraseña → copia la clave de `ansible01` desde el host: `ssh adminlab@ansible01 cat .ssh/id_ed25519.pub \| ssh adminlab@k8s-cp01 'cat >> .ssh/authorized_keys'` |
+| `kubectl get nodes` | Los 3 nodos | `scp` pide contraseña → copia la clave de `ansible01` desde el host: `ssh adminlab@ansible01 cat .ssh/id_ed25519.pub \| ssh k8s-cp01 'cat >> .ssh/authorized_keys'` |
 | `get-contexts` | `* kubernetes-admin@lab-k8s` | — |
 | `sha256sum -c` | `helm-v4...tar.gz: OK` | `FAILED` → **no** lo instales |
 | `git clone` | `~/enterprise-rhel-lab` con `scripts/stage8/files` | Para actualizarlo: `git -C ~/enterprise-rhel-lab pull` |
@@ -3540,7 +3553,7 @@ sincroniza con `rsync --delete`: caso etapa7/04).
 ```bash
 # [host]  la clave de ansible01 en los tres nodos (con el acceso que el host ya tiene)
 for h in k8s-cp01 k8s-w01 k8s-w02; do
-  ssh adminlab@ansible01 cat .ssh/id_ed25519.pub | ssh adminlab@$h.lab.local 'cat >> .ssh/authorized_keys'
+  ssh ansible01 cat .ssh/id_ed25519.pub | ssh "$h" 'cat >> .ssh/authorized_keys'
 done
 ```
 

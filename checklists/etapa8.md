@@ -36,7 +36,7 @@ comparado con OpenShift; con CI/GitOps y automatización con Ansible de lo que a
 ## 8.2 Clúster con kubeadm
 | # | Prueba | Resultado esperado | Resultado obtenido |
 |---|---|---|---|
-| 5 | `lab.sh test all k8s-*` antes de Kubernetes | 0 FAIL en los 3 nodos; snapshots `*-stage5-complete` | |
+| 5 | `lab.sh test all k8s-*` antes de Kubernetes | 0 FAIL en los 3 nodos; snapshots `*-stage5-complete` | ✅ 2026-11-03. **172 PASS / 0 FAIL** en `k8s-cp01`, `k8s-w01` y `k8s-w02`; hora con `^*` en `10.10.10.20`; `vg_data` 40 GiB (32 libres); 3 snapshots `*-stage5-complete`. Alias SSH añadidos: caso [04](../troubleshooting/etapa8/04-ssh-alias-nodos-k8s-no-generados.md) |
 | 6 | LVs `lv_containerd` 16G, `lv_kubelet` 6G, `lv_localpath` 8G montados | `df -h` y `/etc/fstab`; contexto SELinux restaurado | |
 | 7 | Swap desactivada, módulos y sysctl | `swapon --show` vacío; `ip_forward = 1` | |
 | 8 | Zona `k8s` de firewalld | Orígenes del lab, pods y servicios; SSH sigue funcionando | |
@@ -124,4 +124,5 @@ comparado con OpenShift; con CI/GitOps y automatización con Ansible de lo que a
 |---|---|---|
 | `podman run lab/saludo:1.0` intenta descargar de 3 registros; imagen `<none>` | Build lanzado desde `~` (contexto equivocado) y nombre corto | Directorio propio y `localhost/lab/saludo:1.0` (caso 01) |
 | `executable file ' bash' not found`; pod `Degraded` | `\` en mitad de la línea: el espacio pasa a formar parte del comando | Una línea sin `\` (caso 02) |
+| `ssh k8s-cp01`: `Could not resolve hostname` | Alias de `~/.ssh/lab_config` generados antes de añadir los `k8s-*` a `hosts.conf` | Añadir los alias (caso 04) |
 | `journalctl --user`: `No journal files were found` | Diario volátil: los logs de usuario van al del sistema | `podman logs saludo` o `sudo journalctl _SYSTEMD_USER_UNIT=saludo.service` (caso 03) |

@@ -74,12 +74,13 @@ enlaza los casos de otras etapas que practican lo mismo ([etapa2/04](etapa2/04-s
 | [06 marca-etapa7-no-se-aplica-ni-se-comprueba](etapa7/06-marca-etapa7-no-se-aplica-ni-se-comprueba.md) 🔎 | `lab.sh stage7 site` no copiaba `03-mark-stage.sh` a los nodos, el test de la marca usaba una función de `lib.sh` dentro de `bash -c` y `ansible01` nunca se marcaba (su `test_ansible` no se ejecutaba) |
 | [07 molecule-escenario-nunca-ejecutado](etapa7/07-molecule-escenario-nunca-ejecutado.md) 🔎 | El escenario de Molecule del rol `common` nunca se había ejecutado: Docker → Podman, credenciales caducadas de Docker Hub en el equipo host, `sudo` siendo root en el contenedor y ruta de roles |
 
-## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — Kubernetes y OpenShift, Prometheus/Grafana, Terraform (3 casos)
+## [Etapa 8](etapa8/README_troubleshooting_etapa8.md) — Kubernetes y OpenShift, Prometheus/Grafana, Terraform (4 casos)
 | Caso | Tema |
 |---|---|
 | [01 build-contexto-equivocado-y-nombre-corto](etapa8/01-build-contexto-equivocado-y-nombre-corto.md) 🔎 | `podman build` desde `~` deja una imagen `<none>` sin `USER`/`CMD`, y el nombre corto busca la imagen en 3 registros remotos |
 | [02 barra-invertida-en-mitad-de-linea](etapa8/02-barra-invertida-en-mitad-de-linea.md) 🔎 | Una `\` en mitad de la línea convierte `bash` en ` bash`: contenedor sin arrancar y pod `Degraded` tras `kube play` |
 | [03 journalctl-user-sin-diario-persistente](etapa8/03-journalctl-user-sin-diario-persistente.md) 🔎 | `journalctl --user` sin entradas con el servicio Quadlet en marcha: diario volátil |
+| [04 ssh-alias-nodos-k8s-no-generados](etapa8/04-ssh-alias-nodos-k8s-no-generados.md) 🔎 | `ssh k8s-cp01` no resuelve: los alias de `~/.ssh/lab_config` se generaron antes de añadir los nodos a `hosts.conf` |
 
 Los escenarios provocados de la 8.8 (E00-E12) y la 8.9 (T1-T8) están en [`kubernetes/`](../kubernetes/etapa8-kubernetes-openshift.md).
 
