@@ -71,26 +71,26 @@ provocando averías reales, **gestionarlo como código con Terraform** y con **G
  Pods 10.244.0.0/16 (Calico) · Services 10.96.0.0/12 · LoadBalancer (MetalLB) .110-.119
 ```
 
-| Nombre (lab.local) | IP | Qué es | Subetapa |
-|---|---|---|---|
-| `k8s-cp01` / `k8s-api` | .100 | Plano de control (API, etcd, scheduler, controller-manager) | 8.2 |
-| `k8s-w01`, `k8s-w02` | .101, .102 | Nodos de trabajo | 8.2 |
-| `ingress` | .110 | Controlador de entrada (Traefik) | 8.4 |
-| `grafana` / `prometheus` / `alertmanager` | .111 / .112 / .113 | kube-prometheus-stack | 8.8 |
-| `podinfo` | .114 | Aplicación de ejemplo | 8.3-8.4 |
-| `gitea` | .115 | Git dentro del clúster | 8.7 |
-| `argocd` | .116 | GitOps | 8.11 |
-| `tienda` | .117 | App creada con Terraform | 8.9 |
+| Nombre (lab.local)                        | IP                 | Qué es                                                      | Subetapa |
+| ----------------------------------------- | ------------------ | ----------------------------------------------------------- | -------- |
+| `k8s-cp01` / `k8s-api`                    | .100               | Plano de control (API, etcd, scheduler, controller-manager) | 8.2      |
+| `k8s-w01`, `k8s-w02`                      | .101, .102         | Nodos de trabajo                                            | 8.2      |
+| `ingress`                                 | .110               | Controlador de entrada (Traefik)                            | 8.4      |
+| `grafana` / `prometheus` / `alertmanager` | .111 / .112 / .113 | kube-prometheus-stack                                       | 8.8      |
+| `podinfo`                                 | .114               | Aplicación de ejemplo                                       | 8.3-8.4  |
+| `gitea`                                   | .115               | Git dentro del clúster                                      | 8.7      |
+| `argocd`                                  | .116               | GitOps                                                      | 8.11     |
+| `tienda`                                  | .117               | App creada con Terraform                                    | 8.9      |
 
 Los tres nodos están en `scripts/hosts.conf` como **opcionales** (`lab.sh ... all` no los incluye) y sus registros DNS
 ya están en la zona de la Etapa 4. Cada nodo tiene un disco de datos de 40 GB: la Etapa 2 usa 8 GB (`vg_data`) y la
 8.2 crea `lv_containerd` (16 GB), `lv_kubelet` (6 GB) y `lv_localpath` (8 GB).
 
-| Conjunto | RAM | Notas |
-|---|---|---|
-| `dns01` + `ansible01` | 5 GiB | Siempre encendidas en esta etapa |
-| Clúster (cp01 4 GiB + 2 × 5 GiB) | 14 GiB | Total ≈ 19 GiB |
-| OpenShift Local (8.10) | 10,5-11 GiB | **Con el clúster apagado** |
+| Conjunto                         | RAM         | Notas                            |
+| -------------------------------- | ----------- | -------------------------------- |
+| `dns01` + `ansible01`            | 5 GiB       | Siempre encendidas en esta etapa |
+| Clúster (cp01 4 GiB + 2 × 5 GiB) | 14 GiB      | Total ≈ 19 GiB                   |
+| OpenShift Local (8.10)           | 10,5-11 GiB | **Con el clúster apagado**       |
 
 ### Versiones fijadas (octubre de 2026)
 
@@ -716,13 +716,13 @@ systemctl daemon-reload && mount -a
 df -h /var/lib/containerd /var/lib/kubelet /var/lib/local-path
 ```
 
-| Paso | Qué esperas | Si sale otra cosa |
-|---|---|---|
-| `vgs vg_data` | ~40 GiB con ≥ 30 GiB en `VFree` | Menos → los tres LVs no caben: **para** |
-| `lvcreate` | `Logical volume "lv_..." created.` | `Insufficient free space` |
-| `cp -a /etc/fstab ...` | Copia de seguridad antes de tocarlo | — |
-| `findmnt --verify` | `Success, no errors or warnings detected` | Un error aquí es el modo emergencia en el próximo arranque (caso [etapa2/02](../troubleshooting/etapa2/02-bad-fstab.md)): restaura la copia |
-| `df -h` | 16G, 6G y 8G montados | `mount point does not exist` → falta un `mkdir` |
+| Paso                   | Qué esperas                               | Si sale otra cosa                                                                                                                           |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vgs vg_data`          | ~40 GiB con ≥ 30 GiB en `VFree`           | Menos → los tres LVs no caben: **para**                                                                                                     |
+| `lvcreate`             | `Logical volume "lv_..." created.`        | `Insufficient free space`                                                                                                                   |
+| `cp -a /etc/fstab ...` | Copia de seguridad antes de tocarlo       | —                                                                                                                                           |
+| `findmnt --verify`     | `Success, no errors or warnings detected` | Un error aquí es el modo emergencia en el próximo arranque (caso [etapa2/02](../troubleshooting/etapa2/02-bad-fstab.md)): restaura la copia |
+| `df -h`                | 16G, 6G y 8G montados                     | `mount point does not exist` → falta un `mkdir`                                                                                             |
 
 ⚠️ **Error común en el mercado: nodos con todo en `/` o en `/var`.** Las imágenes que nadie limpia y los logs de los
 pods llenan el disco del sistema; el kubelet empieza a desalojar pods en cascada y, si `/var` llega al 100 %, el nodo
@@ -1023,13 +1023,13 @@ ls /etc/kubernetes/manifests/
 
 Las decisiones del fichero (cada una comentada en él):
 
-| Clave | Valor | Por qué |
-|---|---|---|
-| `controlPlaneEndpoint` | `k8s-api.lab.local:6443` | Un nombre DNS: un segundo nodo de control solo cambiaría el registro |
-| `podSubnet` / `serviceSubnet` | `10.244.0.0/16` / `10.96.0.0/12` | No chocan con el lab, con libvirt ni con la red de casa |
-| `bind-address: 0.0.0.0`, `listen-metrics-urls`, `metricsBindAddress` | Métricas fuera de `127.0.0.1` | Si no, Prometheus los da por caídos (E00 de la 8.8) |
-| `cgroupDriver: systemd` | Igual que containerd | Apartado f |
-| `containerLogMaxSize: 10Mi`, `containerLogMaxFiles: 3` | Logs acotados | `/var` tiene 4 GB |
+| Clave                                                                | Valor                            | Por qué                                                              |
+| -------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------- |
+| `controlPlaneEndpoint`                                               | `k8s-api.lab.local:6443`         | Un nombre DNS: un segundo nodo de control solo cambiaría el registro |
+| `podSubnet` / `serviceSubnet`                                        | `10.244.0.0/16` / `10.96.0.0/12` | No chocan con el lab, con libvirt ni con la red de casa              |
+| `bind-address: 0.0.0.0`, `listen-metrics-urls`, `metricsBindAddress` | Métricas fuera de `127.0.0.1`    | Si no, Prometheus los da por caídos (E00 de la 8.8)                  |
+| `cgroupDriver: systemd`                                              | Igual que containerd             | Apartado f                                                           |
+| `containerLogMaxSize: 10Mi`, `containerLogMaxFiles: 3`               | Logs acotados                    | `/var` tiene 4 GB                                                    |
 
 | Paso | Qué esperas | Si sale otra cosa |
 |---|---|---|
@@ -1084,9 +1084,15 @@ kubeadm token create --print-join-command
 ```
 
 ```bash
-# [workers · root]  (pega el comando que imprimió k8s-cp01; tiene esta forma)
+# [k8s-w01 · root]  (pega el comando que imprimió k8s-cp01; tiene esta forma)
 kubeadm join k8s-api.lab.local:6443 --token abcdef.0123456789abcdef \
-  --discovery-token-ca-cert-hash sha256:0123...cdef
+  --discovery-token-ca-cert-hash sha256:0123...cdef --node-name k8s-w01
+```
+
+```bash
+# [k8s-w02 · root]  (pega el comando que imprimió k8s-cp01; tiene esta forma)
+kubeadm join k8s-api.lab.local:6443 --token abcdef.0123456789abcdef \
+  --discovery-token-ca-cert-hash sha256:0123...cdef --node-name k8s-w02
 ```
 
 ```bash
