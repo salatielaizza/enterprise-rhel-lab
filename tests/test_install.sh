@@ -15,7 +15,13 @@ check "qemu-guest-agent activo" systemctl is-active --quiet qemu-guest-agent
 check "LVM del sistema: vg_system con lv_root, lv_swap y lv_var" bash -c 'for l in lv_root lv_swap lv_var; do lvs vg_system/$l >/dev/null || exit 1; done'
 check "/ es XFS" bash -c '[[ "$(findmnt -no FSTYPE /)" == xfs ]]'
 check "/var es un volumen lógico aparte" bash -c 'findmnt -no SOURCE /var | grep -q lv_var'
-check "swap activa" bash -c '[[ $(wc -l < /proc/swaps) -ge 2 ]]'
+# Nodos de Kubernetes (Etapa 8.2.2 b): el kubelet no arranca con swap y la 8.2 la desactiva a propósito
+# (lv_swap comentado en fstab). Hasta entonces, un nodo k8s-* se comprueba como cualquier otra VM.
+if [[ "$(hostname -s)" == k8s-* ]] && grep -Eq '^[[:space:]]*#.*lv_swap' /etc/fstab; then
+  check "swap desactivada (nodo Kubernetes, Etapa 8.2)" bash -c '[[ $(wc -l < /proc/swaps) -le 1 ]]'
+else
+  check "swap activa" bash -c '[[ $(wc -l < /proc/swaps) -ge 2 ]]'
+fi
 check "usuario adminlab (UID 1001) en wheel" bash -c '[[ "$(id -u adminlab)" == 1001 ]] && id -nG adminlab | grep -qw wheel'
 check "adminlab tiene authorized_keys (acceso por clave)" test -s /home/adminlab/.ssh/authorized_keys
 check "/etc/lab-release existe" test -f /etc/lab-release

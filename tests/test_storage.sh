@@ -20,6 +20,12 @@ fi
 check "vg_system: lv_root, lv_swap, lv_var" bash -c 'for l in lv_root lv_swap lv_var; do lvs vg_system/$l || exit 1; done'
 check "/ y /var montados como XFS" bash -c '[[ "$(findmnt -no FSTYPE /)" == xfs && "$(findmnt -no FSTYPE /var)" == xfs ]]'
 if findmnt --help 2>&1 | grep -q -- '--verify'; then check "findmnt --verify sin errores" findmnt --verify; fi
-check "swap activa" bash -c '[[ $(wc -l < /proc/swaps) -ge 2 ]]'
+# Nodos de Kubernetes (Etapa 8.2.2 b): el kubelet no arranca con swap y la 8.2 la desactiva a propósito
+# (lv_swap comentado en fstab). Hasta entonces, un nodo k8s-* se comprueba como cualquier otra VM.
+if [[ "$(hostname -s)" == k8s-* ]] && grep -Eq '^[[:space:]]*#.*lv_swap' /etc/fstab; then
+  check "swap desactivada (nodo Kubernetes, Etapa 8.2)" bash -c '[[ $(wc -l < /proc/swaps) -le 1 ]]'
+else
+  check "swap activa" bash -c '[[ $(wc -l < /proc/swaps) -ge 2 ]]'
+fi
 check "ninguna unidad .mount en estado failed" bash -c '! systemctl list-units --type=mount --state=failed --no-legend | grep -q .'
 summary
